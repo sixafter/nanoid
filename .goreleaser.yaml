@@ -4,6 +4,8 @@ before:
   hooks:
     - go mod tidy
 builds:
+  # Ref: https://goreleaser.com/errors/no-main/#if-you-are-building-a-library
+  - skip: true
   - targets: [go_first_class]
     mod_timestamp: '{{ .CommitTimestamp }}'
     flags:
