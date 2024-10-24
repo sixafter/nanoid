@@ -23,3 +23,10 @@ go.work.sum
 
 # env file
 .env
+
+coverage.json
+coverage.out
+
+.idea/
+.DS_Store
+
