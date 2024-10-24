@@ -20,7 +20,7 @@ jobs:
       flags: ""
     steps:
       # - if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-      - if: ${{ startsWith(github.ref, 'refs/tags/') && github.ref != '' && github.ref | replace('refs/tags/', '') =~ '^[0-9]' }}
+      - if: ${{ startsWith(github.ref, 'refs/tags/') && contains('0123456789', github.ref | slice(10, 11)) }}
         run: echo "flags=--snapshot" >> $GITHUB_ENV
 
       - name: Preamble
