@@ -70,7 +70,7 @@ vendor:
 	fi
 
 .PHONY: update
-update:
+update: ## Update Go dependencies
 	$(GO_GET) -u
 
 .PHONY: vuln
