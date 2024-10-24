@@ -1,0 +1,49 @@
+# Ref: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+name: ci
+
+on:
+  workflow_dispatch:
+
+  push:
+      branches:
+        - main
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      flags: ""
+    steps:
+      - name: Preamble
+        run: |
+          whoami
+          echo github ref $GITHUB_REF
+          echo workflow $GITHUB_WORKFLOW
+          echo home $HOME
+          echo event name $GITHUB_EVENT_NAME
+          echo workspace $GITHUB_WORKSPACE
+
+          df -h
+
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common ca-certificates gnupg-agent curl build-essential make
+
+      # Ref: https://github.com/actions/setup-go
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ">= 1.23"
+
+      # Ref: https://github.com/actions/checkout
+      - name: Checkout Source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Test
+        run: |
+          make test

@@ -58,7 +58,7 @@ lint: ## Lint the files
 	$(GO_LINT_CMD) --config .golangci.yaml --verbose ./...
 
 .PHONY: tidy
-tidy:
+tidy: ## Tidy vendored dependencies
 	$(GO_MOD) tidy
 
 .PHONY: vendor
@@ -70,7 +70,7 @@ vendor:
 	fi
 
 .PHONY: update
-update:
+update: ## Update Go dependencies
 	$(GO_GET) -u
 
 .PHONY: vuln
