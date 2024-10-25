@@ -14,4 +14,4 @@ changelog:
       - '^test:'
 
 release:
-  name_template: '{{ .Version }}'
+  name_template: 'v{{ .Version }}'

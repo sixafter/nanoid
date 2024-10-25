@@ -4,8 +4,8 @@ name: release
 on:
   workflow_dispatch:
   push:
-    # tags: ['v*']
-    tags: ['*']
+    tags: ['v*']
+    # tags: ['*']
 
 permissions:
   contents: write
@@ -18,8 +18,8 @@ jobs:
     env:
       flags: ""
     steps:
-      # - if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-      - if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+      - if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+      # - if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         #- if: ${{ startsWith(github.ref, 'refs/tags/') && contains('0123456789', github.ref | slice(10, 11)) }}
         run: echo "flags=--snapshot" >> $GITHUB_ENV
 
