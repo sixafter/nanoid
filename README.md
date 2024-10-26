@@ -8,11 +8,18 @@ A simple, fast, and efficient Go implementation of [NanoID](https://github.com/a
 
 ## Features
 
-- **Secure**: Uses `crypto/rand` for cryptographically secure random number generation.
-- **Fast**: Optimized for performance with efficient algorithms.
-- **Thread-Safe**: Safe for concurrent use in multi-threaded applications.
-- **Customizable**: Specify custom ID lengths and alphabets.
-- **Easy to Use**: Simple API with sensible defaults.
+* Stateless Design: Each function operates independently without relying on global state or caches, eliminating the need for synchronization primitives like mutexes. This design ensures predictable behavior and simplifies usage in various contexts. 
+* Cryptographically Secure: Utilizes Go's crypto/rand package for generating cryptographically secure random numbers. This guarantees that the generated IDs are both unpredictable and suitable for security-sensitive applications. 
+* High Performance: Optimized algorithms and efficient memory management techniques ensure rapid ID generation. Whether you're generating a few IDs or millions, the library maintains consistent speed and responsiveness. 
+* Memory Efficient: Implements sync.Pool to reuse byte slices, minimizing memory allocations and reducing garbage collection overhead. This approach significantly enhances performance, especially in high-throughput scenarios. 
+* Thread-Safe: Designed for safe concurrent use in multi-threaded applications. Multiple goroutines can generate IDs simultaneously without causing race conditions or requiring additional synchronization. 
+* Customizable: Offers flexibility to specify custom ID lengths and alphabets. Whether you need short, compact IDs or longer, more complex ones, the library can accommodate your specific requirements. 
+* User-Friendly API: Provides a simple and intuitive API with sensible defaults, making integration straightforward. Developers can start generating IDs with minimal configuration and customize as needed. 
+* Zero External Dependencies: Relies solely on Go's standard library, ensuring ease of use, compatibility, and minimal footprint within your projects. 
+* Comprehensive Testing: Includes a robust suite of unit tests and concurrency tests to ensure reliability, correctness, and thread safety. This commitment to quality guarantees consistent performance across different use cases. 
+* Detailed Documentation: Accompanied by clear and thorough documentation, including examples and usage guidelines. New users can quickly understand how to implement and customize the library to fit their needs. 
+* Efficient Error Handling: Employs predefined errors to avoid unnecessary allocations, enhancing both performance and clarity in error management. 
+* Optimized for Low Allocations: Carefully structured to minimize heap allocations, reducing memory overhead and improving cache locality. This optimization is crucial for applications where performance and resource usage are critical.
 
 ## Installation
 
@@ -61,25 +68,12 @@ fmt.Println("Generated Nano ID of size 32:", id)
 Generate a Nano ID using a custom alphabet:
 
 ```go
-customAlphabet := "abcdef123456"
-id, err := nanoid.NewCustom(16, customAlphabet)
+alphabet := "abcdef123456"
+id, err := nanoid.NewCustom(16, alphabet)
 if err != nil {
     log.Fatal(err)
 }
 fmt.Println("Generated Nano ID with custom alphabet:", id)
-```
-
-### Generate a Nano ID with Unicode Alphabet
-
-Generate a Nano ID using a Unicode alphabet:
-
-```go
-unicodeAlphabet := "あいうえお漢字🙂🚀"
-id, err := nanoid.NewCustom(10, unicodeAlphabet)
-if err != nil {
-    log.Fatal(err)
-}
-fmt.Println("Generated Nano ID with Unicode alphabet:", id)
 ```
 
 ### Generate a Nano ID with Custom Random Source
@@ -148,16 +142,63 @@ func main() {
 * `DefaultAlphabet`: The default alphabet used for ID generation: `-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz`
 * `DefaultSize`: The default size of the generated ID: `21`
 
-## Unicode Support
-
-This implementation fully supports custom alphabets containing Unicode characters, including emojis and characters from various languages. By using []rune internally, it correctly handles multi-byte Unicode characters.
-
 ## Performance
 
 The package is optimized for performance and low memory consumption:
 * **Efficient Random Byte Consumption**: Uses bitwise operations to extract random bits efficiently. 
 * **Avoids `math/big`**: Does not use `math/big`, relying on built-in integer types for calculations. 
 * **Minimized System Calls**: Reads random bytes in batches to reduce the number of system calls.
+
+## Execute Benchmarks:
+
+Run the benchmarks using the go test command with the `bench` make target:
+
+```shell
+make bench
+```
+
+### Interpreting Results:
+
+Sample output might look like this:
+
+```shell
+go test -bench=. -benchmem ./...
+goos: darwin
+goarch: arm64
+pkg: github.com/sixafter/nanoid
+cpu: Apple M3 Max
+BenchmarkNew-16                     	 6329498	       189.2 ns/op	      40 B/op	       3 allocs/op
+BenchmarkNewSize/Size10-16          	11600679	       102.4 ns/op	      24 B/op	       2 allocs/op
+BenchmarkNewSize/Size21-16          	 6384469	       186.7 ns/op	      40 B/op	       3 allocs/op
+BenchmarkNewSize/Size50-16          	 2680179	       448.2 ns/op	     104 B/op	       6 allocs/op
+BenchmarkNewSize/Size100-16         	 1387914	       863.3 ns/op	     192 B/op	      11 allocs/op
+BenchmarkNewCustom/Size10_CustomASCIIAlphabet-16         	 9306187	       128.8 ns/op	      24 B/op	       2 allocs/op
+BenchmarkNewCustom/Size21_CustomASCIIAlphabet-16         	 5062975	       239.4 ns/op	      40 B/op	       3 allocs/op
+BenchmarkNewCustom/Size50_CustomASCIIAlphabet-16         	 2322037	       515.3 ns/op	     101 B/op	       5 allocs/op
+BenchmarkNewCustom/Size100_CustomASCIIAlphabet-16        	 1235755	       972.0 ns/op	     182 B/op	       9 allocs/op
+BenchmarkNew_Concurrent/Concurrency1-16                  	 2368245	       513.1 ns/op	      40 B/op	       3 allocs/op
+BenchmarkNew_Concurrent/Concurrency2-16                  	 1940826	       609.5 ns/op	      40 B/op	       3 allocs/op
+BenchmarkNew_Concurrent/Concurrency4-16                  	 1986049	       585.6 ns/op	      40 B/op	       3 allocs/op
+BenchmarkNew_Concurrent/Concurrency8-16                  	 1999959	       602.2 ns/op	      40 B/op	       3 allocs/op
+BenchmarkNew_Concurrent/Concurrency16-16                 	 2018793	       595.6 ns/op	      40 B/op	       3 allocs/op
+BenchmarkNewCustom_Concurrent/Concurrency1-16            	 1960315	       611.7 ns/op	      40 B/op	       3 allocs/op
+BenchmarkNewCustom_Concurrent/Concurrency2-16            	 1790460	       673.7 ns/op	      40 B/op	       3 allocs/op
+BenchmarkNewCustom_Concurrent/Concurrency4-16            	 1766841	       670.7 ns/op	      40 B/op	       3 allocs/op
+BenchmarkNewCustom_Concurrent/Concurrency8-16            	 1768189	       677.4 ns/op	      40 B/op	       3 allocs/op
+BenchmarkNewCustom_Concurrent/Concurrency16-16           	 1765303	       689.5 ns/op	      40 B/op	       3 allocs/op
+PASS
+ok  	github.com/sixafter/nanoid	33.279s
+```
+
+* `ns/op` (Nanoseconds per Operation):
+  * Indicates the average time taken per operation. 
+  * Lower values signify better CPU performance. 
+* `B/op` (Bytes Allocated per Operation):
+  * Shows the average number of bytes allocated per operation. 
+  * `0 B/op` indicates no heap allocations, which is optimal. 
+* `allocs/op` (Allocations per Operation):
+  * Represents the average number of memory allocations per operation. 
+  * `0 allocs/op` is ideal as it indicates no heap allocations.
 
 ## Contributing
 

@@ -15,6 +15,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
+## [1.4.0] - 2024-OCT-26
+
+### Added
+- **FEATURE:**: Added concurrent benchmark tests.
+### Changed
+- **DEBT:** Maintained Safety with Linter Suppression: Added `// nolint:gosec` with justification for safe conversions.
+- **DEBT:** Refactored Slice Initialization: Initialized `idRunes` with zero length and pre-allocated capacity, using append to build the slice.
+- **DEBT:** Ensured Comprehensive Testing: Reviewed and updated tests to handle all edge cases and ensure no runtime errors.
+### Deprecated
+### Removed
+- **FEATURE:** Removed Unicode support for custom dictionaries.
+### Fixed
+- **DEFECT:** Fixed Operator Precedence: Changed `bits.Len(uint(alphabetLen - 1))` to `bits.Len(uint(alphabetLen) - 1)` to ensure safe conversion.
+### Security
+
+---
 ## [1.3.0] - 2024-OCT-26
 
 ### Added
@@ -35,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
-- **DFECT:** Fixed version compare links in CHANGELOG.
+- **DEFECT:** Fixed version compare links in CHANGELOG.
 ### Security
 
 ---
@@ -49,7 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/sixafter/nanoid/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/sixafter/nanoid/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/sixafter/nanoid/compare/v1.0.0...v1.2.0
 [1.0.0]: https://github.com/sixafter/nanoid/compare/a6a1eb74b61e518fd0216a17dfe5c9b4c432e6e8...v1.0.0
