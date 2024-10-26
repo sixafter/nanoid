@@ -31,7 +31,7 @@ test: ## Execute unit tests
 
 .PHONY: bench
 bench: ## Execute benchmark tests
-	$(GO_TEST) -bench=.
+	$(GO_TEST) -bench=. -benchmem ./...
 
 .PHONY: clean
 clean: ## Remove previous build
