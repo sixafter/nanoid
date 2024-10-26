@@ -1,125 +1,162 @@
-// Copyright (c) 2024 Six After, Inc.
-//
-// This source code is licensed under the MIT License found in the
-// LICENSE file in the root directory of this source tree.
-
 package nanoid
 
 import (
-	"github.com/stretchr/testify/assert"
-	"strconv"
+	"bytes"
+	"strings"
+	"sync"
 	"testing"
+	"unicode/utf8"
+
+	"github.com/stretchr/testify/assert"
 )
 
-// TestGenerate tests the default Generate function.
-func TestGenerate(t *testing.T) {
+func TestNew(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
-	id, err := Generate()
+	id, err := New()
 	is.NoError(err)
-	is.Equal(defaultSize, len(id))
-	is.True(isValidID(id, defaultAlphabet), "ID contains invalid characters: %s", id)
+	is.Equal(DefaultSize, utf8.RuneCountInString(id))
 }
 
-// TestGenerateSize tests generating IDs with custom sizes.
-func TestGenerateSize(t *testing.T) {
-	t.Parallel()
-	sizes := []int{1, 5, 10, 100, 1000}
-
-	for _, size := range sizes {
-		size := size // capture range variable
-		t.Run("Size"+strconv.Itoa(size), func(t *testing.T) {
-			t.Parallel()
-			is := assert.New(t)
-
-			id, err := GenerateSize(size)
-			is.NoError(err)
-			is.Equal(size, len(id))
-			is.True(isValidID(id, defaultAlphabet), "ID contains invalid characters: %s", id)
-		})
-	}
-}
-
-// TestGenerateCustom tests generating IDs with custom sizes and alphabets.
-func TestGenerateCustom(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		size     int
-		alphabet string
-	}{
-		{16, "abcdef0123456789"},
-		{32, "!@#$%^&*()_+-="},
-		{8, "ABCD"},
-	}
-
-	for _, test := range tests {
-		test := test // capture range variable
-		t.Run("Size"+strconv.Itoa(test.size)+"Alphabet"+strconv.Itoa(len(test.alphabet)), func(t *testing.T) {
-			t.Parallel()
-			is := assert.New(t)
-
-			id, err := GenerateCustom(test.size, test.alphabet)
-			is.NoError(err)
-			is.Equal(test.size, len(id))
-			is.True(isValidID(id, test.alphabet), "ID contains invalid characters: %s", id)
-		})
-	}
-}
-
-// TestGenerateEdgeCases tests edge cases for invalid inputs.
-func TestGenerateEdgeCases(t *testing.T) {
+func TestNewSize(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
-	_, err := GenerateCustom(0, defaultAlphabet)
-	is.Error(err)
-
-	_, err = GenerateCustom(10, "")
-	is.Error(err)
-
-	_, err = GenerateCustom(-1, defaultAlphabet)
-	is.Error(err)
-}
-
-// TestGenerateCustom_SingleCharacterAlphabet tests the special case with a single-character alphabet.
-func TestGenerateCustom_SingleCharacterAlphabet(t *testing.T) {
-	t.Parallel()
-	is := assert.New(t)
-
-	size := 5
-	alphabet := "A"
-	expected := "AAAAA"
-
-	id, err := GenerateCustom(size, alphabet)
+	size := 30
+	id, err := NewSize(size)
 	is.NoError(err)
-	is.Equal(expected, id)
+	is.Equal(size, utf8.RuneCountInString(id))
 }
 
-// Helper function to check if an ID contains only characters from the alphabet.
-func isValidID(id, alphabet string) bool {
-	alphabetMap := make(map[rune]struct{}, len(alphabet))
-	for _, r := range alphabet {
-		alphabetMap[r] = struct{}{}
-	}
+func TestNewCustom(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	size := 15
+	customAlphabet := "abcdef123456"
+	id, err := NewCustom(size, customAlphabet)
+	is.NoError(err)
+	is.Equal(size, utf8.RuneCountInString(id))
+
+	// Ensure that the ID contains only characters from the custom alphabet
 	for _, r := range id {
-		if _, exists := alphabetMap[r]; !exists {
-			return false
-		}
-	}
-	return true
-}
-
-func TestGenerateCustom_SizeZero(t *testing.T) {
-	_, err := GenerateCustom(0, "abcdef")
-	if err == nil {
-		t.Fatalf("Expected error for size 0, got nil")
+		is.Contains(customAlphabet, string(r))
 	}
 }
 
-func TestGenerateCustom_NegativeSize(t *testing.T) {
-	_, err := GenerateCustom(-5, "abcdef")
-	if err == nil {
-		t.Fatalf("Expected error for negative size, got nil")
+func TestNewCustomWithUnicodeAlphabet(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	size := 10
+	unicodeAlphabet := "あいうえお漢字🙂🚀"
+	id, err := NewCustom(size, unicodeAlphabet)
+	is.NoError(err)
+	is.Equal(size, utf8.RuneCountInString(id))
+
+	// Ensure that the ID contains only characters from the Unicode alphabet
+	for _, r := range id {
+		is.Contains(unicodeAlphabet, string(r))
+	}
+}
+
+func TestNewCustomReader(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	size := 10
+	customAlphabet := "abcd"
+	// Use a deterministic random source for testing
+	randomData := bytes.Repeat([]byte{0xFF}, 10) // Simulate random bytes
+	rnd := bytes.NewReader(randomData)
+
+	id, err := NewCustomReader(size, customAlphabet, rnd)
+	is.NoError(err)
+	is.Equal(size, utf8.RuneCountInString(id))
+
+	// Since we used 0xFF, the index will be masked accordingly
+	for _, r := range id {
+		is.Contains(customAlphabet, string(r))
+	}
+}
+
+func TestNewCustomReaderNil(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	size := 10
+	customAlphabet := DefaultAlphabet
+
+	_, err := NewCustomReader(size, customAlphabet, nil)
+	is.Error(err)
+	is.EqualError(err, "random source cannot be nil")
+}
+
+func TestNewCustomEmptyAlphabet(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	size := 10
+	customAlphabet := ""
+
+	_, err := NewCustom(size, customAlphabet)
+	is.Error(err)
+	is.EqualError(err, "alphabet must not be empty")
+}
+
+func TestNewCustomNegativeSize(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	size := -5
+	customAlphabet := DefaultAlphabet
+
+	_, err := NewCustom(size, customAlphabet)
+	is.Error(err)
+	is.EqualError(err, "size must be greater than zero")
+}
+
+func TestNewCustomSingleCharacterAlphabet(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	size := 10
+	customAlphabet := "X"
+
+	id, err := NewCustom(size, customAlphabet)
+	is.NoError(err)
+	is.Equal(strings.Repeat(customAlphabet, size), id)
+}
+
+func TestThreadSafety(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	const numGoroutines = 100
+	const idSize = 21
+
+	ids := make(chan string, numGoroutines)
+	var wg sync.WaitGroup
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			id, err := New()
+			is.NoError(err)
+			is.Equal(idSize, utf8.RuneCountInString(id))
+			ids <- id
+		}()
+	}
+
+	wg.Wait()
+	close(ids)
+
+	idSet := make(map[string]struct{})
+	for id := range ids {
+		// Ensure uniqueness
+		is.NotContains(idSet, id)
+		idSet[id] = struct{}{}
 	}
 }

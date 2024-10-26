@@ -32,27 +32,16 @@ import "github.com/sixafter/nanoid"
 
 ## Usage
 
-### Generating a Default NanoID
+### Generate a Nano ID with Default Settings
 
-Generate a NanoID using the default size (21 characters) and the default alphabet (numbers and uppercase/lowercase letters):
+Generate a Nano ID using the default size (21 characters) and default alphabet:
 
 ```go
-package main
-
-import (
-    "fmt"
-    "log"
-
-    "github.com/sixafter/nanoid"
-)
-
-func main() {
-    id, err := nanoid.Generate()
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Println("Generated NanoID:", id)
+id, err := nanoid.New()
+if err != nil {
+    log.Fatal(err)
 }
+fmt.Println("Generated Nano ID:", id)
 ```
 
 ### Generating a NanoID with Custom Size
@@ -60,87 +49,127 @@ func main() {
 Generate a NanoID with a custom length:
 
 ```go
-package main
-
-import (
-    "fmt"
-    "log"
-
-    "github.com/sixafter/nanoid"
-)
-
-func main() {
-    id, err := nanoid.GenerateSize(10) // Generate a 10-character NanoID
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Println("NanoID with custom size:", id)
-}
-```
-
-### Generating a NanoID with Custom Alphabet
-
-Generate a NanoID with a custom length and a custom set of characters:
-
-```go
-package main
-
-import (
-    "fmt"
-    "log"
-
-    "github.com/sixafter/nanoid"
-)
-
-func main() {
-    alphabet := "0123456789abcdef" // Hexadecimal characters
-    id, err := nanoid.GenerateCustom(16, alphabet) // Generate a 16-character NanoID
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Println("NanoID with custom alphabet:", id)
-}
-```
-
-### Concurrency and Thread Safety
-
-The NanoID functions are designed to be thread-safe. You can safely generate IDs from multiple goroutines concurrently without additional synchronization.
-
-```go
-package main
-
-import (
-    "fmt"
-    "sync"
-
-    "github.com/sixafter/nanoid"
-)
-
-func main() {
-    var wg sync.WaitGroup
-    for i := 0; i < 10; i++ {
-        wg.Add(1)
-        go func() {
-            defer wg.Done()
-            id, err := nanoid.Generate()
-            if err != nil {
-                fmt.Println("Error generating NanoID:", err)
-                return
-            }
-            fmt.Println("Generated NanoID:", id)
-        }()
-    }
-    wg.Wait()
-}
-```
-
-### Error Handling
-
-All functions return an error as the second return value. Ensure you handle any potential errors:
-
-```go
-id, err := nanoid.Generate()
+id, err := nanoid.NewSize(32)
 if err != nil {
-    // Handle the error
+    log.Fatal(err)
+}
+fmt.Println("Generated Nano ID of size 32:", id)
+```
+
+### Generate a Nano ID with Custom Alphabet
+
+Generate a Nano ID using a custom alphabet:
+
+```go
+customAlphabet := "abcdef123456"
+id, err := nanoid.NewCustom(16, customAlphabet)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Generated Nano ID with custom alphabet:", id)
+```
+
+### Generate a Nano ID with Unicode Alphabet
+
+Generate a Nano ID using a Unicode alphabet:
+
+```go
+unicodeAlphabet := "あいうえお漢字🙂🚀"
+id, err := nanoid.NewCustom(10, unicodeAlphabet)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Generated Nano ID with Unicode alphabet:", id)
+```
+
+### Generate a Nano ID with Custom Random Source
+
+Generate a Nano ID using a custom random source that implements io.Reader:
+
+```go
+// Example custom random source (for demonstration purposes)
+var myRandomSource io.Reader = myCustomRandomReader{}
+
+id, err := nanoid.NewCustomReader(21, nanoid.DefaultAlphabet, myRandomSource)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Generated Nano ID with custom random source:", id)
+```
+
+**Note:** Replace `myCustomRandomReader{}` with your actual implementation of `io.Reader`.
+
+## Thread Safety
+
+All functions provided by this package are safe for concurrent use by multiple goroutines. Here's an example of generating Nano IDs concurrently:
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+	"sync"
+
+	"github.com/sixafter/nanoid"
+)
+
+func main() {
+	const numGoroutines = 10
+	const idSize = 21
+
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer wg.Done()
+			id, err := nanoid.New()
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Println("Generated Nano ID:", id)
+		}()
+	}
+
+	wg.Wait()
 }
 ```
+
+## Functions
+
+* `func New() (string, error)`: Generates a Nano ID with the default size (21 characters) and default alphabet.
+* `func NewSize(size int) (string, error)`: Generates a Nano ID with a specified size using the default alphabet.
+* `func NewCustom(size int, alphabet string) (string, error)`: Generates a Nano ID with a specified size and custom alphabet.
+* `func NewCustomReader(size int, alphabet string, rnd io.Reader) (string, error)`: Generates a Nano ID with a specified size, custom alphabet, and custom random source.
+
+## Constants
+
+* `DefaultAlphabet`: The default alphabet used for ID generation: `-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz`
+* `DefaultSize`: The default size of the generated ID: `21`
+
+## Unicode Support
+
+This implementation fully supports custom alphabets containing Unicode characters, including emojis and characters from various languages. By using []rune internally, it correctly handles multi-byte Unicode characters.
+
+## Performance
+
+The package is optimized for performance and low memory consumption:
+* **Efficient Random Byte Consumption**: Uses bitwise operations to extract random bits efficiently. 
+* **Avoids `math/big`**: Does not use `math/big`, relying on built-in integer types for calculations. 
+* **Minimized System Calls**: Reads random bytes in batches to reduce the number of system calls.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit issues or pull requests.
+
+* Fork the repository. 
+* Create a new branch for your feature or bugfix. 
+* Write tests for your changes. 
+* Ensure all tests pass. 
+* Submit a pull request.
+
+## License
+
+This project is licensed under the [MIT License](https://choosealicense.com/licenses/mit/).
+
