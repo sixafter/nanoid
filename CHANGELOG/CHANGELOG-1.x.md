@@ -15,7 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.2.0] - 2024-10-25
+## [1.3.0] - 2024-OCT-26
+
+### Added
+- **FEATURE:** Added Unicode support for custom dictionaries.
+### Changed
+- **DEBT:** Modified implementation to be approximately 30% more efficient in terms of CPU complexity. See the `bench` make target.
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
+## [1.2.0] - 2024-OCT-25
 
 ### Added
 ### Changed
@@ -27,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.0.0] - 2024-10-24
+## [1.0.0] - 2024-OCT-24
 
 ### Added
 - **FEATURE:** Initial commit.
@@ -37,7 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/sixafter/nanoid/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/sixafter/nanoid/compare/v1.0.0...v1.2.0
 [1.0.0]: https://github.com/sixafter/nanoid/compare/a6a1eb74b61e518fd0216a17dfe5c9b4c432e6e8...v1.0.0
 
