@@ -6,46 +6,80 @@
 package nanoid
 
 import (
-	"strconv"
+	"bytes"
+	"fmt"
+	"io"
 	"testing"
 )
 
-// BenchmarkGenerate benchmarks the default Generate function.
 func BenchmarkGenerate(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _ = Generate()
+		_, err := New()
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
-// BenchmarkGenerateSize benchmarks GenerateSize with varying sizes.
 func BenchmarkGenerateSize(b *testing.B) {
-	sizes := []int{8, 16, 32, 64, 128}
+	sizes := []int{10, 21, 50, 100}
 	for _, size := range sizes {
-		b.Run("Size"+strconv.Itoa(size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("Size%d", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, _ = GenerateSize(size)
+				_, err := NewSize(size)
+				if err != nil {
+					b.Fatal(err)
+				}
 			}
 		})
 	}
 }
 
-// BenchmarkGenerateCustom benchmarks GenerateCustom with different alphabets and sizes.
 func BenchmarkGenerateCustom(b *testing.B) {
-	tests := []struct {
-		size     int
-		alphabet string
-	}{
-		{21, defaultAlphabet},
-		{16, "abcdef0123456789"},
-		{32, "ABCDEFGHIJKLMNOPQRSTUVWXYZ"},
-	}
-
-	for _, test := range tests {
-		label := "Size" + strconv.Itoa(test.size) + "Alphabet" + strconv.Itoa(len(test.alphabet))
-		b.Run(label, func(b *testing.B) {
+	sizes := []int{10, 21, 50, 100}
+	customAlphabet := "abcdef123456"
+	for _, size := range sizes {
+		b.Run(fmt.Sprintf("Size%d", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, _ = GenerateCustom(test.size, test.alphabet)
+				_, err := NewCustom(size, customAlphabet)
+				if err != nil {
+					b.Fatal(err)
+				}
 			}
 		})
+	}
+}
+
+func BenchmarkGenerateCustomUnicodeAlphabet(b *testing.B) {
+	sizes := []int{10, 21, 50, 100}
+	unicodeAlphabet := "あいうえお漢字🙂🚀"
+	for _, size := range sizes {
+		b.Run(fmt.Sprintf("Size%d", size), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_, err := NewCustom(size, unicodeAlphabet)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkGenerateCustomReader(b *testing.B) {
+	size := 21
+	customAlphabet := "abcdef123456"
+	randomData := make([]byte, 1024)
+	for i := 0; i < len(randomData); i++ {
+		randomData[i] = byte(i % 256)
+	}
+	rnd := bytes.NewReader(randomData)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := NewCustomReader(size, customAlphabet, rnd)
+		if err != nil {
+			b.Fatal(err)
+		}
+		rnd.Seek(0, io.SeekStart) // Reset the reader for the next iteration
 	}
 }
