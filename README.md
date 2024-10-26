@@ -8,18 +8,18 @@ A simple, fast, and efficient Go implementation of [NanoID](https://github.com/a
 
 ## Features
 
-* Stateless Design: Each function operates independently without relying on global state or caches, eliminating the need for synchronization primitives like mutexes. This design ensures predictable behavior and simplifies usage in various contexts. 
-* Cryptographically Secure: Utilizes Go's crypto/rand package for generating cryptographically secure random numbers. This guarantees that the generated IDs are both unpredictable and suitable for security-sensitive applications. 
-* High Performance: Optimized algorithms and efficient memory management techniques ensure rapid ID generation. Whether you're generating a few IDs or millions, the library maintains consistent speed and responsiveness. 
-* Memory Efficient: Implements sync.Pool to reuse byte slices, minimizing memory allocations and reducing garbage collection overhead. This approach significantly enhances performance, especially in high-throughput scenarios. 
-* Thread-Safe: Designed for safe concurrent use in multi-threaded applications. Multiple goroutines can generate IDs simultaneously without causing race conditions or requiring additional synchronization. 
-* Customizable: Offers flexibility to specify custom ID lengths and alphabets. Whether you need short, compact IDs or longer, more complex ones, the library can accommodate your specific requirements. 
-* User-Friendly API: Provides a simple and intuitive API with sensible defaults, making integration straightforward. Developers can start generating IDs with minimal configuration and customize as needed. 
-* Zero External Dependencies: Relies solely on Go's standard library, ensuring ease of use, compatibility, and minimal footprint within your projects. 
-* Comprehensive Testing: Includes a robust suite of unit tests and concurrency tests to ensure reliability, correctness, and thread safety. This commitment to quality guarantees consistent performance across different use cases. 
-* Detailed Documentation: Accompanied by clear and thorough documentation, including examples and usage guidelines. New users can quickly understand how to implement and customize the library to fit their needs. 
-* Efficient Error Handling: Employs predefined errors to avoid unnecessary allocations, enhancing both performance and clarity in error management. 
-* Optimized for Low Allocations: Carefully structured to minimize heap allocations, reducing memory overhead and improving cache locality. This optimization is crucial for applications where performance and resource usage are critical.
+* **Stateless Design**: Each function operates independently without relying on global state or caches, eliminating the need for synchronization primitives like mutexes. This design ensures predictable behavior and simplifies usage in various contexts. 
+* **Cryptographically Secure**: Utilizes Go's crypto/rand package for generating cryptographically secure random numbers. This guarantees that the generated IDs are both unpredictable and suitable for security-sensitive applications. 
+* **High Performance**: Optimized algorithms and efficient memory management techniques ensure rapid ID generation. Whether you're generating a few IDs or millions, the library maintains consistent speed and responsiveness. 
+* **Memory Efficient**: Implements sync.Pool to reuse byte slices, minimizing memory allocations and reducing garbage collection overhead. This approach significantly enhances performance, especially in high-throughput scenarios. 
+* **Thread-Safe**: Designed for safe concurrent use in multi-threaded applications. Multiple goroutines can generate IDs simultaneously without causing race conditions or requiring additional synchronization. 
+* **Customizable**: Offers flexibility to specify custom ID lengths and alphabets. Whether you need short, compact IDs or longer, more complex ones, the library can accommodate your specific requirements. 
+* **User-Friendly API**: Provides a simple and intuitive API with sensible defaults, making integration straightforward. Developers can start generating IDs with minimal configuration and customize as needed. 
+* **Zero External Dependencies**: Relies solely on Go's standard library, ensuring ease of use, compatibility, and minimal footprint within your projects. 
+* **Comprehensive Testing**: Includes a robust suite of unit tests and concurrency tests to ensure reliability, correctness, and thread safety. This commitment to quality guarantees consistent performance across different use cases. 
+* **Detailed Documentation**: Accompanied by clear and thorough documentation, including examples and usage guidelines. New users can quickly understand how to implement and customize the library to fit their needs. 
+* **Efficient Error Handling**: Employs predefined errors to avoid unnecessary allocations, enhancing both performance and clarity in error management. 
+* **Optimized for Low Allocations**: Carefully structured to minimize heap allocations, reducing memory overhead and improving cache locality. This optimization is crucial for applications where performance and resource usage are critical.
 
 ## Installation
 
