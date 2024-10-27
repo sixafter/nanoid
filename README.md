@@ -202,15 +202,9 @@ ok  	github.com/sixafter/nanoid	33.279s
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues or pull requests.
-
-* Fork the repository. 
-* Create a new branch for your feature or bugfix. 
-* Write tests for your changes. 
-* Ensure all tests pass. 
-* Submit a pull request.
+Contributions are welcome. For larger or more material changes, please create a issue so we can discuss.
 
 ## License
 
-This project is licensed under the [MIT License](https://choosealicense.com/licenses/mit/).
+This project is licensed under the [MIT License](https://choosealicense.com/licenses/mit/). See [LICENSE](LICENSE) file.
 
