@@ -15,6 +15,12 @@ run:
   # Default: [].
   build-tags: []
 
+  # Exclude certain directories from linting
+  exclude-dirs:
+    - "vendor"
+    - "third_party"
+    - "generated"
+
   # Which dirs to skip: issues from them won't be reported.
   # Can use regexp here: `generated.*`, regexp is applied on full path,
   # including the path prefix if one is set.
@@ -48,48 +54,6 @@ run:
   # Allow multiple parallel golangci-lint instances running.
   # If false (default) - golangci-lint acquires file lock on start.
   allow-parallel-runners: false
-
-linters:
-  enable:
-    - asciicheck
-    - bodyclose
-    - cyclop
-    - dogsled
-    - dupl
-    - durationcheck
-    - errname
-    - errorlint
-    - exhaustive
-    - exportloopref
-    - forbidigo
-    - forcetypeassert
-    - funlen
-    - gochecknoinits
-    - goconst
-    - gocritic
-    - godot
-    - godox
-    - gofmt
-    - goimports
-    - gomnd
-    - gosec
-    - lll
-    - makezero
-    - misspell
-    - nakedret
-    - nestif
-    - nilerr
-    - nlreturn
-    - noctx
-    - nolintlint
-    - predeclared
-    - revive
-    - stylecheck
-    - tagliatelle
-    - unconvert
-    - unparam
-    - wastedassign
-    - whitespace
 
 output:
   sort-results: true

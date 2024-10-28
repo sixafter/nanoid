@@ -3,222 +3,199 @@
 // This source code is licensed under the MIT License found in the
 // LICENSE file in the root directory of this source tree.
 
-// nanoid_test.go
-package nanoid_test
+package nanoid
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
-	"github.com/sixafter/nanoid"
-	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
-// TestNew verifies that the New function generates an ID of the default size and alphabet.
-func TestNew(t *testing.T) {
+func TestNewGenerator(t *testing.T) {
 	t.Parallel()
-
 	is := assert.New(t)
 
-	id, err := nanoid.New()
-	is.NoError(err, "New() should not return an error")
-	is.Equal(nanoid.DefaultSize, len(id), "ID length should match the default size")
+	alphabet := "abc123"
+	gen, err := New(alphabet, nil)
+	is.NoError(err, "Expected no error when creating a new generator")
+	is.NotNil(gen, "Generator should not be nil")
 
-	// Check that all characters are within the default alphabet
-	for _, char := range id {
-		is.Contains(nanoid.DefaultAlphabet, string(char), "Character '%c' should be in the default alphabet", char)
+	conf, ok := gen.(Configuration)
+	is.True(ok, "Expected a Configuration")
+
+	is.Equal(6, conf.GetConfig().AlphabetLen, "AlphabetLen should be 6")
+	is.Equal([]byte(alphabet), conf.GetConfig().Alphabet, "Alphabet should match the input")
+	is.Equal(byte(7), conf.GetConfig().Mask, "Mask should be 7 for alphabetLen=6")
+	is.Equal(341, conf.GetConfig().Step, "Step should be 341 for mask=7 and alphabetLen=6")
+}
+
+func TestGenerateSize(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	id, err := GenerateSize(10)
+	is.NoError(err, "GenerateSize should not return an error")
+	is.Len(id, 10, "Generated ID should have length 10")
+}
+
+func TestGenerate(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	id, err := Generate()
+	is.NoError(err, "GenerateSize should not return an error")
+	is.Len(id, DefaultSize, fmt.Sprintf("Generated ID should have length %v", DefaultSize))
+}
+
+func TestGenerateCustomAlphabet(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	alphabet := "ABCDEF"
+	gen, err := New(alphabet, nil)
+	is.NoError(err, "Creating generator with custom alphabet should not error")
+	is.NotNil(gen, "Generator should not be nil")
+
+	id, err := gen.Generate(5)
+	is.NoError(err, "GenerateSize should not return an error")
+	is.Len(id, 5, "Generated ID should have length 5")
+
+	for _, c := range id {
+		is.True(bytes.Contains([]byte(alphabet), []byte{byte(c)}), "Character %c should be in the custom alphabet", c)
 	}
 }
 
-// TestNewSize verifies that the NewSize function generates IDs of specified sizes.
-func TestNewSize(t *testing.T) {
+func TestGenerateZeroLength(t *testing.T) {
 	t.Parallel()
-
 	is := assert.New(t)
 
-	testCases := []struct {
-		name string
-		size int
-	}{
-		{"Size1", 1},
-		{"Size10", 10},
-		{"Size21", 21},
-		{"Size50", 50},
-		{"Size100", 100},
-	}
-
-	for _, tc := range testCases {
-		tc := tc // Capture range variable
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			id, err := nanoid.NewSize(tc.size)
-			is.NoError(err, "NewSize(%d) should not return an error", tc.size)
-			is.Equal(tc.size, len(id), "ID length should match the specified size")
-
-			// Check that all characters are within the default alphabet
-			for _, char := range id {
-				is.Contains(nanoid.DefaultAlphabet, string(char), "Character '%c' should be in the default alphabet", char)
-			}
-		})
-	}
+	id, err := GenerateSize(0)
+	is.ErrorIs(err, ErrInvalidLength, "Generating ID with zero length should return ErrInvalidLength")
+	is.Empty(id, "Generated ID should be empty when length is zero")
 }
 
-// TestNewCustom verifies that the NewCustom function generates IDs using a custom ASCII alphabet.
-func TestNewCustom(t *testing.T) {
+func TestGenerateWithCustomReader(t *testing.T) {
 	t.Parallel()
-
 	is := assert.New(t)
 
-	customASCIIAlphabet := "abcdef123456"
-	testCases := []struct {
-		name     string
-		size     int
-		alphabet string
-	}{
-		{"Size10_CustomASCIIAlphabet", 10, customASCIIAlphabet},
-		{"Size21_CustomASCIIAlphabet", 21, customASCIIAlphabet},
-		{"Size50_CustomASCIIAlphabet", 50, customASCIIAlphabet},
-		{"Size100_CustomASCIIAlphabet", 100, customASCIIAlphabet},
-		{"Size10_SingleCharacter", 10, "x"}, // Single-character alphabet
-		{"Size5_SingleCharacter", 5, "A"},   // Single-character alphabet
+	// Initialize mockReader with sufficient data
+	mockReader := &mockReader{
+		data:  []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05},
+		reads: 0,
 	}
+	alphabet := "ABCDEF"
+	gen, err := New(alphabet, mockReader)
+	is.NoError(err, "Creating generator with custom reader should not error")
+	is.NotNil(gen, "Generator should not be nil")
 
-	for _, tc := range testCases {
-		tc := tc // Capture range variable
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			id, err := nanoid.NewCustom(tc.size, tc.alphabet)
-			is.NoError(err, "NewCustom(%d, %s) should not return an error", tc.size, tc.alphabet)
-			is.Equal(tc.size, len(id), "ID length should match the specified size")
-
-			// Check that all characters are within the custom alphabet
-			for _, char := range id {
-				is.Contains(tc.alphabet, string(char), "Character '%c' should be in the custom alphabet", char)
-			}
-		})
-	}
+	id, err := gen.Generate(6)
+	is.NoError(err, "GenerateSize should not return an error")
+	is.Equal("ABCDEF", id, "Generated ID should match expected value 'ABCDEF'")
 }
 
-// TestErrorHandling verifies that functions return errors for invalid inputs.
-func TestErrorHandling(t *testing.T) {
+func TestGenerateInsufficientRandomBytes(t *testing.T) {
 	t.Parallel()
-
 	is := assert.New(t)
 
-	testCases := []struct {
-		name     string
-		function func() (string, error)
-	}{
-		{
-			name: "NewSize with zero size",
-			function: func() (string, error) {
-				return nanoid.NewSize(0)
-			},
-		},
-		{
-			name: "NewSize with negative size",
-			function: func() (string, error) {
-				return nanoid.NewSize(-10)
-			},
-		},
-		{
-			name: "NewCustom with empty alphabet",
-			function: func() (string, error) {
-				return nanoid.NewCustom(10, "")
-			},
-		},
-		{
-			name: "NewCustom with size exceeding MaxUintSize",
-			function: func() (string, error) {
-				return nanoid.NewCustom(nanoid.MaxUintSize+1, "abcdef")
-			},
-		},
+	// Reader that provides only a few bytes
+	mockReader := &mockReader{
+		data:  []byte{0x00, 0x01}, // Only 2 bytes
+		reads: 0,
 	}
+	alphabet := "ABCDEF"
+	gen, err := New(alphabet, mockReader)
+	is.NoError(err, "Creating generator with custom reader should not error")
+	is.NotNil(gen, "Generator should not be nil")
 
-	for _, tc := range testCases {
-		tc := tc // Capture range variable
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			id, err := tc.function()
-			is.Error(err, "Expected an error for test case '%s'", tc.name)
-			is.Empty(id, "Expected empty ID for test case '%s'", tc.name)
-		})
-	}
+	id, err := gen.Generate(3) // Requires 3 valid bytes
+	is.ErrorIs(err, ErrNoMoreData, "Generating ID with insufficient random bytes should return ErrNoMoreData")
+	is.Empty(id, "Generated ID should be empty on error")
 }
 
-// TestUniqueness verifies that multiple generated IDs are unique.
-func TestUniqueness(t *testing.T) {
-	// Note: Due to the high memory consumption and execution time,
-	// this test can be marked as skipped unless specifically needed.
-	t.Skip("Skipping TestUniqueness to save resources during regular test runs")
-
+func TestGenerateConcurrency(t *testing.T) {
 	t.Parallel()
-
 	is := assert.New(t)
 
-	const sampleSize = 100000
-	ids := make(map[string]struct{}, sampleSize)
+	gen, err := New(DefaultAlphabet, nil)
+	is.NoError(err, "Creating generator should not error")
+	is.NotNil(gen, "Generator should not be nil")
 
-	for i := 0; i < sampleSize; i++ {
-		id, err := nanoid.New()
-		is.NoError(err, "New() should not return an error")
-
-		if _, exists := ids[id]; exists {
-			is.FailNow(fmt.Sprintf("Duplicate ID found: %s", id))
-		}
-		ids[id] = struct{}{}
+	if gen == nil {
+		return
 	}
-}
 
-// TestConcurrencySafety verifies that concurrent ID generation does not produce errors or duplicates.
-func TestConcurrencySafety(t *testing.T) {
-	t.Parallel()
-
-	is := assert.New(t)
-
-	const (
-		concurrency  = 100
-		perGoroutine = 1000
-		totalSample  = concurrency * perGoroutine
-	)
-	ids := make(chan string, totalSample)
-	errs := make(chan error, totalSample)
+	const goroutines = 100
+	const idsPerGoroutine = 1000
+	ids := make(chan string, goroutines*idsPerGoroutine)
 
 	var wg sync.WaitGroup
-	wg.Add(concurrency)
-
-	for i := 0; i < concurrency; i++ {
+	wg.Add(goroutines)
+	for i := 0; i < goroutines; i++ {
 		go func() {
 			defer wg.Done()
-			for j := 0; j < perGoroutine; j++ {
-				id, err := nanoid.New()
+			for j := 0; j < idsPerGoroutine; j++ {
+				id, err := gen.Generate(10)
 				if err != nil {
-					errs <- err
-					continue
+					t.Errorf("GenerateSize failed: %v", err)
+					return
 				}
 				ids <- id
 			}
 		}()
 	}
-
 	wg.Wait()
 	close(ids)
-	close(errs)
 
-	// Check for errors
-	for err := range errs {
-		is.NoError(err, "New() should not return an error in concurrent execution")
+	// Verify uniqueness
+	idMap := make(map[string]struct{})
+	for id := range ids {
+		idMap[id] = struct{}{}
+	}
+	is.Equal(goroutines*idsPerGoroutine, len(idMap), "All generated IDs should be unique")
+}
+
+var ErrNoMoreData = errors.New("no more data")
+
+// mockReader is a mock implementation of io.Reader for testing purposes.
+type mockReader struct {
+	data  []byte
+	reads int
+}
+
+func (m *mockReader) Read(p []byte) (int, error) {
+	if m.reads >= len(m.data) {
+		return 0, ErrNoMoreData
+	}
+	p[0] = m.data[m.reads]
+	m.reads++
+	return 1, nil
+}
+
+// TestGenerateDoesNotHang tests that GenerateSize does not hang indefinitely.
+func TestGenerateDoesNotHang(t *testing.T) {
+	gen, err := New("abcdef", nil)
+	if err != nil {
+		t.Fatalf("Failed to create generator: %v", err)
 	}
 
-	// Check for duplicates
-	uniqueIDs := make(map[string]struct{}, totalSample)
-	for id := range ids {
-		if _, exists := uniqueIDs[id]; exists {
-			is.FailNow(fmt.Sprintf("Duplicate ID found: %s", id))
+	done := make(chan struct{})
+	go func() {
+		_, err := gen.Generate(50)
+		if err != nil {
+			t.Errorf("GenerateSize failed: %v", err)
 		}
-		uniqueIDs[id] = struct{}{}
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Test passed
+	case <-time.After(5 * time.Second):
+		t.Error("GenerateSize method is hanging")
 	}
 }
