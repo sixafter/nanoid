@@ -17,7 +17,7 @@ Thank you for your interest in contributing to **NanoID for Go**! Your contribut
 
 ## 🛡️ Code of Conduct
 
-This project adheres to the [Contributor Covenant Code of Conduct](https://github.com/sixafter/nanoid/blob/main/CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to [osint@sixafter.com](mailto:osint@sixafter.com).
+This project adheres to the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to [osint@sixafter.com](mailto:osint@sixafter.com).
 
 ---
 

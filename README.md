@@ -267,7 +267,7 @@ Nano ID generates unique identifiers based on the following:
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING](CODE_OF_CONDUCT)
+Contributions are welcome. See [CONTRIBUTING](CONTRIBUTING.md)
 
 ## License
 
