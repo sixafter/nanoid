@@ -1,4 +1,5 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -9,6 +10,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
+## [1.5.0] - 2024-OCT-28
+
+### Added
+- **FEATURE**: Added Code of Conduct
+- **FEATURE**: Added Contribution Guidelines
+### Changed
+- **DEBT:** Optimized overall implementation to reduce the allocations per operation to 2.
 ### Deprecated
 ### Removed
 ### Fixed
@@ -65,7 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/sixafter/nanoid/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/sixafter/nanoid/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/sixafter/nanoid/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/sixafter/nanoid/compare/v1.0.0...v1.2.0

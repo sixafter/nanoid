@@ -8,6 +8,7 @@ package nanoid
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -33,13 +34,22 @@ func TestNewGenerator(t *testing.T) {
 	is.Equal(341, conf.GetConfig().Step, "Step should be 341 for mask=7 and alphabetLen=6")
 }
 
-func TestGenerateDefault(t *testing.T) {
+func TestGenerateSize(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
 	id, err := GenerateSize(10)
 	is.NoError(err, "GenerateSize should not return an error")
 	is.Len(id, 10, "Generated ID should have length 10")
+}
+
+func TestGenerate(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	id, err := Generate()
+	is.NoError(err, "GenerateSize should not return an error")
+	is.Len(id, DefaultSize, fmt.Sprintf("Generated ID should have length %v", DefaultSize))
 }
 
 func TestGenerateCustomAlphabet(t *testing.T) {
