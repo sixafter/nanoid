@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 ### Changed
+- **DEBT:** Check for duplicate characters using a bitmask with multiple `uint32`s. A `uint32` array can represent `256` bits (`32` bits per `uint32 × 8 = 256`). This allows us to track each possible byte value without the limitations of a single uint64
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
+## [1.6.0] - 2024-OCT-29
+
+### Added
+### Changed
+- **DEBT:** Check for duplicate characters using a bitmask with multiple `uint32`s. A `uint32` array can represent `256` bits (`32` bits per `uint32 × 8 = 256`). This allows us to track each possible byte value without the limitations of a single uint64
 ### Deprecated
 ### Removed
 ### Fixed
@@ -79,7 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/sixafter/nanoid/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/sixafter/nanoid/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/sixafter/nanoid/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/sixafter/nanoid/compare/v1.2.0...v1.3.0

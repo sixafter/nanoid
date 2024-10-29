@@ -20,7 +20,7 @@ var DefaultGenerator Generator
 
 // Generate generates a Nano ID using the default generator and the default size.
 func Generate() (string, error) {
-	return GenerateSize(DefaultSize)
+	return DefaultGenerator.Generate(DefaultSize)
 }
 
 // GenerateSize generates a Nano ID using the default generator.
@@ -37,31 +37,32 @@ func init() {
 }
 
 var (
-	ErrInvalidLength       = errors.New("length must be positive")
-	ErrExceededMaxAttempts = errors.New("generate method exceeded maximum attempts, possibly due to invalid mask or alphabet")
-	ErrEmptyAlphabet       = errors.New("alphabet must not be empty")
-	ErrAlphabetTooShort    = errors.New("alphabet length must be at least 2")
-	ErrAlphabetTooLong     = errors.New("alphabet length must not exceed 256")
-	ErrDuplicateCharacters = errors.New("alphabet contains duplicate characters")
+	ErrInvalidLength       = errors.New("invalid length")
+	ErrInvalidAlphabet     = errors.New("invalid alphabet")
+	ErrDuplicateCharacters = errors.New("duplicate characters in alphabet")
+	ErrExceededMaxAttempts = errors.New("exceeded maximum attempts")
 )
 
-const (
-	// DefaultAlphabet Default alphabet as per Nano ID specification.
-	DefaultAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+// DefaultAlphabet as per Nano ID specification.
+const DefaultAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
 
-	// DefaultSize Default size of the generated Nano ID: 21.
-	DefaultSize = 21
-)
+// DefaultSize is the default size of the generated Nano ID: 21.
+const DefaultSize = 21
 
-// Generator holds the configuration for the Nano ID generator.
+// maxAttemptsMultiplier defines the multiplier for maximum attempts based on length.
+const maxAttemptsMultiplier = 10
+
+// Generator defines the interface for generating Nano IDs.
 type Generator interface {
 	Generate(size int) (string, error)
 }
 
+// Configuration defines the interface for retrieving generator configuration.
 type Configuration interface {
 	GetConfig() Config
 }
 
+// Config holds the configuration for the Nano ID generator.
 type Config struct {
 	Alphabet    []byte
 	AlphabetLen int
@@ -76,50 +77,68 @@ type generator struct {
 }
 
 // New creates a new Generator with buffer pooling enabled.
+// It returns an error if the alphabet is invalid.
 func New(alphabet string, randReader io.Reader) (Generator, error) {
+	return newGenerator(alphabet, randReader)
+}
+
+// newGenerator is an internal constructor for generator.
+func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 	if len(alphabet) == 0 {
-		return nil, ErrEmptyAlphabet
+		return nil, ErrInvalidAlphabet
 	}
 
 	if randReader == nil {
-		randReader = rand.Reader // Initialize here
+		randReader = rand.Reader
 	}
 
 	alphabetBytes := []byte(alphabet)
 	alphabetLen := len(alphabetBytes)
 
-	if alphabetLen < 2 {
-		return nil, ErrAlphabetTooShort
+	if alphabetLen < 2 || alphabetLen > 256 {
+		return nil, ErrInvalidAlphabet
 	}
 
-	if alphabetLen > 256 {
-		return nil, ErrAlphabetTooLong
-	}
+	// NOTE: Alternatively, a []bool slice can track seen characters. While slightly less memory-efficient than
+	// using a bitmask, it's straightforward and still performant.
+	//
+	// Check for duplicate characters using a boolean slice
+	// seen := make([]bool, 256)
+	// for _, b := range alphabetBytes {
+	//     if seen[b] {
+	//         return nil, ErrDuplicateCharacters
+	//     }
+	//     seen[b] = true
+	// }
 
-	// Check for duplicate characters
-	seen := make(map[byte]struct{}, alphabetLen)
+	// Check for duplicate characters using a bitmask with multiple uint32s
+	// A uint32 array can represent 256 bits (32 bits per uint32 × 8 = 256). This allows us to track each
+	// possible byte value without the limitations of a single uint64
+	var seen [8]uint32 // 8 * 32 = 256 bits
 	for _, b := range alphabetBytes {
-		if _, exists := seen[b]; exists {
+		idx := b / 32
+		bit := b % 32
+		if (seen[idx] & (1 << bit)) != 0 {
 			return nil, ErrDuplicateCharacters
 		}
-		seen[b] = struct{}{}
+		seen[idx] |= 1 << bit
 	}
 
 	// Calculate mask using power-of-two approach
 	k := bits.Len(uint(alphabetLen - 1))
 	if k == 0 {
-		return nil, ErrAlphabetTooShort
+		return nil, ErrInvalidAlphabet
 	}
 	mask := byte((1 << k) - 1)
 
 	// Calculate step based on mask
 	step := (8 * 128) / bits.OnesCount8(mask)
 
-	// Initialize buffer pool as a pointer
+	// Initialize buffer pool to store pointers to byte arrays
 	bufferPool := &sync.Pool{
 		New: func() interface{} {
-			b := make([]byte, step)
-			return &b // Store pointer to slice
+			var buffer [128]byte // Using a fixed-size array to avoid dynamic allocation
+			return &buffer
 		},
 	}
 
@@ -131,13 +150,12 @@ func New(alphabet string, randReader io.Reader) (Generator, error) {
 			Step:        step,
 		},
 		randReader: randReader,
-		bufferPool: bufferPool, // Always assigned
+		bufferPool: bufferPool,
 	}, nil
 }
 
-// GenerateSize creates a new Nano ID of the specified length.
-// It ensures that each character in the ID is selected uniformly from the alphabet.
-// Pre-allocated errors are used to minimize memory allocations.
+// Generate creates a new Nano ID of the specified length.
+// It implements the Generator interface.
 func (g *generator) Generate(length int) (string, error) {
 	if length <= 0 {
 		return "", ErrInvalidLength
@@ -145,18 +163,13 @@ func (g *generator) Generate(length int) (string, error) {
 
 	id := make([]byte, length)
 	cursor := 0
-	maxAttempts := length * 10 // Prevent infinite loops
+	maxAttempts := length * maxAttemptsMultiplier
 	attempts := 0
 
 	// Retrieve a pointer to the buffer from the pool
-	bufferPtr := g.bufferPool.Get().(*[]byte)
-	buffer := *bufferPtr
-	defer func() {
-		for i := range buffer {
-			buffer[i] = 0
-		}
-		g.bufferPool.Put(bufferPtr) // Return the pointer to the pool
-	}()
+	bufferPtr := g.bufferPool.Get().(*[128]byte)
+	buffer := bufferPtr[:]
+	defer g.bufferPool.Put(bufferPtr) // Return the pointer to the pool
 
 	for cursor < length {
 		if attempts >= maxAttempts {
@@ -164,15 +177,16 @@ func (g *generator) Generate(length int) (string, error) {
 		}
 		attempts++
 
-		n, err := g.randReader.Read(buffer)
+		// Read full buffer
+		_, err := io.ReadFull(g.randReader, buffer)
 		if err != nil {
 			return "", err
 		}
-		buffer = buffer[:n]
 
 		for _, rnd := range buffer {
-			if int(rnd&g.config.Mask) < g.config.AlphabetLen {
-				id[cursor] = g.config.Alphabet[rnd&g.config.Mask]
+			rnd &= g.config.Mask
+			if int(rnd) < g.config.AlphabetLen {
+				id[cursor] = g.config.Alphabet[rnd]
 				cursor++
 				if cursor == length {
 					break
@@ -185,6 +199,7 @@ func (g *generator) Generate(length int) (string, error) {
 }
 
 // GetConfig returns the configuration for the generator.
+// It implements the Configuration interface.
 func (g *generator) GetConfig() Config {
 	return g.config
 }
