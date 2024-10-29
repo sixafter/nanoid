@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NanoID Collision Time Calculator</title>
+    <style>
+        /* CSS Variables for Light and Dark Modes */
+        :root {
+            /* Light Mode Colors */
+            --background-color: #f4f4f4;
+            --container-background: #ffffff;
+            --text-color: #333333;
+            --label-color: #333333;
+            --input-background: #ffffff;
+            --input-text-color: #333333;
+            --input-border-color: #ccc;
+            --button-background: #007bff;
+            --button-hover-background: #0056b3;
+            --result-background: #e9ecef;
+            --note-color: #555555;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                /* Dark Mode Colors */
+                --background-color: #121212;
+                --container-background: #1e1e1e;
+                --text-color: #e0e0e0;
+                --label-color: #e0e0e0;
+                --input-background: #2c2c2c;
+                --input-text-color: #e0e0e0;
+                --input-border-color: #555555;
+                --button-background: #1a73e8;
+                --button-hover-background: #135ab8;
+                --result-background: #2c2c2c;
+                --note-color: #b0b0b0;
+            }
+        }
+
+        /* Global Styles */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        h1 {
+            text-align: center;
+            color: var(--text-color);
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: var(--container-background);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        label {
+            display: block;
+            margin-top: 20px;
+            font-weight: bold;
+            color: var(--label-color);
+        }
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 4px;
+            border: 1px solid var(--input-border-color);
+            box-sizing: border-box;
+            resize: vertical;
+            background-color: var(--input-background);
+            color: var(--input-text-color);
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+        textarea {
+            height: 60px;
+        }
+        .inline-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 5px;
+        }
+        .inline-group input[type="number"],
+        .inline-group select {
+            flex: 1;
+        }
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .slider-group input[type="range"] {
+            flex: 1;
+        }
+        button {
+            margin-top: 30px;
+            padding: 15px;
+            width: 100%;
+            background-color: var(--button-background);
+            border: none;
+            color: white;
+            font-size: 18px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: var(--button-hover-background);
+        }
+        .result {
+            margin-top: 30px;
+            padding: 25px;
+            background-color: var(--result-background);
+            border-radius: 4px;
+            word-wrap: break-word;
+            font-size: 16px;
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .note {
+            margin-top: 20px;
+            font-size: 0.95em;
+            color: var(--note-color);
+            transition: color 0.3s;
+        }
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            .inline-group {
+                flex-direction: column;
+            }
+            .slider-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>NanoID Collision Time Calculator</h1>
+    <form id="collisionForm">
+        <label for="alphabet">Alphabet:</label>
+        <textarea id="alphabet" name="alphabet" required>abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-</textarea>
+
+        <label for="length">ID Length (k):</label>
+        <div class="slider-group">
+            <input type="range" id="lengthSlider" name="lengthSlider" min="2" max="64" value="21">
+            <input type="number" id="lengthNumber" name="lengthNumber" min="2" max="64" value="21">
+        </div>
+
+        <label>Rate of ID Generation:</label>
+        <div class="inline-group">
+            <input type="number" id="rate" name="rate" min="1" value="1000" required>
+            <select id="rateUnit" name="rateUnit">
+                <option value="second">per Second</option>
+                <option value="hour" selected>per Hour</option>
+            </select>
+        </div>
+
+        <button type="button" onclick="calculateTime()">Calculate Time to 1% Collision Probability</button>
+    </form>
+
+    <div id="result" class="result" style="display:none;"></div>
+    <div class="note">
+        <strong>Mathematical Explanation:</strong>
+        <br>
+        To determine the time required to reach a <strong>1% probability</strong> of at least one collision when generating NanoIDs, we use the following mathematical formula derived from the birthday paradox:
+        <br><br>
+        <strong>Formula:</strong>
+        <br>
+        <code>n = √(-2 × N × ln(1 - P))</code>
+        <br><br>
+        <strong>Where:</strong>
+        <ul>
+            <li><code>n</code> = Total number of IDs needed to reach the target probability.</li>
+            <li><code>N = a<sup>k</sup></code> = Total number of possible unique IDs, where <code>a</code> is the alphabet size and <code>k</code> is the ID length.</li>
+            <li><code>P</code> = Target collision probability (in this case, <code>0.01</code> for 1%).</li>
+            <li><code>ln</code> = Natural logarithm.</li>
+        </ul>
+        <br>
+        By rearranging the formula, we can solve for <code>n</code>, and subsequently determine the time required based on the rate of ID generation.
+        <br><br>
+        <strong>Example Calculation:</strong>
+        <br>
+        If you have an alphabet size of <code>64</code> characters and an ID length of <code>21</code>, the total number of possible unique IDs <code>N</code> is:
+        <br>
+        <code>N = 64<sup>21</sup> ≈ 1.20892582 × 10<sup>38</sup></sup></code>
+        <br>
+        To reach a <code>1%</code> collision probability:
+        <br>
+        <code>n = √(-2 × 1.20892582 × 10<sup>38</sup> × ln(0.99)) ≈ 1.555 × 10<sup>18</sup></sup></code>
+        <br>
+        If you generate <code>1,000</code> IDs per hour, the time <code>t</code> required is:
+        <br>
+        <code>t = n / rate = 1.555 × 10<sup>18</sup> / 1,000 = 1.555 × 10<sup>15</sup> hours ≈ 176,136,364 Years</code>
+        <br><br>
+        <strong>Note:</strong> This calculation assumes that each ID is generated independently and that the probability of generating the same ID multiple times remains constant throughout the generation process.
+    </div>
+</div>
+
+<script>
+    // Synchronize Slider and Number Input for ID Length
+    const lengthSlider = document.getElementById('lengthSlider');
+    const lengthNumber = document.getElementById('lengthNumber');
+
+    lengthSlider.addEventListener('input', function() {
+        lengthNumber.value = lengthSlider.value;
+    });
+
+    lengthNumber.addEventListener('input', function() {
+        let value = parseInt(lengthNumber.value);
+        if (isNaN(value)) {
+            value = 2;
+        } else if (value < 2) {
+            value = 2;
+        } else if (value > 64) {
+            value = 64;
+        }
+        lengthNumber.value = value;
+        lengthSlider.value = value;
+    });
+
+    function calculateTime() {
+        // Get input values
+        const alphabet = document.getElementById('alphabet').value.trim();
+        const k = parseInt(document.getElementById('lengthNumber').value);
+        const rate = parseInt(document.getElementById('rate').value);
+        const rateUnit = document.getElementById('rateUnit').value;
+
+        // Input validation
+        if (!alphabet) {
+            alert('Please enter an alphabet.');
+            return;
+        }
+        if (isNaN(k) || k < 2 || k > 64) {
+            alert('Please enter a valid ID length (k) between 2 and 64.');
+            return;
+        }
+        if (isNaN(rate) || rate <= 0) {
+            alert('Please enter a valid rate of ID generation.');
+            return;
+        }
+
+        const a = alphabet.length;
+        if (a === 0) {
+            alert('Alphabet cannot be empty.');
+            return;
+        }
+
+        // Fixed target probability P = 0.01 (1%)
+        const P = 0.01;
+
+        // Calculate total number of possible unique IDs (N = a^k)
+        let N;
+        const logN = k * Math.log(a);
+
+        if (logN > 700) { // Prevent overflow in Math.exp
+            // Use logarithmic calculations
+            N = Math.exp(logN);
+        } else {
+            N = Math.pow(a, k);
+        }
+
+        // Calculate total number of IDs needed (n) to reach P
+        // Using exact formula: n = sqrt(-2 * N * ln(1 - P))
+        const lnFactor = Math.log(1 - P);
+        const n = Math.sqrt(-2 * N * lnFactor);
+
+        // Calculate time t = n / rate
+        let t_seconds, t_hours;
+        let timeStr = '';
+
+        if (rateUnit === 'second') {
+            t_seconds = n / rate;
+            // Convert seconds to larger units for readability
+            timeStr = convertSeconds(t_seconds);
+        } else if (rateUnit === 'hour') {
+            t_hours = n / rate;
+            // Convert hours to larger units for readability
+            timeStr = convertHours(t_hours);
+        } else {
+            alert('Invalid rate unit.');
+            return;
+        }
+
+        // Handle extremely large times
+        if ((!isFinite(t_seconds) && rateUnit === 'second') || (!isFinite(t_hours) && rateUnit === 'hour')) {
+            timeStr = 'Too long to compute.';
+        }
+
+        // Display the result
+        displayResult(a, k, rate, rateUnit, n, timeStr);
+    }
+
+    function convertSeconds(seconds) {
+        const years = Math.floor(seconds / 31536000);
+        seconds %= 31536000;
+        const days = Math.floor(seconds / 86400);
+        seconds %= 86400;
+        const hours = Math.floor(seconds / 3600);
+        seconds %= 3600;
+        const minutes = Math.floor(seconds / 60);
+        seconds = Math.floor(seconds % 60);
+
+        let timeStr = '';
+        if (years > 0) timeStr += formatNumber(years) + ' Year' + (years > 1 ? 's ' : ' ');
+        if (days > 0) timeStr += formatNumber(days) + ' Day' + (days > 1 ? 's ' : ' ');
+        if (hours > 0) timeStr += formatNumber(hours) + ' Hour' + (hours > 1 ? 's ' : ' ');
+        if (minutes > 0) timeStr += formatNumber(minutes) + ' Minute' + (minutes > 1 ? 's ' : ' ');
+        if (seconds > 0) timeStr += formatNumber(seconds) + ' Second' + (seconds > 1 ? 's ' : ' ');
+
+        return timeStr.trim() || '0 Seconds';
+    }
+
+    function convertHours(hours) {
+        const years = Math.floor(hours / 8760);
+        hours %= 8760;
+        const days = Math.floor(hours / 24);
+        hours %= 24;
+        const remainingHours = Math.floor(hours);
+
+        let timeStr = '';
+        if (years > 0) timeStr += formatNumber(years) + ' Year' + (years > 1 ? 's ' : ' ');
+        if (days > 0) timeStr += formatNumber(days) + ' Day' + (days > 1 ? 's ' : ' ');
+        if (remainingHours > 0) timeStr += formatNumber(remainingHours) + ' Hour' + (remainingHours > 1 ? 's ' : ' ');
+
+        return timeStr.trim() || '0 Hours';
+    }
+
+    function formatNumber(num) {
+        return num.toLocaleString();
+    }
+
+    function displayResult(a, k, rate, rateUnit, n, timeStr) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `
+            <strong>Results:</strong><br><br>
+            <strong>Alphabet Size (a):</strong> ${a}<br>
+            <strong>ID Length (k):</strong> ${k}<br><br>
+            <strong>Rate of ID Generation:</strong> ${formatNumber(rate)} IDs per ${rateUnit}<br>
+            <strong>Target Collision Probability:</strong> 1%<br><br>
+            <strong>Total Number of IDs Needed (n):</strong> ${formatNumber(Math.round(n))}<br>
+            <strong>Time to Reach 1% Collision Probability:</strong> ${timeStr}<br>
+        `;
+    }
+</script>
+
+</body>
+</html>
