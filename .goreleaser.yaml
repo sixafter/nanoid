@@ -1,17 +1,62 @@
-# Ref: https://goreleaser.com/customization/builds/
-builds:
-  # Ref: https://goreleaser.com/errors/no-main/#if-you-are-building-a-library
-  - skip: true
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=jcroql
+version: 2
 
 snapshot:
   version_template: "{{ incpatch .Version }}-alpha"
 
+# Ref: https://goreleaser.com/customization/builds/
+project_name: nanoid
+
+builds:
+  # Ref: https://goreleaser.com/errors/no-main/#if-you-are-building-a-library
+  - skip: true
+
 changelog:
   sort: asc
+  use: github
   filters:
     exclude:
-      - '^docs:'
-      - '^test:'
+      - "^test:"
+      - "^test\\("
+      - "merge conflict"
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+      - go mod tidy
+  groups:
+    - title: Dependency updates
+      regexp: '^.*?(.+)\(deps\)!?:.+$'
+      order: 300
+    - title: "Features"
+      regexp: '^.*?feature(\(.+\))??!?:.+$'
+      order: 100
+    - title: "Risk"
+      regexp: '^.*?risk(\(.+\))??!?:.+$'
+      order: 150
+    - title: "Defects"
+      regexp: '^.*?defect(\(.+\))??!?:.+$'
+      order: 200
+    - title: "Debt"
+      regexp: '^.*?debt(\(.+\))??!?:.+$'
+      order: 250
+    - title: "Documentation"
+      regexp: ^.*?docs?(\(.+\))??!?:.+$
+      order: 400
+    - title: "Build"
+      regexp: ^.*?(build|ci)(\(.+\))??!?:.+$
+      order: 400
+    - title: Other work
+      order: 9999
+
+sboms:
+  - artifacts: archive
 
 release:
   name_template: 'v{{ .Version }}'
+  footer: |
+    **Full Changelog**: https://github.com/sixafter/nanoid/tree/main/CHANGELOG
+        
+    ## Where to go next?
+    
+    * To determine the practical length for a NanoID, see the collision calculator [here](https://github.com/sixafter/nanoid/blob/main/docs/nanoid-collision-calculator.html).
