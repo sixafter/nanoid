@@ -25,9 +25,6 @@ changelog:
       - Merge branch
       - go mod tidy
   groups:
-    - title: Dependency updates
-      regexp: '^.*?(.+)\(deps\)!?:.+$'
-      order: 300
     - title: "Features"
       regexp: '^.*?feature(\(.+\))??!?:.+$'
       order: 100
