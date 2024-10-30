@@ -300,6 +300,10 @@ Nano ID generates unique identifiers based on the following:
     mask := byte((1 << k) - 1)
     ```
    * Implications: While the alphabet length doesn't need to be a power of two, the mask is used to efficiently reduce bias in random number generation. The implementation ensures that each character in the alphabet has an equal probability of being selected by using this mask.
+  
+## Determining Collisions
+
+To determine the practical length for a NanoID, see the collision time calculator [here](https://sixafter.github.io/nanoid/).
 
 ## Contributing
 
