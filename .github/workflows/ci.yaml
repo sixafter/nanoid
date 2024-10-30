@@ -57,7 +57,7 @@ jobs:
 
       - name: Benchmark Tests
         run: |
-          make test
+          make bench
 
       - name: Cover
         run: |

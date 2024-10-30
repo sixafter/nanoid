@@ -108,7 +108,8 @@ func TestGetConfig(t *testing.T) {
 	config := gen.(Configuration).GetConfig()
 
 	is.Equal(DefaultAlphabet, string(config.Alphabet), "Config.Alphabet should match the default alphabet")
-	is.Equal(len(DefaultAlphabet), config.AlphabetLen, "Config.AlphabetLen should match the default alphabet length")
+	is.Equal(uint16(len(DefaultAlphabet)), config.AlphabetLen, "Config.AlphabetLen should match the default alphabet length")
+	is.True(config.IsPowerOfTwo)
 
 	expectedMask := byte((1 << bits.Len(uint(len(DefaultAlphabet)-1))) - 1)
 	is.Equal(expectedMask, config.Mask, "Config.Mask should be correctly calculated")

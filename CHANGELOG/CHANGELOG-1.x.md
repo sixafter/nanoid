@@ -16,6 +16,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
+## [1.7.0] - 2024-OCT-30
+
+### Added
+### Changed
+- **DEBT:** Optimized Struct Alignment for Reduced Memory Usage: 
+  - Reordered fields in the `Config` struct from largest to smallest to minimize padding.
+  - Changed data types of `AlphabetLen` and `Step` from `int` to `uint16`, reducing the `Config` struct size from 56 bytes to 32 bytes. 
+  - Ensured that the `generator` struct fields are aligned efficiently, reducing its size from 72 bytes to 56 bytes.
+- **DEBT:** Integrated IsPowerOfTwo Optimization in Generate Function:
+  - Added an `IsPowerOfTwo` field to the `Config` struct to indicate if the alphabet length is a power of two. 
+  - During initialization, calculated whether the alphabet length is a power of two. 
+  - In the `Generate` function, included logic to skip the boundary check if `int(rnd) < g.config.AlphabetLen` when the alphabet length is a power of two, improving execution speed without increasing allocations.
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.6.0] - 2024-OCT-29
 
 ### Added
@@ -91,7 +109,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/sixafter/nanoid/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/sixafter/nanoid/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/sixafter/nanoid/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/sixafter/nanoid/compare/v1.3.0...v1.4.0
