@@ -13,6 +13,7 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+coverage.json
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
@@ -23,9 +24,6 @@ go.work.sum
 
 # env file
 .env
-
-coverage.json
-coverage.out
 
 .idea/
 .DS_Store

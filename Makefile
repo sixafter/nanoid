@@ -31,7 +31,8 @@ test: ## Execute unit tests
 
 .PHONY: bench
 bench: ## Execute benchmark tests
-	$(GO_TEST) -bench=. -benchmem ./...
+	@rm mem.out
+	$(GO_TEST) -bench=. -benchmem -memprofile=mem.out -cpuprofile=cpu.out
 
 .PHONY: clean
 clean: ## Remove previous build
@@ -39,6 +40,7 @@ clean: ## Remove previous build
 
 .PHONY: cover
 cover: ## Generate global code coverage report
+	@rm coverage.out
 	$(GO_TEST) -v ./... -coverprofile coverage.out
 
 .PHONY: analyze

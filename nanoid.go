@@ -64,16 +64,18 @@ type Configuration interface {
 
 // Config holds the configuration for the Nano ID generator.
 type Config struct {
-	Alphabet    []byte
-	AlphabetLen int
-	Mask        byte
-	Step        int
+	Alphabet     []byte // 24 bytes
+	AlphabetLen  uint16 // 2 bytes
+	Step         uint16 // 2 bytes
+	Mask         byte   // 1 byte
+	IsPowerOfTwo bool   // 1 byte
+	// Padding          // 2 bytes (to align to 8 bytes)
 }
 
 type generator struct {
-	randReader io.Reader
-	bufferPool *sync.Pool
-	config     Config
+	randReader io.Reader  // 16 bytes
+	bufferPool *sync.Pool // 8 bytes
+	config     Config     // 32 bytes (from optimized `Config` struct)
 }
 
 // New creates a new Generator with buffer pooling enabled.
@@ -142,15 +144,19 @@ func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 		},
 	}
 
+	// Determine if alphabet length is a power of two
+	isPowerOfTwo := (alphabetLen & (alphabetLen - 1)) == 0
+
 	return &generator{
 		config: Config{
-			Alphabet:    alphabetBytes,
-			AlphabetLen: alphabetLen,
-			Mask:        mask,
-			Step:        step,
+			Alphabet:     alphabetBytes,
+			AlphabetLen:  uint16(alphabetLen),
+			Mask:         mask,
+			Step:         uint16(step),
+			IsPowerOfTwo: isPowerOfTwo,
 		},
-		randReader: randReader,
 		bufferPool: bufferPool,
+		randReader: randReader,
 	}, nil
 }
 
@@ -183,13 +189,25 @@ func (g *generator) Generate(length int) (string, error) {
 			return "", err
 		}
 
-		for _, rnd := range buffer {
-			rnd &= g.config.Mask
-			if int(rnd) < g.config.AlphabetLen {
+		if g.config.IsPowerOfTwo {
+			for _, rnd := range buffer {
+				rnd &= g.config.Mask
+				// Since alphabet length is a power of two, rnd is guaranteed to be within range
 				id[cursor] = g.config.Alphabet[rnd]
 				cursor++
 				if cursor == length {
 					break
+				}
+			}
+		} else {
+			for _, rnd := range buffer {
+				rnd &= g.config.Mask
+				if int(rnd) < int(g.config.AlphabetLen) {
+					id[cursor] = g.config.Alphabet[rnd]
+					cursor++
+					if cursor == length {
+						break
+					}
 				}
 			}
 		}
