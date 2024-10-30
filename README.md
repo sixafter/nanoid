@@ -115,7 +115,20 @@ func main() {
 Generates a Nano ID with the specified length using the default generator.
 
 ```go
-func Generate(length int) (string, error)
+func Generate() (string, error)
+```
+
+* Returns:
+  * `string`: The generated Nano ID.
+  * `error`: An error if the generation fails.
+
+
+### `GenerateSize`
+
+Generates a Nano ID with the specified length using the default generator.
+
+```go
+func GenerateSize(length int) (string, error)
 ```
 
 * Parameters:
