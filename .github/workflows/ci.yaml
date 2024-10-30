@@ -69,7 +69,8 @@ jobs:
 
       - name: Lint
         uses: golangci/golangci-lint-action@v6
-        args: --timeout=30m --config=.golangci.yaml --issues-exit-code=0
+        with:
+          args: --timeout=30m --config=.golangci.yaml --issues-exit-code=0
 
       # Ref: https://github.com/actions/cache
       - name: Cache SonarCloud Packages
