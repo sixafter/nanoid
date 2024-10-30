@@ -272,11 +272,11 @@ ok      github.com/sixafter/nanoid      34.773s
 
 Nano ID generates unique identifiers based on the following:
 
-1. Random Byte Generation: Nano ID generates a sequence of random bytes using a secure random source (e.g., crypto/rand.Reader). 
-2. Mapping to Alphabet: Each random byte is mapped to a character in a predefined alphabet to form the final ID. 
-3. Uniform Distribution: To ensure that each character in the alphabet has an equal probability of being selected, Nano ID employs techniques to avoid bias, especially when the alphabet size isn't a power of two.
+1. **Random Byte Generation**: Nano ID generates a sequence of random bytes using a secure random source (e.g., `crypto/rand.Reader`). 
+2. **Mapping to Alphabet**: Each random byte is mapped to a character in a predefined alphabet to form the final ID. 
+3. **Uniform Distribution**: To ensure that each character in the alphabet has an equal probability of being selected, Nano ID employs techniques to avoid bias, especially when the alphabet size isn't a power of two.
 
-### Custom Alphabet Constraints
+## Custom Alphabet Constraints
 
 * **Alphabet Length**: Must be between 2 and 256 unique single-byte characters. 
 * **Uniqueness**: All characters in the alphabet must be unique. 
