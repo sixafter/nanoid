@@ -63,16 +63,16 @@ changelog:
   # Groups are disabled when using github-native, as it already groups things by itself.
   # Regex use RE2 syntax as defined here: https://github.com/google/re2/wiki/Syntax.
   groups:
-    - title: "Features"
+    - title: "🎉 Features"
       regexp: '^.*?feature(\([[:word:]]+\))??!?:.+$'
       order: 0
-    - title: "Defects"
+    - title: "🐛 Defects"
       regexp: '^.*?defect(\([[:word:]]+\))??!?:.+$'
       order: 1
-    - title: "Technical Debt"
+    - title: "🛠 Technical Debt"
       regexp: '^.*?debt(\([[:word:]]+\))??!?:.+$'
       order: 1
-    - title: "Technical Risk"
+    - title: "🚀 Technical Risk"
       regexp: '^.*?risk(\([[:word:]]+\))??!?:.+$'
       order: 1
     - title: Others
