@@ -21,6 +21,20 @@ This project adheres to the [Contributor Covenant Code of Conduct](CODE_OF_CONDU
 
 ---
 
+## Versioning
+
+This software adheres to the [Semantic Versioning 2.0](https://semver.org/spec/v2.0.0.html) standard for version numbering as quoted here:
+
+Given a version number MAJOR.MINOR.PATCH, increment the:
+
+1.	MAJOR version when you make incompatible API changes
+2.	MINOR version when you add functionality in a backward compatible manner
+3.	PATCH version when you make backward compatible bug fixes
+
+Additional labels for pre-release and build metadata are available as extensions to the MAJOR.MINOR.PATCH format.
+
+---
+
 ## 🤝 How to Contribute
 
 There are several ways you can contribute to NanoID for Go:
@@ -114,10 +128,14 @@ Adhering to consistent coding standards ensures the codebase remains clean, read
 * **Documentation**: Document public functions, types, and methods using Go's standard documentation conventions. 
 * **Error Handling**: Handle errors gracefully and consistently. Use the predefined error types where applicable.
 
+---
+
 ## 🔒 Security Considerations
 
 * **Randomness**: Ensure that all randomness sources use cryptographically secure methods (crypto/rand). 
 * **Data Sanitization**: Avoid exposing sensitive data through IDs or logs.
+
+---
 
 ## 🚀 Pull Request Process
 
@@ -131,6 +149,8 @@ Follow these steps to create a successful pull request (PR):
    * **Update Your PR**: Push additional commits to your branch to address feedback.
 4. Merge the PR 
    * Once approved and all checks pass, your PR will be merged by a maintainer.
+
+---
 
 ## 📝 Additional Resources
 
