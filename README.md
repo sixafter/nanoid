@@ -177,7 +177,7 @@ type Config struct {
 The nanoid module defines several error types to handle various failure scenarios:
 * `ErrInvalidLength`: Returned when a non-positive length is specified. 
 * `ErrExceededMaxAttempts`: Returned when the generation process exceeds the maximum number of attempts. 
-* `ErrInvalidAlphabet`: Returned when an empty alphabet is invalid.
+* `ErrInvalidAlphabet`: Returned when an alphabet is invalid.
 * `ErrDuplicateCharacters`: Returned when the alphabet contains duplicate characters.
 
 ## Constants
