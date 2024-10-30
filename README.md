@@ -210,7 +210,7 @@ How It Works:
 
 ### Struct Optimization
 
-The `generator` struct is optimized for memory alignment and size by orderinf from largest to smallest alignment requirements to minimize padding and optimize memory usage.
+The `generator` struct is optimized for memory alignment and size by ordering from largest to smallest to minimize padding and optimize memory usage.
 
 ## Execute Benchmarks:
 
