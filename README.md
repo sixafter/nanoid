@@ -210,10 +210,7 @@ How It Works:
 
 ### Struct Optimization
 
-The `generator` struct is optimized for memory alignment and size by:
-
-* Removing Embedded Interfaces: Interfaces like `Generator` and `Configuration` are implemented explicitly without embedding, reducing the struct's size and preventing unnecessary padding. 
-* Ordering Fields by Alignment: Fields are ordered from largest to smallest alignment requirements to minimize padding and optimize memory usage.
+The `generator` struct is optimized for memory alignment and size by orderinf from largest to smallest alignment requirements to minimize padding and optimize memory usage.
 
 ## Execute Benchmarks:
 
