@@ -177,9 +177,7 @@ type Config struct {
 The nanoid module defines several error types to handle various failure scenarios:
 * `ErrInvalidLength`: Returned when a non-positive length is specified. 
 * `ErrExceededMaxAttempts`: Returned when the generation process exceeds the maximum number of attempts. 
-* `ErrEmptyAlphabet`: Returned when an empty alphabet is provided. 
-* `ErrAlphabetTooShort`: Returned when the alphabet is shorter than required. 
-* `ErrAlphabetTooLong`: Returned when the alphabet exceeds the maximum allowed length. 
+* `ErrInvalidAlphabet`: Returned when an empty alphabet is invalid.
 * `ErrDuplicateCharacters`: Returned when the alphabet contains duplicate characters.
 
 ## Constants
@@ -191,7 +189,7 @@ The nanoid module defines several error types to handle various failure scenario
 
 ### Buffer Pooling with `sync.Pool`
 
-The nanoid generator utilizes sync.Pool to manage byte slice buffers efficiently. This approach minimizes memory allocations and enhances performance, especially in high-concurrency scenarios.
+The nanoid generator utilizes `sync.Pool` to manage byte slice buffers efficiently. This approach minimizes memory allocations and enhances performance, especially in high-concurrency scenarios.
 
 How It Works:
 * Storing Pointers: `sync.Pool` stores pointers to `[]byte` slices (`*[]byte`) instead of the slices themselves. This avoids unnecessary allocations and aligns with best practices for using `sync.Pool`.
