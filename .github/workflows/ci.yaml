@@ -12,8 +12,15 @@ on:
     branches:
       - main
 
+    paths-ignore:
+      - 'CHANGELOG/**'
+      - 'CODEOWNERS'
+      - 'docs/**'
+      - 'LICENSE'
+      - '**/*.md'
+
 jobs:
-  build:
+  ci:
     runs-on: ubuntu-latest
     env:
       flags: ""
@@ -44,6 +51,41 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Test
+      - name: Functional Tests
         run: |
           make test
+
+      - name: Benchmark Tests
+        run: |
+          make test
+
+      - name: Cover
+        run: |
+          make cover
+
+      - name: Analyze
+        run: |
+          make analyze          
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          args: --timeout=30m --config=.golangci.yaml --issues-exit-code=0
+
+      # Ref: https://github.com/actions/cache
+      - name: Cache SonarCloud Packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar-
+
+      # Ref: https://github.com/SonarSource/sonarcloud-github-action
+      - name: Scan with SonarCloud
+        uses: sonarsource/sonarcloud-github-action@master
+        with:
+          projectBaseDir: ./
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_USER: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
