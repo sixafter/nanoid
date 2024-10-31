@@ -12,6 +12,7 @@ import (
 	"io"
 	"math/bits"
 	"sync"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -94,6 +95,21 @@ func New(alphabet string, randReader io.Reader) (Generator, error) {
 	return newGenerator(alphabet, randReader)
 }
 
+// isASCII checks if all characters in a string are ASCII.
+func isASCII(s string) bool {
+	for _, r := range s {
+		if r > unicode.MaxASCII {
+			return false
+		}
+	}
+	return true
+}
+
+// isUnicode checks if any character in a string is a non-ASCII Unicode character.
+func isUnicode(s string) bool {
+	return !isASCII(s)
+}
+
 // newGenerator is an internal constructor for generator.
 func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 	if len(alphabet) == 0 {
@@ -110,13 +126,7 @@ func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 	}
 
 	// Determine if the alphabet is ASCII-only
-	isASCII := true
-	for i := 0; i < len(alphabet); i++ {
-		if alphabet[i] > 127 {
-			isASCII = false
-			break
-		}
-	}
+	isASCII := !isUnicode(alphabet)
 
 	var (
 		alphabetBytes []byte
@@ -218,52 +228,53 @@ func (g *generator) Generate(length int) (string, error) {
 		return "", ErrInvalidLength
 	}
 
+	// Choose between byte or rune slices for id
+	var id interface{}
 	if g.config.IsASCII {
-		return g.generateASCII(length)
+		id = make([]byte, length)
+	} else {
+		id = make([]rune, length)
 	}
-	return g.generateUnicode(length)
-}
 
-// generateASCII handles ID generation for ASCII-only alphabets.
-func (g *generator) generateASCII(length int) (string, error) {
-	id := make([]byte, length)
 	cursor := 0
 	maxAttempts := length * maxAttemptsMultiplier
 	attempts := 0
-
 	mask := g.config.Mask
 	bytesNeeded := g.config.BytesNeeded
 
-	// Retrieve a buffer from the pool
-	randomBytesPtr := g.byteBufferPool.Get().(*[]byte)
+	// Use appropriate buffer pool
+	var randomBytesPtr *[]byte
+	if g.config.IsASCII {
+		randomBytesPtr = g.byteBufferPool.Get().(*[]byte)
+		defer g.byteBufferPool.Put(randomBytesPtr)
+	} else {
+		randomBytesPtr = g.runeBufferPool.Get().(*[]byte)
+		defer g.runeBufferPool.Put(randomBytesPtr)
+	}
 	randomBytes := *randomBytesPtr
-	defer g.byteBufferPool.Put(randomBytesPtr)
-
 	bufferLen := len(randomBytes)
 	step := int(bytesNeeded)
 	if step <= 0 {
 		return "", ErrInvalidAlphabet
 	}
 
+	// Generate ID
 	for cursor < length {
 		if attempts >= maxAttempts {
 			return "", ErrExceededMaxAttempts
 		}
 		attempts++
 
-		// Calculate how many random bytes we need
 		neededBytes := (length - cursor) * step
 		if neededBytes > bufferLen {
 			neededBytes = bufferLen
 		}
 
-		// Read random bytes
 		_, err := io.ReadFull(g.randReader, randomBytes[:neededBytes])
 		if err != nil {
 			return "", err
 		}
 
-		// Process random bytes
 		for i := 0; i < neededBytes; i += step {
 			var rnd uint
 			for j := 0; j < step; j++ {
@@ -271,15 +282,13 @@ func (g *generator) generateASCII(length int) (string, error) {
 			}
 			rnd &= mask
 
-			if g.config.IsPowerOfTwo {
-				// Index is guaranteed to be within bounds
-				id[cursor] = g.config.Alphabet[rnd]
-				cursor++
-			} else {
-				if int(rnd) < int(g.config.AlphabetLen) {
-					id[cursor] = g.config.Alphabet[rnd]
-					cursor++
+			if g.config.IsPowerOfTwo || int(rnd) < int(g.config.AlphabetLen) {
+				if g.config.IsASCII {
+					id.([]byte)[cursor] = g.config.Alphabet[rnd]
+				} else {
+					id.([]rune)[cursor] = g.config.RuneAlphabet[rnd]
 				}
+				cursor++
 			}
 
 			if cursor == length {
@@ -288,74 +297,11 @@ func (g *generator) generateASCII(length int) (string, error) {
 		}
 	}
 
-	return string(id), nil
-}
-
-// generateUnicode handles ID generation for Unicode (non-ASCII) alphabets.
-func (g *generator) generateUnicode(length int) (string, error) {
-	idRunes := make([]rune, length)
-	cursor := 0
-	maxAttempts := length * maxAttemptsMultiplier
-	attempts := 0
-
-	mask := g.config.Mask
-	bytesNeeded := g.config.BytesNeeded
-
-	// Retrieve a buffer from the pool
-	randomBytesPtr := g.runeBufferPool.Get().(*[]byte)
-	randomBytes := *randomBytesPtr
-	defer g.runeBufferPool.Put(randomBytesPtr)
-
-	bufferLen := len(randomBytes)
-	step := int(bytesNeeded)
-	if step <= 0 {
-		return "", ErrInvalidAlphabet
+	// Convert id to string based on its type
+	if g.config.IsASCII {
+		return string(id.([]byte)), nil
 	}
-
-	for cursor < length {
-		if attempts >= maxAttempts {
-			return "", ErrExceededMaxAttempts
-		}
-		attempts++
-
-		// Calculate how many random bytes we need
-		neededBytes := (length - cursor) * step
-		if neededBytes > bufferLen {
-			neededBytes = bufferLen
-		}
-
-		// Read random bytes
-		_, err := io.ReadFull(g.randReader, randomBytes[:neededBytes])
-		if err != nil {
-			return "", err
-		}
-
-		// Process random bytes
-		for i := 0; i < neededBytes; i += step {
-			var rnd uint
-			for j := 0; j < step; j++ {
-				rnd = (rnd << 8) | uint(randomBytes[i+j])
-			}
-			rnd &= mask
-
-			if g.config.IsPowerOfTwo {
-				// Index is guaranteed to be within bounds
-				idRunes[cursor] = g.config.RuneAlphabet[rnd]
-				cursor++
-			} else {
-				if int(rnd) < int(g.config.AlphabetLen) {
-					idRunes[cursor] = g.config.RuneAlphabet[rnd]
-					cursor++
-				}
-			}
-
-			if cursor == length {
-				break
-			}
-		}
-	}
-
-	return string(idRunes), nil
+	return string(id.([]rune)), nil
 }
 
 // GetConfig returns the configuration for the generator.
