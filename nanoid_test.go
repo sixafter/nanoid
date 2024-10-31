@@ -3,11 +3,13 @@
 // This source code is licensed under the MIT License found in the
 // LICENSE file in the root directory of this source tree.
 
+// nanoid_test.go
+
 package nanoid
 
 import (
 	"math/bits"
-	"strings"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -21,7 +23,7 @@ func TestGenerateDefault(t *testing.T) {
 
 	id, err := Generate()
 	is.NoError(err, "Generate() should not return an error")
-	is.Equal(DefaultSize, len(id), "Generated ID should have the default length")
+	is.Equal(DefaultSize, len([]rune(id)), "Generated ID should have the default length")
 
 	is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
 }
@@ -32,19 +34,16 @@ func TestGenerateCustomLength(t *testing.T) {
 
 	for _, length := range lengths {
 		length := length // capture range variable
-		t.Run(
-			strings.ReplaceAll(t.Name(), " ", "_")+"_"+string(rune(length)),
-			func(t *testing.T) {
-				t.Parallel()
-				is := assert.New(t)
+		t.Run("Length_"+strconv.Itoa(length), func(t *testing.T) {
+			t.Parallel()
+			is := assert.New(t)
 
-				id, err := GenerateSize(length)
-				is.NoError(err, "GenerateSize(%d) should not return an error", length)
-				is.Equal(length, len(id), "Generated ID should have the specified length")
+			id, err := GenerateSize(length)
+			is.NoError(err, "GenerateSize(%d) should not return an error", length)
+			is.Equal(length, len([]rune(id)), "Generated ID should have the specified length")
 
-				is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
-			},
-		)
+			is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
+		})
 	}
 }
 
@@ -57,16 +56,13 @@ func TestGenerateInvalidLength(t *testing.T) {
 
 	for _, length := range invalidLengths {
 		length := length // capture range variable
-		t.Run(
-			strings.ReplaceAll(t.Name(), " ", "_")+"_"+string(rune(length)),
-			func(t *testing.T) {
-				t.Parallel()
-				id, err := GenerateSize(length)
-				is.Error(err, "GenerateSize(%d) should return an error", length)
-				is.Equal("", id, "Generated ID should be empty on error")
-				is.Equal(ErrInvalidLength, err, "Expected ErrInvalidLength")
-			},
-		)
+		t.Run("InvalidLength_"+strconv.Itoa(length), func(t *testing.T) {
+			t.Parallel()
+			id, err := GenerateSize(length)
+			is.Error(err, "GenerateSize(%d) should return an error", length)
+			is.Empty(id, "Generated ID should be empty on error")
+			is.Equal(ErrInvalidLength, err, "Expected ErrInvalidLength")
+		})
 	}
 }
 
@@ -75,13 +71,15 @@ func TestGenerateWithCustomAlphabet(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
-	customAlphabet := "abcdef123456"
+	// Include Unicode characters in the custom alphabet
+	customAlphabet := "abc😊🚀🌟"
+
 	gen, err := New(customAlphabet, nil)
 	is.NoError(err, "New() should not return an error with a valid custom alphabet")
 
 	id, err := gen.Generate(10)
 	is.NoError(err, "Generate(10) should not return an error")
-	is.Equal(10, len(id), "Generated ID should have the specified length")
+	is.Equal(10, len([]rune(id)), "Generated ID should have the specified length")
 
 	is.True(isValidID(id, customAlphabet), "Generated ID contains invalid characters")
 }
@@ -91,7 +89,7 @@ func TestGenerateWithDuplicateAlphabet(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
-	duplicateAlphabet := "aabbcc"
+	duplicateAlphabet := "aabbcc😊😊"
 	_, err := New(duplicateAlphabet, nil)
 	is.Error(err, "New() should return an error with duplicate characters in the alphabet")
 	is.Equal(ErrDuplicateCharacters, err, "Expected ErrDuplicateCharacters")
@@ -108,13 +106,16 @@ func TestGetConfig(t *testing.T) {
 	config := gen.(Configuration).GetConfig()
 
 	is.Equal(DefaultAlphabet, string(config.Alphabet), "Config.Alphabet should match the default alphabet")
-	is.Equal(uint16(len(DefaultAlphabet)), config.AlphabetLen, "Config.AlphabetLen should match the default alphabet length")
-	is.True(config.IsPowerOfTwo)
+	is.Equal(uint16(len([]rune(DefaultAlphabet))), config.AlphabetLen, "Config.AlphabetLen should match the default alphabet length")
 
-	expectedMask := byte((1 << bits.Len(uint(len(DefaultAlphabet)-1))) - 1)
+	// Update expectedMask calculation for uint32
+	expectedMask := uint((1 << bits.Len(uint(config.AlphabetLen-1))) - 1)
 	is.Equal(expectedMask, config.Mask, "Config.Mask should be correctly calculated")
 
-	is.Positive(config.Step, "Config.Step should be a positive integer")
+	is.Equal((config.AlphabetLen&(config.AlphabetLen-1)) == 0, config.IsPowerOfTwo, "Config.IsPowerOfTwo should be correct")
+
+	is.Positive(config.BitsNeeded, "Config.BitsNeeded should be a positive integer")
+	is.Positive(config.BytesNeeded, "Config.BytesNeeded should be a positive integer")
 }
 
 // TestUniqueness tests that multiple generated IDs are unique.
@@ -188,17 +189,11 @@ func TestInvalidAlphabetLength(t *testing.T) {
 	_, err := New(shortAlphabet, nil)
 	is.Error(err, "New() should return an error for alphabets shorter than 2 characters")
 	is.Equal(ErrInvalidAlphabet, err, "Expected ErrInvalidAlphabet")
-
-	// Alphabet length greater than 256
-	longAlphabet := strings.Repeat("a", 257)
-	_, err = New(longAlphabet, nil)
-	is.Error(err, "New() should return an error for alphabets longer than 256 characters")
-	is.Equal(ErrInvalidAlphabet, err, "Expected ErrInvalidAlphabet")
 }
 
 // isValidID checks if all characters in the ID are within the specified alphabet.
 func isValidID(id string, alphabet string) bool {
-	alphabetSet := make(map[rune]struct{}, len(alphabet))
+	alphabetSet := make(map[rune]struct{}, len([]rune(alphabet)))
 	for _, char := range alphabet {
 		alphabetSet[char] = struct{}{}
 	}
