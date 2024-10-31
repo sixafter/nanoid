@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **FEATURE:** Added support for Unicode alphabets.
+- **FEATURE:** Added support for dynamic `bufferSize` calculation. 
+  - The `bufferSize` is calculated by multiplying `bytesNeeded` (the number of bytes required to generate each character) by `bufferMultiplier`. This ensures that the buffer is appropriately sized to handle multiple characters per read, reducing the number of reads from the random source.
 ### Changed
 ### Deprecated
 ### Removed

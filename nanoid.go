@@ -68,12 +68,13 @@ type Configuration interface {
 
 // Config holds the configuration for the Nano ID generator.
 type Config struct {
-	Alphabet     []rune // Supports Unicode characters
-	AlphabetLen  uint16
-	Mask         uint
-	BitsNeeded   uint
-	BytesNeeded  uint
-	IsPowerOfTwo bool
+	Alphabet     []rune // 24 bytes
+	Mask         uint   // 8 bytes
+	BitsNeeded   uint   // 8 bytes
+	BytesNeeded  uint   // 8 bytes
+	AlphabetLen  uint16 // 2 bytes
+	IsPowerOfTwo bool   // 1 byte
+	// Padding: 5 bytes to make the struct size a multiple of 8
 }
 
 type generator struct {
@@ -124,8 +125,7 @@ func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 
 	isPowerOfTwo := (alphabetLen & (alphabetLen - 1)) == 0
 
-	// **Dynamic bufferSize Calculation**
-	// Calculate bufferSize based on bytesNeeded and bufferMultiplier
+	// Dynamic bufferSize Calculation: Calculate bufferSize based on bytesNeeded and bufferMultiplier
 	bufferSize := int(bytesNeeded) * bufferMultiplier
 
 	bufferPool := &sync.Pool{
@@ -181,7 +181,7 @@ func (g *generator) Generate(length int) (string, error) {
 		attempts++
 
 		// Calculate how many random bytes we need
-		neededBytes := ((length - cursor) * step)
+		neededBytes := (length - cursor) * step
 		if neededBytes > bufferSize {
 			neededBytes = bufferSize
 		}
