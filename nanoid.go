@@ -62,25 +62,27 @@ func init() {
 }
 
 var (
+	ErrDuplicateCharacters = errors.New("duplicate characters in alphabet")
+	ErrExceededMaxAttempts = errors.New("exceeded maximum attempts")
 	ErrInvalidLength       = errors.New("invalid length")
 	ErrInvalidAlphabet     = errors.New("invalid alphabet")
-	ErrDuplicateCharacters = errors.New("duplicate characters in alphabet")
 	ErrNonUTF8Alphabet     = errors.New("alphabet contains invalid UTF-8 characters")
-	ErrExceededMaxAttempts = errors.New("exceeded maximum attempts")
 )
 
-// DefaultAlphabet as per Nano ID specification.
-const DefaultAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+const (
+	// DefaultAlphabet as per Nano ID specification.
+	DefaultAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
 
-// DefaultSize is the default size of the generated Nano ID: 21.
-const DefaultSize = 21
+	// DefaultSize is the default size of the generated Nano ID: 21.
+	DefaultSize = 21
 
-// maxAttemptsMultiplier defines the multiplier for maximum attempts based on length.
-const maxAttemptsMultiplier = 10
+	// maxAttemptsMultiplier defines the multiplier for maximum attempts based on length.
+	maxAttemptsMultiplier = 10
 
-// bufferMultiplier defines how many characters the buffer should handle per read.
-// Adjust this value based on performance and memory considerations.
-const bufferMultiplier = 128
+	// bufferMultiplier defines how many characters the buffer should handle per read.
+	// Adjust this value based on performance and memory considerations.
+	bufferMultiplier = 128
+)
 
 // Generator defines the interface for generating Nano IDs.
 type Generator interface {
