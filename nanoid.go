@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"math/bits"
+	"strings"
 	"sync"
 )
 
@@ -43,7 +44,7 @@ var (
 	ErrExceededMaxAttempts = errors.New("exceeded maximum attempts")
 )
 
-// DefaultAlphabet as per Nano ID specification.
+// DefaultAlphabet can now include multibyte Unicode characters.
 const DefaultAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
 
 // DefaultSize is the default size of the generated Nano ID: 21.
@@ -64,18 +65,17 @@ type Configuration interface {
 
 // Config holds the configuration for the Nano ID generator.
 type Config struct {
-	Alphabet     []byte // 24 bytes
-	AlphabetLen  uint16 // 2 bytes
-	Step         uint16 // 2 bytes
-	Mask         byte   // 1 byte
-	IsPowerOfTwo bool   // 1 byte
-	// Padding          // 2 bytes (to align to 8 bytes)
+	Alphabet     []rune // Changed from []byte to []rune
+	AlphabetLen  uint32 // Updated to uint32 to handle larger alphabets
+	Step         uint32 // Updated to uint32
+	Mask         uint32 // Updated to uint32
+	IsPowerOfTwo bool
 }
 
 type generator struct {
-	randReader io.Reader  // 16 bytes
-	bufferPool *sync.Pool // 8 bytes
-	config     Config     // 32 bytes (from optimized `Config` struct)
+	randReader io.Reader
+	bufferPool *sync.Pool
+	config     Config
 }
 
 // New creates a new Generator with buffer pooling enabled.
@@ -94,65 +94,54 @@ func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 		randReader = rand.Reader
 	}
 
-	alphabetBytes := []byte(alphabet)
-	alphabetLen := len(alphabetBytes)
+	alphabetRunes := []rune(alphabet)
+	alphabetLen := len(alphabetRunes)
 
-	if alphabetLen < 2 || alphabetLen > 256 {
+	if alphabetLen < 2 {
 		return nil, ErrInvalidAlphabet
 	}
 
-	// NOTE: Alternatively, a []bool slice can track seen characters. While slightly less memory-efficient than
-	// using a bitmask, it's straightforward and still performant.
-	//
-	// Check for duplicate characters using a boolean slice
-	// seen := make([]bool, 256)
-	// for _, b := range alphabetBytes {
-	//     if seen[b] {
-	//         return nil, ErrDuplicateCharacters
-	//     }
-	//     seen[b] = true
-	// }
-
-	// Check for duplicate characters using a bitmask with multiple uint32s
-	// A uint32 array can represent 256 bits (32 bits per uint32 × 8 = 256). This allows us to track each
-	// possible byte value without the limitations of a single uint64
-	var seen [8]uint32 // 8 * 32 = 256 bits
-	for _, b := range alphabetBytes {
-		idx := b / 32
-		bit := b % 32
-		if (seen[idx] & (1 << bit)) != 0 {
+	// Preallocate map with capacity
+	seen := make(map[rune]bool, alphabetLen)
+	for _, r := range alphabetRunes {
+		if seen[r] {
 			return nil, ErrDuplicateCharacters
 		}
-		seen[idx] |= 1 << bit
+		seen[r] = true
 	}
 
-	// Calculate mask using power-of-two approach
 	k := bits.Len(uint(alphabetLen - 1))
 	if k == 0 {
 		return nil, ErrInvalidAlphabet
 	}
-	mask := byte((1 << k) - 1)
+	mask := uint32((1 << k) - 1)
 
-	// Calculate step based on mask
-	step := (8 * 128) / bits.OnesCount8(mask)
+	onesCount := bits.OnesCount32(mask)
+	if onesCount == 0 {
+		return nil, ErrInvalidAlphabet
+	}
+	step := (8 * 128) / uint32(onesCount)
 
-	// Initialize buffer pool to store pointers to byte arrays
-	bufferPool := &sync.Pool{
-		New: func() interface{} {
-			var buffer [128]byte // Using a fixed-size array to avoid dynamic allocation
-			return &buffer
-		},
+	const bufferSize = 256
+
+	// Assign an anonymous function to a variable
+	newBuffer := func() interface{} {
+		buffer := make([]byte, bufferSize)
+		return &buffer
 	}
 
-	// Determine if alphabet length is a power of two
+	bufferPool := &sync.Pool{
+		New: newBuffer,
+	}
+
 	isPowerOfTwo := (alphabetLen & (alphabetLen - 1)) == 0
 
 	return &generator{
 		config: Config{
-			Alphabet:     alphabetBytes,
-			AlphabetLen:  uint16(alphabetLen),
+			Alphabet:     alphabetRunes,
+			AlphabetLen:  uint32(alphabetLen),
 			Mask:         mask,
-			Step:         uint16(step),
+			Step:         uint32(step),
 			IsPowerOfTwo: isPowerOfTwo,
 		},
 		bufferPool: bufferPool,
@@ -167,15 +156,27 @@ func (g *generator) Generate(length int) (string, error) {
 		return "", ErrInvalidLength
 	}
 
-	id := make([]byte, length)
+	var builder strings.Builder
+	builder.Grow(length * 4) // Preallocate assuming max 4 bytes per rune (UTF-8 max)
+
 	cursor := 0
 	maxAttempts := length * maxAttemptsMultiplier
 	attempts := 0
 
-	// Retrieve a pointer to the buffer from the pool
-	bufferPtr := g.bufferPool.Get().(*[128]byte)
-	buffer := bufferPtr[:]
-	defer g.bufferPool.Put(bufferPtr) // Return the pointer to the pool
+	k := bits.Len(uint(g.config.AlphabetLen - 1))
+	bytesPerIndex := (k + 7) / 8 // Number of bytes needed per index
+
+	bufferSize := length * bytesPerIndex * 2 // Read extra to reduce number of reads
+
+	// Retrieve a slice from the buffer pool
+	bufferPtr := g.bufferPool.Get().(*[]byte)
+	buffer := *bufferPtr
+	if cap(buffer) < bufferSize {
+		buffer = make([]byte, bufferSize)
+	} else {
+		buffer = buffer[:bufferSize]
+	}
+	defer g.bufferPool.Put(&buffer)
 
 	for cursor < length {
 		if attempts >= maxAttempts {
@@ -183,37 +184,28 @@ func (g *generator) Generate(length int) (string, error) {
 		}
 		attempts++
 
-		// Read full buffer
+		// Read random bytes into buffer
 		_, err := io.ReadFull(g.randReader, buffer)
 		if err != nil {
 			return "", err
 		}
 
-		if g.config.IsPowerOfTwo {
-			for _, rnd := range buffer {
-				rnd &= g.config.Mask
-				// Since alphabet length is a power of two, rnd is guaranteed to be within range
-				id[cursor] = g.config.Alphabet[rnd]
+		for i := 0; i <= len(buffer)-bytesPerIndex; i += bytesPerIndex {
+			var rnd uint32 = 0
+			for j := 0; j < bytesPerIndex; j++ {
+				rnd = (rnd << 8) | uint32(buffer[i+j])
+			}
+			rnd &= g.config.Mask
+			if g.config.IsPowerOfTwo || rnd < g.config.AlphabetLen {
+				builder.WriteRune(g.config.Alphabet[rnd])
 				cursor++
 				if cursor == length {
 					break
 				}
 			}
-		} else {
-			for _, rnd := range buffer {
-				rnd &= g.config.Mask
-				if int(rnd) < int(g.config.AlphabetLen) {
-					id[cursor] = g.config.Alphabet[rnd]
-					cursor++
-					if cursor == length {
-						break
-					}
-				}
-			}
 		}
 	}
-
-	return string(id), nil
+	return builder.String(), nil
 }
 
 // GetConfig returns the configuration for the generator.
