@@ -226,34 +226,42 @@ make bench
 Sample output might look like this:
 
 ```shell
-go test -bench=. -benchmem ./...
+go test -bench=. -benchmem -memprofile=mem.out -cpuprofile=cpu.out
 goos: darwin
 goarch: arm64
 pkg: github.com/sixafter/nanoid
 cpu: Apple M2 Ultra
-BenchmarkGenerateDefault-24                      4321281               271.5 ns/op            48 B/op          2 allocs/op
-BenchmarkGenerateCustomAlphabet-24               4229205               289.5 ns/op            32 B/op          2 allocs/op
-BenchmarkGenerateShortID-24                      4262588               266.8 ns/op            10 B/op          2 allocs/op
-BenchmarkGenerateLongID-24                       2919226               405.6 ns/op           128 B/op          2 allocs/op
-BenchmarkGenerateMaxAlphabet-24                  4623288               262.4 ns/op            32 B/op          2 allocs/op
-BenchmarkGenerateMinAlphabet-24                  4676742               260.2 ns/op            32 B/op          2 allocs/op
-BenchmarkGenerateWithBufferPool-24               4219680               283.5 ns/op            32 B/op          2 allocs/op
-BenchmarkGenerateDefaultParallel-24              1701912               692.5 ns/op            48 B/op          2 allocs/op
-BenchmarkGenerateCustomAlphabetParallel-24       1688263               707.9 ns/op            32 B/op          2 allocs/op
-BenchmarkGenerateShortIDParallel-24              1773108               693.1 ns/op            10 B/op          2 allocs/op
-BenchmarkGenerateLongIDParallel-24               1298353               930.2 ns/op           128 B/op          2 allocs/op
-BenchmarkGenerateExtremeConcurrency-24           1710836               700.4 ns/op            48 B/op          2 allocs/op
-BenchmarkGenerateDifferentLengths/Length_5-24    4483588               269.6 ns/op            10 B/op          2 allocs/op
-BenchmarkGenerateDifferentLengths/Length_10-24           4140530               285.4 ns/op            32 B/op          2 allocs/op
-BenchmarkGenerateDifferentLengths/Length_20-24           3674721               324.3 ns/op            48 B/op          2 allocs/op
-BenchmarkGenerateDifferentLengths/Length_50-24           2838957               427.9 ns/op           128 B/op          2 allocs/op
-BenchmarkGenerateDifferentLengths/Length_100-24          1602020               802.2 ns/op           224 B/op          2 allocs/op
-BenchmarkGenerateDifferentAlphabets/Alphabet_2-24        4195101               270.4 ns/op            32 B/op          2 allocs/op
-BenchmarkGenerateDifferentAlphabets/Alphabet_6-24        3959139               293.4 ns/op            32 B/op          2 allocs/op
-BenchmarkGenerateDifferentAlphabets/Alphabet_26-24       4257424               292.6 ns/op            32 B/op          2 allocs/op
-BenchmarkGenerateDifferentAlphabets/Alphabet_38-24       3815774               318.1 ns/op            32 B/op          2 allocs/op
+BenchmarkDefaultGenerate-24                      4362076               274.2 ns/op            48 B/op          2 allocs/op
+BenchmarkDefaultGenerateSize/Size8-24            4553710               258.6 ns/op            16 B/op          2 allocs/op
+BenchmarkDefaultGenerateSize/Size16-24           4399778               274.1 ns/op            32 B/op          2 allocs/op
+BenchmarkDefaultGenerateSize/Size21-24           4256088               285.9 ns/op            48 B/op          2 allocs/op
+BenchmarkDefaultGenerateSize/Size32-24           4204159               284.3 ns/op            64 B/op          2 allocs/op
+BenchmarkDefaultGenerateSize/Size64-24           3791118               322.7 ns/op           128 B/op          2 allocs/op
+BenchmarkDefaultGenerateSize/Size128-24          3157098               377.9 ns/op           256 B/op          2 allocs/op
+BenchmarkDefaultGenerateParallel-24              1516693               828.8 ns/op            48 B/op          2 allocs/op
+BenchmarkDefaultGenerateSizeParallel/Size8-24            1560518               786.8 ns/op            16 B/op          2 allocs/op
+BenchmarkDefaultGenerateSizeParallel/Size16-24           1364043               860.7 ns/op            32 B/op          2 allocs/op
+BenchmarkDefaultGenerateSizeParallel/Size21-24           1499124               786.4 ns/op            48 B/op          2 allocs/op
+BenchmarkDefaultGenerateSizeParallel/Size32-24           1490713               814.6 ns/op            64 B/op          2 allocs/op
+BenchmarkDefaultGenerateSizeParallel/Size64-24           1375413               861.1 ns/op           128 B/op          2 allocs/op
+BenchmarkDefaultGenerateSizeParallel/Size128-24          1220480               990.9 ns/op           256 B/op          2 allocs/op
+BenchmarkGeneratorGenerate-24                            4365238               276.7 ns/op            48 B/op          2 allocs/op
+BenchmarkGeneratorGenerateParallel-24                    1507068               799.6 ns/op            48 B/op          2 allocs/op
+BenchmarkCustomAlphabet-24                               4211919               285.5 ns/op            48 B/op          2 allocs/op
+BenchmarkCustomAlphabetParallel-24                       1513590               803.8 ns/op            48 B/op          2 allocs/op
+BenchmarkNewGenerator-24                                 6683338               177.0 ns/op           176 B/op          3 allocs/op
+BenchmarkCustomAlphabetLengths/AlphabetLength2-24        4331044               276.9 ns/op            48 B/op          2 allocs/op
+BenchmarkCustomAlphabetLengths/AlphabetLength16-24       4350872               285.4 ns/op            48 B/op          2 allocs/op
+BenchmarkCustomAlphabetLengths/AlphabetLength32-24       4273230               287.2 ns/op            48 B/op          2 allocs/op
+BenchmarkCustomAlphabetLengths/AlphabetLength64-24       3908989               291.1 ns/op            48 B/op          2 allocs/op
+BenchmarkCustomAlphabetLengths/AlphabetLength95-24       3480422               346.8 ns/op            48 B/op          2 allocs/op
+BenchmarkCustomAlphabetLengthsParallel/AlphabetLength2-24                1496703               804.5 ns/op            48 B/op          2 allocs/op
+BenchmarkCustomAlphabetLengthsParallel/AlphabetLength16-24               1511534               848.3 ns/op            48 B/op          2 allocs/op
+BenchmarkCustomAlphabetLengthsParallel/AlphabetLength32-24               1507296               799.4 ns/op            48 B/op          2 allocs/op
+BenchmarkCustomAlphabetLengthsParallel/AlphabetLength64-24               1520260               800.6 ns/op            48 B/op          2 allocs/op
+BenchmarkCustomAlphabetLengthsParallel/AlphabetLength95-24               1337623               885.6 ns/op            48 B/op          2 allocs/op
 PASS
-ok      github.com/sixafter/nanoid      34.564s
+ok      github.com/sixafter/nanoid      51.470s
 ```
 
 * `ns/op` (Nanoseconds per Operation):

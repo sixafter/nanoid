@@ -16,6 +16,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
+## [1.7.1] - 2024-OCT-30
+
+### Added
+### Changed
+- **DEBT:** Refactored Comprehensive Benchmark Tests 
+  - Added a suite of benchmark tests (`nanoid_bench_test.go`) within the `nanoid` package. 
+  - Benchmarks cover both serial and concurrent generation of Nano IDs. 
+  - Included tests for:
+    - Default ID generation using `Generate()` and `GenerateSize()`. 
+    - Various ID sizes: 8, 16, 21, 32, 64, 128 characters. 
+    - Custom alphabets with varying lengths: 2, 16, 32, 64, 95 characters. 
+    - Generation of IDs using custom alphabets both serially and in parallel. 
+    - Performance measurement of creating new generator instances.
+    - The `makeAlphabet` helper function to generate alphabets using only single-byte, printable ASCII characters.
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.7.0] - 2024-OCT-30
 
 ### Added
@@ -109,7 +129,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.7.1...HEAD
+[1.7.1]: https://github.com/sixafter/nanoid/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/sixafter/nanoid/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/sixafter/nanoid/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/sixafter/nanoid/compare/v1.4.0...v1.5.0
