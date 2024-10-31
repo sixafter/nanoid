@@ -28,3 +28,4 @@ go.work.sum
 .idea/
 .DS_Store
 
+dist/
