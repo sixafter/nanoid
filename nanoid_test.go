@@ -47,6 +47,48 @@ func TestGenerateCustomLength(t *testing.T) {
 	}
 }
 
+// TestMustGenerateDefault tests the must generation of a default Nano ID.
+func TestMustGenerateDefault(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	id := MustGenerate()
+	is.Equal(DefaultSize, len([]rune(id)), "Generated ID should have the default length")
+
+	is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
+}
+
+// TestMustGenerateSize tests the must generation of Nano IDs with a custom length.
+func TestMustGenerateSize(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	id := MustGenerateSize(DefaultSize)
+	is.Equal(DefaultSize, len([]rune(id)), "Generated ID should have the default length")
+
+	is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
+}
+
+// TestMustGenerate tests the must generation of Nano IDs with custom lengths.
+func TestMustGenerate(t *testing.T) {
+	lengths := []int{1, 5, 10, 21, 50, 100}
+
+	gen, _ := New(DefaultAlphabet, nil)
+
+	for _, length := range lengths {
+		length := length // capture range variable
+		t.Run("Length_"+strconv.Itoa(length), func(t *testing.T) {
+			t.Parallel()
+			is := assert.New(t)
+
+			id := gen.MustGenerate(length)
+			is.Equal(length, len([]rune(id)), "Generated ID should have the specified length")
+
+			is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
+		})
+	}
+}
+
 // TestGenerateInvalidLength tests the generator's response to invalid lengths.
 func TestGenerateInvalidLength(t *testing.T) {
 	t.Parallel()
