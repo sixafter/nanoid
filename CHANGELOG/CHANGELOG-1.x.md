@@ -19,10 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.8.0] - 2024-OCT-31
 
 ### Added
-- **FEATURE:** Added support for Unicode alphabets.
+- **FEATURE:** Added support for Unicode alphabets. 
 - **FEATURE:** Added support for dynamic `bufferSize` calculation. 
   - The `bufferSize` is calculated by multiplying `bytesNeeded` (the number of bytes required to generate each character) by `bufferMultiplier`. This ensures that the buffer is appropriately sized to handle multiple characters per read, reducing the number of reads from the random source.
 ### Changed
+- **DEBT:** Refactored benchmark tests to support ASCII and Unicode alphabets of varying length and the generation of Nano IDs of varying lengths.
+  - Benchmarks the generation of Nano IDs across different alphabet types (`ASCII` and `Unicode`), alphabet lengths (2, 16, 32, 64, 95), and Nano ID lengths (8, 16, 21, 32, 64, 128).
+    - `makeASCIIBasedAlphabet(length int) string`: Generates a printable ASCII alphabet of the specified length, starting from `'!'` (33) to `'~'` (126).
+    - `makeUnicodeAlphabet(length int) string`: Generates a Unicode alphabet of the specified length, using a range of Unicode characters (e.g., from `'अ'` to `'ह'`).
+  - Assesses the performance of Nano ID generation under concurrent (parallel) conditions.
 ### Deprecated
 ### Removed
 ### Fixed

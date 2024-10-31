@@ -2,7 +2,6 @@
 //
 // This source code is licensed under the MIT License found in the
 // LICENSE file in the root directory of this source tree.
-// nanoid.go
 
 package nanoid
 
@@ -13,6 +12,7 @@ import (
 	"io"
 	"math/bits"
 	"sync"
+	"unicode/utf8"
 )
 
 // DefaultGenerator is a global, shared instance of a Nano ID generator. It is safe for concurrent use.
@@ -23,7 +23,7 @@ func Generate() (string, error) {
 	return DefaultGenerator.Generate(DefaultSize)
 }
 
-// GenerateSize generates a Nano ID using the default generator.
+// GenerateSize generates a Nano ID using the default generator with a specified size.
 func GenerateSize(length int) (string, error) {
 	return DefaultGenerator.Generate(length)
 }
@@ -40,6 +40,7 @@ var (
 	ErrInvalidLength       = errors.New("invalid length")
 	ErrInvalidAlphabet     = errors.New("invalid alphabet")
 	ErrDuplicateCharacters = errors.New("duplicate characters in alphabet")
+	ErrNonUTF8Alphabet     = errors.New("alphabet contains invalid UTF-8 characters")
 	ErrExceededMaxAttempts = errors.New("exceeded maximum attempts")
 )
 
@@ -54,7 +55,7 @@ const maxAttemptsMultiplier = 10
 
 // bufferMultiplier defines how many characters the buffer should handle per read.
 // Adjust this value based on performance and memory considerations.
-const bufferMultiplier = 64
+const bufferMultiplier = 128
 
 // Generator defines the interface for generating Nano IDs.
 type Generator interface {
@@ -68,23 +69,27 @@ type Configuration interface {
 
 // Config holds the configuration for the Nano ID generator.
 type Config struct {
-	Alphabet     []rune // 24 bytes
+	Alphabet     []byte // 24 bytes (slice header)
+	RuneAlphabet []rune // 24 bytes (slice header)
 	Mask         uint   // 8 bytes
 	BitsNeeded   uint   // 8 bytes
 	BytesNeeded  uint   // 8 bytes
+	BufferSize   int    // 8 bytes
 	AlphabetLen  uint16 // 2 bytes
 	IsPowerOfTwo bool   // 1 byte
-	// Padding: 5 bytes to make the struct size a multiple of 8
+	IsASCII      bool   // 1 byte
 }
 
+// generator implements the Generator interface.
 type generator struct {
-	randReader io.Reader
-	bufferPool *sync.Pool
-	config     Config
+	config         *Config    // 8 bytes (pointer)
+	randReader     io.Reader  // 16 bytes (interface)
+	byteBufferPool *sync.Pool // 8 bytes (pointer)
+	runeBufferPool *sync.Pool // 8 bytes (pointer)
 }
 
 // New creates a new Generator with buffer pooling enabled.
-// It returns an error if the alphabet is invalid.
+// It returns an error if the alphabet is invalid or contains invalid UTF-8 characters.
 func New(alphabet string, randReader io.Reader) (Generator, error) {
 	return newGenerator(alphabet, randReader)
 }
@@ -99,23 +104,62 @@ func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 		randReader = rand.Reader
 	}
 
-	alphabetRunes := []rune(alphabet)
-	alphabetLen := len(alphabetRunes)
+	// Check if the alphabet is valid UTF-8
+	if !utf8.ValidString(alphabet) {
+		return nil, ErrNonUTF8Alphabet
+	}
+
+	// Determine if the alphabet is ASCII-only
+	isASCII := true
+	for i := 0; i < len(alphabet); i++ {
+		if alphabet[i] > 127 {
+			isASCII = false
+			break
+		}
+	}
+
+	var (
+		alphabetBytes []byte
+		alphabetRunes []rune
+	)
+
+	if isASCII {
+		alphabetBytes = []byte(alphabet)
+	} else {
+		alphabetRunes = []rune(alphabet)
+	}
+
+	// Check for duplicate characters
+	if isASCII {
+		seen := make(map[byte]bool)
+		for _, b := range alphabetBytes {
+			if seen[b] {
+				return nil, ErrDuplicateCharacters
+			}
+			seen[b] = true
+		}
+	} else {
+		seenRunes := make(map[rune]bool)
+		for _, r := range alphabetRunes {
+			if seenRunes[r] {
+				return nil, ErrDuplicateCharacters
+			}
+			seenRunes[r] = true
+		}
+	}
+
+	// Calculate BitsNeeded and Mask
+	alphabetLen := 0
+	if isASCII {
+		alphabetLen = len(alphabetBytes)
+	} else {
+		alphabetLen = len(alphabetRunes)
+	}
 
 	if alphabetLen < 2 {
 		return nil, ErrInvalidAlphabet
 	}
 
-	// Check for duplicate characters using a map
-	seen := make(map[rune]bool)
-	for _, r := range alphabetRunes {
-		if seen[r] {
-			return nil, ErrDuplicateCharacters
-		}
-		seen[r] = true
-	}
-
-	// Calculate bitsNeeded and mask
 	bitsNeeded := uint(bits.Len(uint(alphabetLen - 1)))
 	if bitsNeeded == 0 {
 		return nil, ErrInvalidAlphabet
@@ -125,27 +169,46 @@ func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 
 	isPowerOfTwo := (alphabetLen & (alphabetLen - 1)) == 0
 
-	// Dynamic bufferSize Calculation: Calculate bufferSize based on bytesNeeded and bufferMultiplier
+	// Calculate bufferSize dynamically based on bytesNeeded and bufferMultiplier
 	bufferSize := int(bytesNeeded) * bufferMultiplier
 
-	bufferPool := &sync.Pool{
-		New: func() interface{} {
-			buffer := make([]byte, bufferSize)
-			return &buffer
-		},
+	config := &Config{
+		Alphabet:     alphabetBytes,
+		RuneAlphabet: alphabetRunes,
+		Mask:         mask,
+		BitsNeeded:   bitsNeeded,
+		BytesNeeded:  bytesNeeded,
+		BufferSize:   bufferSize,
+		AlphabetLen:  uint16(alphabetLen),
+		IsPowerOfTwo: isPowerOfTwo,
+		IsASCII:      isASCII,
+	}
+
+	// Initialize buffer pools
+	var byteBufferPool *sync.Pool
+	var runeBufferPool *sync.Pool
+
+	if isASCII {
+		byteBufferPool = &sync.Pool{
+			New: func() interface{} {
+				buf := make([]byte, bufferSize)
+				return &buf
+			},
+		}
+	} else {
+		runeBufferPool = &sync.Pool{
+			New: func() interface{} {
+				buf := make([]byte, bufferSize)
+				return &buf
+			},
+		}
 	}
 
 	return &generator{
-		config: Config{
-			Alphabet:     alphabetRunes,
-			AlphabetLen:  uint16(alphabetLen),
-			Mask:         mask,
-			BitsNeeded:   bitsNeeded,
-			BytesNeeded:  bytesNeeded,
-			IsPowerOfTwo: isPowerOfTwo,
-		},
-		bufferPool: bufferPool,
-		randReader: randReader,
+		config:         config,
+		randReader:     randReader,
+		byteBufferPool: byteBufferPool,
+		runeBufferPool: runeBufferPool,
 	}, nil
 }
 
@@ -155,7 +218,15 @@ func (g *generator) Generate(length int) (string, error) {
 		return "", ErrInvalidLength
 	}
 
-	id := make([]rune, length)
+	if g.config.IsASCII {
+		return g.generateASCII(length)
+	}
+	return g.generateUnicode(length)
+}
+
+// generateASCII handles ID generation for ASCII-only alphabets.
+func (g *generator) generateASCII(length int) (string, error) {
+	id := make([]byte, length)
 	cursor := 0
 	maxAttempts := length * maxAttemptsMultiplier
 	attempts := 0
@@ -164,11 +235,11 @@ func (g *generator) Generate(length int) (string, error) {
 	bytesNeeded := g.config.BytesNeeded
 
 	// Retrieve a buffer from the pool
-	randomBytesPtr := g.bufferPool.Get().(*[]byte)
+	randomBytesPtr := g.byteBufferPool.Get().(*[]byte)
 	randomBytes := *randomBytesPtr
-	defer g.bufferPool.Put(randomBytesPtr)
+	defer g.byteBufferPool.Put(randomBytesPtr)
 
-	bufferSize := len(randomBytes)
+	bufferLen := len(randomBytes)
 	step := int(bytesNeeded)
 	if step <= 0 {
 		return "", ErrInvalidAlphabet
@@ -182,8 +253,8 @@ func (g *generator) Generate(length int) (string, error) {
 
 		// Calculate how many random bytes we need
 		neededBytes := (length - cursor) * step
-		if neededBytes > bufferSize {
-			neededBytes = bufferSize
+		if neededBytes > bufferLen {
+			neededBytes = bufferLen
 		}
 
 		// Read random bytes
@@ -194,7 +265,7 @@ func (g *generator) Generate(length int) (string, error) {
 
 		// Process random bytes
 		for i := 0; i < neededBytes; i += step {
-			rnd := uint(0)
+			var rnd uint
 			for j := 0; j < step; j++ {
 				rnd = (rnd << 8) | uint(randomBytes[i+j])
 			}
@@ -220,8 +291,75 @@ func (g *generator) Generate(length int) (string, error) {
 	return string(id), nil
 }
 
+// generateUnicode handles ID generation for Unicode (non-ASCII) alphabets.
+func (g *generator) generateUnicode(length int) (string, error) {
+	idRunes := make([]rune, length)
+	cursor := 0
+	maxAttempts := length * maxAttemptsMultiplier
+	attempts := 0
+
+	mask := g.config.Mask
+	bytesNeeded := g.config.BytesNeeded
+
+	// Retrieve a buffer from the pool
+	randomBytesPtr := g.runeBufferPool.Get().(*[]byte)
+	randomBytes := *randomBytesPtr
+	defer g.runeBufferPool.Put(randomBytesPtr)
+
+	bufferLen := len(randomBytes)
+	step := int(bytesNeeded)
+	if step <= 0 {
+		return "", ErrInvalidAlphabet
+	}
+
+	for cursor < length {
+		if attempts >= maxAttempts {
+			return "", ErrExceededMaxAttempts
+		}
+		attempts++
+
+		// Calculate how many random bytes we need
+		neededBytes := (length - cursor) * step
+		if neededBytes > bufferLen {
+			neededBytes = bufferLen
+		}
+
+		// Read random bytes
+		_, err := io.ReadFull(g.randReader, randomBytes[:neededBytes])
+		if err != nil {
+			return "", err
+		}
+
+		// Process random bytes
+		for i := 0; i < neededBytes; i += step {
+			var rnd uint
+			for j := 0; j < step; j++ {
+				rnd = (rnd << 8) | uint(randomBytes[i+j])
+			}
+			rnd &= mask
+
+			if g.config.IsPowerOfTwo {
+				// Index is guaranteed to be within bounds
+				idRunes[cursor] = g.config.RuneAlphabet[rnd]
+				cursor++
+			} else {
+				if int(rnd) < int(g.config.AlphabetLen) {
+					idRunes[cursor] = g.config.RuneAlphabet[rnd]
+					cursor++
+				}
+			}
+
+			if cursor == length {
+				break
+			}
+		}
+	}
+
+	return string(idRunes), nil
+}
+
 // GetConfig returns the configuration for the generator.
 // It implements the Configuration interface.
 func (g *generator) GetConfig() Config {
-	return g.config
+	return *g.config
 }
