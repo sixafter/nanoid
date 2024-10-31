@@ -48,10 +48,10 @@ changelog:
     # prefixed with the commit SHA1, usually in the form of
     # `<abbrev-commit>[:] <title-commit>`.
     include:
-      - "^feature:"
-      - "^defect:"
-      - "^debt:"
-      - "^risk:"
+      - "(?i)^feature:"
+      - "(?i)^defect:"
+      - "(?i)^debt:"
+      - "(?i)^risk:"
 
   # Group commits messages by given regex and title.
   # Order value defines the order of the groups.
