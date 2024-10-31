@@ -84,26 +84,49 @@ const bufferMultiplier = 128
 
 // Generator defines the interface for generating Nano IDs.
 type Generator interface {
+	// Generate creates a new Nano ID of the specified length.
 	Generate(size int) (string, error)
+
+	// MustGenerate returns creates a new Nano ID of the specified length if err
+	// is nil or panics otherwise.
+	// It simplifies safe initialization of global variables holding compiled UUIDs.
 	MustGenerate(length int) string
 }
 
 // Configuration defines the interface for retrieving generator configuration.
 type Configuration interface {
+	// GetConfig returns the configuration of the generator.
 	GetConfig() Config
 }
 
 // Config holds the configuration for the Nano ID generator.
 type Config struct {
-	Alphabet     []byte // 24 bytes (slice header)
+	// Alphabet is a slice of bytes representing the character set used to generate IDs.
+	Alphabet []byte // 24 bytes (slice header)
+
+	// RuneAlphabet is a slice of runes, allowing support for multi-byte characters in ID generation.
 	RuneAlphabet []rune // 24 bytes (slice header)
-	Mask         uint   // 8 bytes
-	BitsNeeded   uint   // 8 bytes
-	BytesNeeded  uint   // 8 bytes
-	BufferSize   int    // 8 bytes
-	AlphabetLen  uint16 // 2 bytes
-	IsPowerOfTwo bool   // 1 byte
-	IsASCII      bool   // 1 byte
+
+	// Mask is a bitmask used to obtain a random value from the character set.
+	Mask uint // 8 bytes
+
+	// BitsNeeded represents the number of bits required to generate each character in the ID.
+	BitsNeeded uint // 8 bytes
+
+	// BytesNeeded specifies the number of bytes required from a random source to produce the ID.
+	BytesNeeded uint // 8 bytes
+
+	// BufferSize is the buffer size used for random byte generation.
+	BufferSize int // 8 bytes
+
+	// AlphabetLen is the length of the alphabet, stored as a uint16.
+	AlphabetLen uint16 // 2 bytes
+
+	// IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
+	IsPowerOfTwo bool // 1 byte
+
+	// IsASCII indicates whether the alphabet is ASCII-only, ensuring compatibility with ASCII environments.
+	IsASCII bool // 1 byte
 }
 
 // generator implements the Generator interface.

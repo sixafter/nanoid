@@ -96,13 +96,13 @@ func main() {
   alphabet := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
   // Create a new generator
-  generator, err := nanoid.New(alphabet, nil) // nil uses crypto/rand as the default
+  gen, err := nanoid.New(alphabet, nil) // nil uses crypto/rand as the default
   if err != nil {
     panic(err)
   }
 
   // Generate a Nano ID
-  id, err := generator.Generate(10) // Custom length: 10
+  id, err := gen.Generate(10) // Custom length: 10
   if err != nil {
     panic(err)
   }
@@ -159,8 +159,15 @@ func New(alphabet string, randReader io.Reader) (Generator, error)
 Defines the method to generate Nano IDs.
 
 ```go
+// Generator defines the interface for generating Nano IDs.
 type Generator interface {
+    // Generate creates a new Nano ID of the specified length.
     Generate(size int) (string, error)
+    
+    // MustGenerate returns creates a new Nano ID of the specified length if err
+    // is nil or panics otherwise.
+    // It simplifies safe initialization of global variables holding compiled UUIDs.
+    MustGenerate(length int) string
 }
 ```
 
@@ -169,7 +176,9 @@ type Generator interface {
 Provides access to the generator's configuration.
 
 ```go
+// Configuration defines the interface for retrieving generator configuration.
 type Configuration interface {
+    // GetConfig returns the configuration of the generator.
     GetConfig() Config
 }
 ```
@@ -179,11 +188,34 @@ type Configuration interface {
 Holds the configuration details for the generator.
 
 ```go
+// Config holds the configuration for the Nano ID generator.
 type Config struct {
-    Alphabet    []byte
-    AlphabetLen int
-    Mask        byte
-    Step        int
+    // Alphabet is a slice of bytes representing the character set used to generate IDs.
+    Alphabet []byte
+    
+    // RuneAlphabet is a slice of runes, allowing support for multi-byte characters in ID generation.
+    RuneAlphabet []rune
+    
+    // Mask is a bitmask used to obtain a random value from the character set.
+    Mask uint
+    
+    // BitsNeeded represents the number of bits required to generate each character in the ID.
+    BitsNeeded uint
+    
+    // BytesNeeded specifies the number of bytes required from a random source to produce the ID.
+    BytesNeeded uint
+    
+    // BufferSize is the buffer size used for random byte generation.
+    BufferSize int
+    
+    // AlphabetLen is the length of the alphabet, stored as a uint16.
+    AlphabetLen uint16
+    
+    // IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
+    IsPowerOfTwo bool
+    
+    // IsASCII indicates whether the alphabet is ASCII-only, ensuring compatibility with ASCII environments.
+    IsASCII bool
 }
 ```
 
@@ -435,8 +467,7 @@ Nano ID generates unique identifiers based on the following:
 ## Custom Alphabet Constraints
 
 1. Minimum Alphabet Length:
-   * At Least Two Unique Characters: The custom alphabet must contain at least two unique characters. An alphabet with fewer than two characters cannot produce IDs with sufficient variability or randomness. 
-   * Maximum Length 256 Characters: The implementation utilizes a byte-based approach where each character in the alphabet is represented by a single byte (`0-255`). This inherently limits the maximum number of unique characters to 256. Attempting to use an alphabet longer than 256 characters will result in an error.
+   * At Least Two Unique Characters: The custom alphabet must contain at least two unique characters. An alphabet with fewer than two characters cannot produce IDs with sufficient variability or randomness.
 2. Uniqueness of Characters:
    * All Characters Must Be Unique. Duplicate characters in the alphabet can introduce biases in ID generation and compromise the randomness and uniqueness of the IDs. The generator enforces uniqueness by checking for duplicates during initialization. If duplicates are detected, it will return an `ErrDuplicateCharacters` error. 
 3. Character Encoding:
@@ -454,6 +485,7 @@ Nano ID generates unique identifiers based on the following:
 When initializing the generator with a custom alphabet, the following errors might occur:
 * `ErrInvalidAlphabet`: Returned if the alphabet length is less than 2. 
 * `ErrDuplicateCharacters`: Returned if duplicate characters are found in the alphabet.
+* `ErrNonUTF8Alphabet`: Returned if the alphabet contains invalid UTF-8 characters.
 
 Example of Handling Errors:
 
@@ -479,6 +511,9 @@ func main() {
 		} else if errors.Is(err, nanoid.ErrDuplicateCharacters) {
 			// Handle duplicate characters in the alphabet
 			fmt.Println("Alphabet contains duplicate characters.")
+		} else if errors.Is(err, nanoid.ErrNonUTF8Alphabet) {
+			// Handle invalid UTF-8 alphabet
+			fmt.Println("Alphabet contains invalid UTF-8 characters.")
 		} else {
 			// Handle other potential errors
 			fmt.Println("Error initializing Nano ID generator:", err)
