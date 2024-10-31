@@ -24,9 +24,33 @@ func Generate() (string, error) {
 	return DefaultGenerator.Generate(DefaultSize)
 }
 
+// MustGenerate generates a Nano ID using the default generator and the default size if err
+// is nil or panics otherwise.
+// It simplifies safe initialization of global variables holding compiled UUIDs.
+func MustGenerate() string {
+	id, err := DefaultGenerator.Generate(DefaultSize)
+	if err != nil {
+		panic(err)
+	}
+
+	return id
+}
+
 // GenerateSize generates a Nano ID using the default generator with a specified size.
 func GenerateSize(length int) (string, error) {
 	return DefaultGenerator.Generate(length)
+}
+
+// MustGenerateSize generates a Nano ID using the default generator with a specified size if err
+// is nil or panics otherwise.
+// It simplifies safe initialization of global variables holding compiled UUIDs.
+func MustGenerateSize(length int) string {
+	id, err := DefaultGenerator.Generate(length)
+	if err != nil {
+		panic(err)
+	}
+
+	return id
 }
 
 func init() {
@@ -61,6 +85,7 @@ const bufferMultiplier = 128
 // Generator defines the interface for generating Nano IDs.
 type Generator interface {
 	Generate(size int) (string, error)
+	MustGenerate(length int) string
 }
 
 // Configuration defines the interface for retrieving generator configuration.
@@ -302,6 +327,17 @@ func (g *generator) Generate(length int) (string, error) {
 		return string(id.([]byte)), nil
 	}
 	return string(id.([]rune)), nil
+}
+
+// MustGenerate returns creates a new Nano ID of the specified length if err
+// is nil or panics otherwise.
+// It simplifies safe initialization of global variables holding compiled UUIDs.
+func (g *generator) MustGenerate(length int) string {
+	id, err := g.Generate(length)
+	if err != nil {
+		panic(err)
+	}
+	return id
 }
 
 // GetConfig returns the configuration for the generator.
