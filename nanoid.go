@@ -4,13 +4,6 @@
 // LICENSE file in the root directory of this source tree.
 // nanoid.go
 
-// nanoid.go
-//
-// Copyright (c) 2024 Six After, Inc
-//
-// This source code is licensed under the MIT License found in the
-// LICENSE file in the root directory of this source tree.
-
 package nanoid
 
 import (
@@ -58,6 +51,10 @@ const DefaultSize = 21
 
 // maxAttemptsMultiplier defines the multiplier for maximum attempts based on length.
 const maxAttemptsMultiplier = 10
+
+// bufferMultiplier defines how many characters the buffer should handle per read.
+// Adjust this value based on performance and memory considerations.
+const bufferMultiplier = 64
 
 // Generator defines the interface for generating Nano IDs.
 type Generator interface {
@@ -108,7 +105,7 @@ func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 		return nil, ErrInvalidAlphabet
 	}
 
-	// Check for duplicate characters using a bitmask with multiple uint32s
+	// Check for duplicate characters using a map
 	seen := make(map[rune]bool)
 	for _, r := range alphabetRunes {
 		if seen[r] {
@@ -127,8 +124,10 @@ func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 
 	isPowerOfTwo := (alphabetLen & (alphabetLen - 1)) == 0
 
-	// Initialize buffer pool with buffers of size bufferSize
-	bufferSize := 128 // Adjust buffer size as needed
+	// **Dynamic bufferSize Calculation**
+	// Calculate bufferSize based on bytesNeeded and bufferMultiplier
+	bufferSize := int(bytesNeeded) * bufferMultiplier
+
 	bufferPool := &sync.Pool{
 		New: func() interface{} {
 			buffer := make([]byte, bufferSize)
