@@ -64,16 +64,16 @@ changelog:
   # Regex use RE2 syntax as defined here: https://github.com/google/re2/wiki/Syntax.
   groups:
     - title: "🎉 Features"
-      regexp: '(?i)^.*?feature(\([[:word:]]+\))??!?:.+$'
+      regexp: '(?i)^.*?feature:+??!?:.+$'
       order: 0
     - title: "🐛 Defects"
-      regexp: '(?i)^.*?defect(\([[:word:]]+\))??!?:.+$'
+      regexp: '(?i)^.*?defect:+??!?:.+$'
       order: 1
     - title: "🛠 Technical Debt"
-      regexp: '(?i)^.*?debt(\([[:word:]]+\))??!?:.+$'
+      regexp: '(?i)^.*?debt:+??!?:.+$'
       order: 1
     - title: "🚀 Technical Risk"
-      regexp: '(?i)^.*?risk(\([[:word:]]+\))??!?:.+$'
+      regexp: '(?i)^.*?risk:+??!?:.+$'
       order: 1
     - title: Others
       order: 999
