@@ -106,15 +106,16 @@ func TestGetConfig(t *testing.T) {
 	config := gen.(Configuration).GetConfig()
 
 	is.Equal(DefaultAlphabet, string(config.Alphabet), "Config.Alphabet should match the default alphabet")
-	is.Equal(uint32(len([]rune(DefaultAlphabet))), config.AlphabetLen, "Config.AlphabetLen should match the default alphabet length")
+	is.Equal(uint16(len([]rune(DefaultAlphabet))), config.AlphabetLen, "Config.AlphabetLen should match the default alphabet length")
 
 	// Update expectedMask calculation for uint32
-	expectedMask := uint32((1 << bits.Len(uint(config.AlphabetLen-1))) - 1)
+	expectedMask := uint((1 << bits.Len(uint(config.AlphabetLen-1))) - 1)
 	is.Equal(expectedMask, config.Mask, "Config.Mask should be correctly calculated")
 
 	is.Equal((config.AlphabetLen&(config.AlphabetLen-1)) == 0, config.IsPowerOfTwo, "Config.IsPowerOfTwo should be correct")
 
-	is.Positive(config.Step, "Config.Step should be a positive integer")
+	is.Positive(config.BitsNeeded, "Config.BitsNeeded should be a positive integer")
+	is.Positive(config.BytesNeeded, "Config.BytesNeeded should be a positive integer")
 }
 
 // TestUniqueness tests that multiple generated IDs are unique.

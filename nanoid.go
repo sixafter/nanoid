@@ -4,6 +4,13 @@
 // LICENSE file in the root directory of this source tree.
 // nanoid.go
 
+// nanoid.go
+//
+// Copyright (c) 2024 Six After, Inc
+//
+// This source code is licensed under the MIT License found in the
+// LICENSE file in the root directory of this source tree.
+
 package nanoid
 
 import (
@@ -12,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"math/bits"
-	"strings"
 	"sync"
 )
 
@@ -44,7 +50,7 @@ var (
 	ErrExceededMaxAttempts = errors.New("exceeded maximum attempts")
 )
 
-// DefaultAlphabet can now include multibyte Unicode characters.
+// DefaultAlphabet as per Nano ID specification.
 const DefaultAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
 
 // DefaultSize is the default size of the generated Nano ID: 21.
@@ -65,10 +71,11 @@ type Configuration interface {
 
 // Config holds the configuration for the Nano ID generator.
 type Config struct {
-	Alphabet     []rune // Changed from []byte to []rune
-	AlphabetLen  uint32 // Updated to uint32 to handle larger alphabets
-	Step         uint32 // Updated to uint32
-	Mask         uint32 // Updated to uint32
+	Alphabet     []rune // Supports Unicode characters
+	AlphabetLen  uint16
+	Mask         uint
+	BitsNeeded   uint
+	BytesNeeded  uint
 	IsPowerOfTwo bool
 }
 
@@ -101,8 +108,8 @@ func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 		return nil, ErrInvalidAlphabet
 	}
 
-	// Preallocate map with capacity
-	seen := make(map[rune]bool, alphabetLen)
+	// Check for duplicate characters using a bitmask with multiple uint32s
+	seen := make(map[rune]bool)
 	for _, r := range alphabetRunes {
 		if seen[r] {
 			return nil, ErrDuplicateCharacters
@@ -110,38 +117,32 @@ func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 		seen[r] = true
 	}
 
-	k := bits.Len(uint(alphabetLen - 1))
-	if k == 0 {
+	// Calculate bitsNeeded and mask
+	bitsNeeded := uint(bits.Len(uint(alphabetLen - 1)))
+	if bitsNeeded == 0 {
 		return nil, ErrInvalidAlphabet
 	}
-	mask := uint32((1 << k) - 1)
-
-	onesCount := bits.OnesCount32(mask)
-	if onesCount == 0 {
-		return nil, ErrInvalidAlphabet
-	}
-	step := (8 * 128) / uint32(onesCount)
-
-	const bufferSize = 256
-
-	// Assign an anonymous function to a variable
-	newBuffer := func() interface{} {
-		buffer := make([]byte, bufferSize)
-		return &buffer
-	}
-
-	bufferPool := &sync.Pool{
-		New: newBuffer,
-	}
+	mask := uint((1 << bitsNeeded) - 1)
+	bytesNeeded := (bitsNeeded + 7) / 8
 
 	isPowerOfTwo := (alphabetLen & (alphabetLen - 1)) == 0
+
+	// Initialize buffer pool with buffers of size bufferSize
+	bufferSize := 128 // Adjust buffer size as needed
+	bufferPool := &sync.Pool{
+		New: func() interface{} {
+			buffer := make([]byte, bufferSize)
+			return &buffer
+		},
+	}
 
 	return &generator{
 		config: Config{
 			Alphabet:     alphabetRunes,
-			AlphabetLen:  uint32(alphabetLen),
+			AlphabetLen:  uint16(alphabetLen),
 			Mask:         mask,
-			Step:         uint32(step),
+			BitsNeeded:   bitsNeeded,
+			BytesNeeded:  bytesNeeded,
 			IsPowerOfTwo: isPowerOfTwo,
 		},
 		bufferPool: bufferPool,
@@ -150,33 +151,29 @@ func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 }
 
 // Generate creates a new Nano ID of the specified length.
-// It implements the Generator interface.
 func (g *generator) Generate(length int) (string, error) {
 	if length <= 0 {
 		return "", ErrInvalidLength
 	}
 
-	var builder strings.Builder
-	builder.Grow(length * 4) // Preallocate assuming max 4 bytes per rune (UTF-8 max)
-
+	id := make([]rune, length)
 	cursor := 0
 	maxAttempts := length * maxAttemptsMultiplier
 	attempts := 0
 
-	k := bits.Len(uint(g.config.AlphabetLen - 1))
-	bytesPerIndex := (k + 7) / 8 // Number of bytes needed per index
+	mask := g.config.Mask
+	bytesNeeded := g.config.BytesNeeded
 
-	bufferSize := length * bytesPerIndex * 2 // Read extra to reduce number of reads
+	// Retrieve a buffer from the pool
+	randomBytesPtr := g.bufferPool.Get().(*[]byte)
+	randomBytes := *randomBytesPtr
+	defer g.bufferPool.Put(randomBytesPtr)
 
-	// Retrieve a slice from the buffer pool
-	bufferPtr := g.bufferPool.Get().(*[]byte)
-	buffer := *bufferPtr
-	if cap(buffer) < bufferSize {
-		buffer = make([]byte, bufferSize)
-	} else {
-		buffer = buffer[:bufferSize]
+	bufferSize := len(randomBytes)
+	step := int(bytesNeeded)
+	if step <= 0 {
+		return "", ErrInvalidAlphabet
 	}
-	defer g.bufferPool.Put(&buffer)
 
 	for cursor < length {
 		if attempts >= maxAttempts {
@@ -184,28 +181,44 @@ func (g *generator) Generate(length int) (string, error) {
 		}
 		attempts++
 
-		// Read random bytes into buffer
-		_, err := io.ReadFull(g.randReader, buffer)
+		// Calculate how many random bytes we need
+		neededBytes := ((length - cursor) * step)
+		if neededBytes > bufferSize {
+			neededBytes = bufferSize
+		}
+
+		// Read random bytes
+		_, err := io.ReadFull(g.randReader, randomBytes[:neededBytes])
 		if err != nil {
 			return "", err
 		}
 
-		for i := 0; i <= len(buffer)-bytesPerIndex; i += bytesPerIndex {
-			var rnd uint32 = 0
-			for j := 0; j < bytesPerIndex; j++ {
-				rnd = (rnd << 8) | uint32(buffer[i+j])
+		// Process random bytes
+		for i := 0; i < neededBytes; i += step {
+			rnd := uint(0)
+			for j := 0; j < step; j++ {
+				rnd = (rnd << 8) | uint(randomBytes[i+j])
 			}
-			rnd &= g.config.Mask
-			if g.config.IsPowerOfTwo || rnd < g.config.AlphabetLen {
-				builder.WriteRune(g.config.Alphabet[rnd])
+			rnd &= mask
+
+			if g.config.IsPowerOfTwo {
+				// Index is guaranteed to be within bounds
+				id[cursor] = g.config.Alphabet[rnd]
 				cursor++
-				if cursor == length {
-					break
+			} else {
+				if int(rnd) < int(g.config.AlphabetLen) {
+					id[cursor] = g.config.Alphabet[rnd]
+					cursor++
 				}
+			}
+
+			if cursor == length {
+				break
 			}
 		}
 	}
-	return builder.String(), nil
+
+	return string(id), nil
 }
 
 // GetConfig returns the configuration for the generator.
