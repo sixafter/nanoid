@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.8.0] - 2024-NOV-01
+## [1.8.0] - 2024-OCT-31
 
 ### Added
 - **FEATURE:** Added support for Unicode alphabets.
