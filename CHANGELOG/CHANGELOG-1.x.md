@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.9.1] - 2024-NOV-01
+## [1.10.0] - 2024-NOV-01
 
 ### Added
 - **FEATURE:** Added new `Must` function to simplify safe initialization of global variables.
@@ -193,8 +193,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.9.1...HEAD
-[1.9.1]: https://github.com/sixafter/nanoid/compare/v1.9.0...v1.9.1
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/sixafter/nanoid/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/sixafter/nanoid/compare/v1.8.2...v1.9.0
 [1.8.2]: https://github.com/sixafter/nanoid/compare/v1.8.1...v1.8.2
 [1.8.1]: https://github.com/sixafter/nanoid/compare/v1.8.0...v1.8.1

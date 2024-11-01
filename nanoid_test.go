@@ -103,7 +103,7 @@ func TestGenerateWithDuplicateAlphabet(t *testing.T) {
 	is.Equal(ErrDuplicateCharacters, err, "Expected ErrDuplicateCharacters")
 }
 
-// TestGetConfig tests the GetConfig() method of the generator.
+// TestGetConfig tests the Config() method of the generator.
 func TestGetConfig(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
@@ -117,20 +117,20 @@ func TestGetConfig(t *testing.T) {
 	config, ok := gen.(Configuration)
 	is.True(ok, "Generator should implement Configuration interface")
 
-	runtimeConfig := config.GetConfig()
+	runtimeConfig := config.Config()
 
-	is.Equal(DefaultAlphabet, string(runtimeConfig.RuneAlphabet), "Config.RuneAlphabet should match the default alphabet")
-	is.Equal(uint16(len([]rune(DefaultAlphabet))), runtimeConfig.AlphabetLen, "Config.AlphabetLen should match the default alphabet length")
+	is.Equal(DefaultAlphabet, string(runtimeConfig.RuneAlphabet()), "Config.RuneAlphabet should match the default alphabet")
+	is.Equal(uint16(len([]rune(DefaultAlphabet))), runtimeConfig.AlphabetLen(), "Config.AlphabetLen should match the default alphabet length")
 
 	// Update expectedMask calculation based on RuntimeConfig
-	expectedMask := uint((1 << bits.Len(uint(runtimeConfig.AlphabetLen-1))) - 1)
-	is.Equal(expectedMask, runtimeConfig.Mask, "Config.Mask should be correctly calculated")
+	expectedMask := uint((1 << bits.Len(uint(runtimeConfig.AlphabetLen()-1))) - 1)
+	is.Equal(expectedMask, runtimeConfig.Mask(), "Config.Mask should be correctly calculated")
 
-	is.Equal((runtimeConfig.AlphabetLen&(runtimeConfig.AlphabetLen-1)) == 0, runtimeConfig.IsPowerOfTwo, "Config.IsPowerOfTwo should be correct")
+	is.Equal((runtimeConfig.AlphabetLen()&(runtimeConfig.AlphabetLen()-1)) == 0, runtimeConfig.IsPowerOfTwo(), "Config.IsPowerOfTwo should be correct")
 
-	is.Positive(runtimeConfig.BitsNeeded, "Config.BitsNeeded should be a positive integer")
-	is.Positive(runtimeConfig.BytesNeeded, "Config.BytesNeeded should be a positive integer")
-	is.Equal(rand.Reader, runtimeConfig.RandReader, "Config.RandReader should be rand.Reader by default")
+	is.Positive(runtimeConfig.BitsNeeded(), "Config.BitsNeeded should be a positive integer")
+	is.Positive(runtimeConfig.BytesNeeded(), "Config.BytesNeeded should be a positive integer")
+	is.Equal(rand.Reader, runtimeConfig.RandReader(), "Config.RandReader should be rand.Reader by default")
 }
 
 // TestUniqueness tests that multiple generated IDs are unique.

@@ -64,6 +64,27 @@ var (
 	ErrAlphabetTooLong     = errors.New("alphabet length exceeds 256")
 )
 
+const (
+	// DefaultAlphabet as per Nano ID specification.
+	DefaultAlphabet = "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+	// DefaultLength is the default size of the generated Nano ID: 21.
+	DefaultLength = 21
+
+	// maxAttemptsMultiplier defines the multiplier for maximum attempts based on length.
+	maxAttemptsMultiplier = 10
+
+	// bufferMultiplier defines how many characters the buffer should handle per read.
+	// Adjust this value based on performance and memory considerations.
+	bufferMultiplier = 128
+
+	// MinAlphabetLength defines the minimum allowed length for the alphabet.
+	MinAlphabetLength = 1
+
+	// MaxAlphabetLength defines the maximum allowed length for the alphabet.
+	MaxAlphabetLength = 256
+)
+
 // Option defines a function type for configuring the Generator.
 type Option func(*ConfigOptions)
 
@@ -81,24 +102,6 @@ func WithRandReader(reader io.Reader) Option {
 	}
 }
 
-const (
-	// DefaultAlphabet as per Nano ID specification.
-	DefaultAlphabet = "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-	// DefaultLength is the default size of the generated Nano ID: 21.
-	DefaultLength = 21
-
-	// maxAttemptsMultiplier defines the multiplier for maximum attempts based on length.
-	maxAttemptsMultiplier = 10
-
-	// bufferMultiplier defines how many characters the buffer should handle per read.
-	// Adjust this value based on performance and memory considerations.
-	bufferMultiplier = 128
-
-	// MaxAlphabetLength defines the maximum allowed length for the alphabet.
-	MaxAlphabetLength = 256
-)
-
 // ConfigOptions holds the configurable options for the Generator.
 // It is used with the Function Options pattern.
 type ConfigOptions struct {
@@ -112,32 +115,66 @@ type ConfigOptions struct {
 	Alphabet string
 }
 
-// RuntimeConfig holds the runtime configuration for the Nano ID generator.
+// Config holds the runtime configuration for the Nano ID generator.
 // It is immutable after initialization.
-type RuntimeConfig struct {
+type Config interface {
 	// RandReader is the source of randomness used for generating IDs.
-	RandReader io.Reader
+	RandReader() io.Reader
 
 	// RuneAlphabet is a slice of runes, allowing support for multibyte characters in ID generation.
-	RuneAlphabet []rune
+	RuneAlphabet() []rune
 
 	// Mask is a bitmask used to obtain a random value from the character set.
-	Mask uint
+	Mask() uint
 
 	// BitsNeeded represents the number of bits required to generate each character in the ID.
-	BitsNeeded uint
+	BitsNeeded() uint
 
 	// BytesNeeded specifies the number of bytes required from a random source to produce the ID.
-	BytesNeeded uint
+	BytesNeeded() uint
 
 	// BufferSize is the buffer size used for random byte generation.
-	BufferSize int
+	BufferSize() int
 
 	// AlphabetLen is the length of the alphabet, stored as an uint16.
-	AlphabetLen uint16
+	AlphabetLen() uint16
 
 	// IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
-	IsPowerOfTwo bool
+	IsPowerOfTwo() bool
+}
+
+// Configuration defines the interface for retrieving generator configuration.
+type Configuration interface {
+	// Config returns the runtime configuration of the generator.
+	Config() Config
+}
+
+// runtimeConfig holds the runtime configuration for the Nano ID generator.
+// It is immutable after initialization.
+type runtimeConfig struct {
+	// RandReader is the source of randomness used for generating IDs.
+	randReader io.Reader
+
+	// RuneAlphabet is a slice of runes, allowing support for multibyte characters in ID generation.
+	runeAlphabet []rune
+
+	// Mask is a bitmask used to obtain a random value from the character set.
+	mask uint
+
+	// BitsNeeded represents the number of bits required to generate each character in the ID.
+	bitsNeeded uint
+
+	// BytesNeeded specifies the number of bytes required from a random source to produce the ID.
+	bytesNeeded uint
+
+	// BufferSize is the buffer size used for random byte generation.
+	bufferSize int
+
+	// AlphabetLen is the length of the alphabet, stored as an uint16.
+	alphabetLen uint16
+
+	// IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
+	isPowerOfTwo bool
 }
 
 // Generator defines the interface for generating Nano IDs.
@@ -146,16 +183,10 @@ type Generator interface {
 	New(length int) (string, error)
 }
 
-// Configuration defines the interface for retrieving generator configuration.
-type Configuration interface {
-	// GetConfig returns the runtime configuration of the generator.
-	GetConfig() RuntimeConfig
-}
-
 // generator implements the Generator interface.
 type generator struct {
-	config         *RuntimeConfig
-	runeBufferPool *sync.Pool
+	config *runtimeConfig
+	buffer *sync.Pool
 }
 
 // NewGenerator creates a new Generator with buffer pooling enabled.
@@ -180,21 +211,21 @@ func NewGenerator(options ...Option) (Generator, error) {
 	}
 
 	// Initialize buffer pools based on Rune handling
-	runePool := &sync.Pool{
+	pool := &sync.Pool{
 		New: func() interface{} {
-			buf := make([]byte, runtimeConfig.BufferSize*utf8.UTFMax) // Max bytes per rune
+			buf := make([]byte, runtimeConfig.bufferSize*utf8.UTFMax) // Max bytes per rune
 			return &buf
 		},
 	}
 
 	return &generator{
-		config:         runtimeConfig,
-		runeBufferPool: runePool,
+		config: runtimeConfig,
+		buffer: pool,
 	}, nil
 }
 
 // buildRuntimeConfig constructs the RuntimeConfig from ConfigOptions.
-func buildRuntimeConfig(opts *ConfigOptions) (*RuntimeConfig, error) {
+func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 	if len(opts.Alphabet) == 0 {
 		return nil, ErrInvalidAlphabet
 	}
@@ -224,16 +255,20 @@ func buildRuntimeConfig(opts *ConfigOptions) (*RuntimeConfig, error) {
 		return nil, ErrAlphabetTooLong
 	}
 
-	if alphabetLen < 2 {
+	if alphabetLen < MinAlphabetLength {
 		return nil, ErrInvalidAlphabet
 	}
 
+	// Represents how many bits are required to generate an index for selecting a character from the alphabet.
 	bitsNeeded := uint(bits.Len(uint(alphabetLen - 1)))
 	if bitsNeeded == 0 {
 		return nil, ErrInvalidAlphabet
 	}
 
+	// Ensure that only the lowest bitsNeeded bits are used from the random value
 	mask := uint((1 << bitsNeeded) - 1)
+
+	// Ensures that any fractional number of bits rounds up to the nearest whole byte.
 	bytesNeeded := (bitsNeeded + 7) / 8
 
 	isPowerOfTwo := (alphabetLen & (alphabetLen - 1)) == 0
@@ -241,15 +276,15 @@ func buildRuntimeConfig(opts *ConfigOptions) (*RuntimeConfig, error) {
 	// Calculate bufferSize dynamically based on bytesNeeded and bufferMultiplier
 	bufferSize := int(bytesNeeded) * bufferMultiplier
 
-	return &RuntimeConfig{
-		RuneAlphabet: alphabetRunes,
-		Mask:         mask,
-		BitsNeeded:   bitsNeeded,
-		BytesNeeded:  bytesNeeded,
-		BufferSize:   bufferSize,
-		AlphabetLen:  uint16(alphabetLen),
-		IsPowerOfTwo: isPowerOfTwo,
-		RandReader:   opts.RandReader,
+	return &runtimeConfig{
+		runeAlphabet: alphabetRunes,
+		mask:         mask,
+		bitsNeeded:   bitsNeeded,
+		bytesNeeded:  bytesNeeded,
+		bufferSize:   bufferSize,
+		alphabetLen:  uint16(alphabetLen),
+		isPowerOfTwo: isPowerOfTwo,
+		randReader:   opts.RandReader,
 	}, nil
 }
 
@@ -264,12 +299,12 @@ func (g *generator) New(length int) (string, error) {
 	cursor := 0
 	maxAttempts := length * maxAttemptsMultiplier
 	attempts := 0
-	mask := g.config.Mask
-	bytesNeeded := g.config.BytesNeeded
+	mask := g.config.mask
+	bytesNeeded := g.config.bytesNeeded
 
 	// Use rune buffer pool
-	randomBytesPtr := g.runeBufferPool.Get().(*[]byte)
-	defer g.runeBufferPool.Put(randomBytesPtr)
+	randomBytesPtr := g.buffer.Get().(*[]byte)
+	defer g.buffer.Put(randomBytesPtr)
 	randomBytes := *randomBytesPtr
 	bufferLen := len(randomBytes)
 	step := int(bytesNeeded)
@@ -289,7 +324,7 @@ func (g *generator) New(length int) (string, error) {
 			neededBytes = bufferLen
 		}
 
-		_, err := io.ReadFull(g.config.RandReader, randomBytes[:neededBytes])
+		_, err := io.ReadFull(g.config.randReader, randomBytes[:neededBytes])
 		if err != nil {
 			return "", err
 		}
@@ -301,8 +336,8 @@ func (g *generator) New(length int) (string, error) {
 			}
 			rnd &= mask
 
-			if g.config.IsPowerOfTwo || int(rnd) < int(g.config.AlphabetLen) {
-				id[cursor] = g.config.RuneAlphabet[rnd]
+			if g.config.isPowerOfTwo || int(rnd) < int(g.config.alphabetLen) {
+				id[cursor] = g.config.runeAlphabet[rnd]
 				cursor++
 			}
 
@@ -315,8 +350,48 @@ func (g *generator) New(length int) (string, error) {
 	return string(id), nil
 }
 
-// GetConfig returns the runtime configuration for the generator.
+// Config returns the runtime configuration for the generator.
 // It implements the Configuration interface.
-func (g *generator) GetConfig() RuntimeConfig {
-	return *g.config
+func (g *generator) Config() Config {
+	return g.config
+}
+
+// RandReader is the source of randomness used for generating IDs.
+func (r *runtimeConfig) RandReader() io.Reader {
+	return r.randReader
+}
+
+// RuneAlphabet is a slice of runes, allowing support for multibyte characters in ID generation.
+func (r *runtimeConfig) RuneAlphabet() []rune {
+	return r.runeAlphabet
+}
+
+// Mask is a bitmask used to obtain a random value from the character set.
+func (r *runtimeConfig) Mask() uint {
+	return r.mask
+}
+
+// BitsNeeded represents the number of bits required to generate each character in the ID.
+func (r *runtimeConfig) BitsNeeded() uint {
+	return r.bitsNeeded
+}
+
+// BytesNeeded specifies the number of bytes required from a random source to produce the ID.
+func (r *runtimeConfig) BytesNeeded() uint {
+	return r.bytesNeeded
+}
+
+// BufferSize is the buffer size used for random byte generation.
+func (r *runtimeConfig) BufferSize() int {
+	return r.bufferSize
+}
+
+// AlphabetLen is the length of the alphabet, stored as an uint16.
+func (r *runtimeConfig) AlphabetLen() uint16 {
+	return r.alphabetLen
+}
+
+// IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
+func (r *runtimeConfig) IsPowerOfTwo() bool {
+	return r.isPowerOfTwo
 }

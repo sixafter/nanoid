@@ -222,8 +222,8 @@ Provides access to the generator's configuration.
 ```go
 // Configuration defines the interface for retrieving generator configuration.
 type Configuration interface {
-    // GetConfig returns the runtime configuration of the generator.
-    GetConfig() RuntimeConfig
+    // Config returns the configuration of the generator.
+	Config() Config
 }
 ```
 
@@ -241,6 +241,8 @@ The nanoid module defines several error types to handle various failure scenario
 
 * `DefaultAlphabet`: The default alphabet used for ID generation: `_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`
 * `DefaultLength`: The default length of the generated ID: `21`
+* `MinAlphabetLength`: The minimum allowed length for the alphabet: `2`
+* `MaxAlphabetLength`: The maximum allowed length for the alphabet: `256`
 
 ## Performance Optimizations
 
