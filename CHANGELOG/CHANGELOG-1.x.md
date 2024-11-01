@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.9.1] - 2024-NOV-01
 
 ### Added
-- **FEATURE:** Added new `MustGenerate` and `MustGenerateSize` functions to simplifies safe initialization of global variables.
+- **FEATURE:** Added new `Must` function to simplify safe initialization of global variables.
 ### Changed
 ### Deprecated
 ### Removed
