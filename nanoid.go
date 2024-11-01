@@ -18,33 +18,37 @@ import (
 // DefaultGenerator is a global, shared instance of a Nano ID generator. It is safe for concurrent use.
 var DefaultGenerator Generator
 
-// Generate returns a new Nano ID using `DefaultLength`.
-func Generate() (string, error) {
-	return DefaultGenerator.Generate(DefaultLength)
+// New returns a new Nano ID using `DefaultLength`.
+func New() (string, error) {
+	return NewWithLength(DefaultLength)
 }
 
-// GenerateWithLength returns a new Nano ID of the specified length.
-func GenerateWithLength(length int) (string, error) {
-	return DefaultGenerator.Generate(length)
+// NewWithLength returns a new Nano ID of the specified length.
+func NewWithLength(length int) (string, error) {
+	return DefaultGenerator.New(length)
 }
 
-// MustGenerate returns a new Nano ID using `DefaultLength` if err is nil or panics otherwise.
+// Must returns a new Nano ID using `DefaultLength` if err is nil or panics otherwise.
 // It simplifies safe initialization of global variables holding compiled UUIDs.
-func MustGenerate() string {
-	return DefaultGenerator.MustGenerate(DefaultLength)
+func Must() string {
+	return MustWithLength(DefaultLength)
 }
 
-// MustGenerateWithLength returns a new Nano ID of the specified length if err is nil or panics otherwise.
+// MustWithLength returns a new Nano ID of the specified length if err is nil or panics otherwise.
 // It simplifies safe initialization of global variables holding compiled UUIDs.
-func MustGenerateWithLength(length int) string {
-	return DefaultGenerator.MustGenerate(length)
+func MustWithLength(length int) string {
+	id, err := NewWithLength(length)
+	if err != nil {
+		panic(err)
+	}
+
+	return id
 }
 
 func init() {
 	var err error
-	DefaultGenerator, err = New(
+	DefaultGenerator, err = NewGenerator(
 		WithAlphabet(DefaultAlphabet),
-		WithDefaultLength(DefaultLength),
 	)
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize DefaultGenerator: %v", err))
@@ -77,15 +81,6 @@ func WithRandReader(reader io.Reader) Option {
 	}
 }
 
-// WithDefaultLength sets a custom default length for ID generation.
-func WithDefaultLength(length int) Option {
-	return func(c *ConfigOptions) {
-		if length > 0 {
-			c.DefaultLength = length
-		}
-	}
-}
-
 const (
 	// DefaultAlphabet as per Nano ID specification.
 	DefaultAlphabet = "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -101,7 +96,7 @@ const (
 	bufferMultiplier = 128
 
 	// MaxAlphabetLength defines the maximum allowed length for the alphabet.
-	MaxAlphabetLength = 256 // Newly added constant
+	MaxAlphabetLength = 256
 )
 
 // ConfigOptions holds the configurable options for the Generator.
@@ -115,9 +110,6 @@ type ConfigOptions struct {
 	// It must be a valid UTF-8 string containing between 2 and 256 unique characters.
 	// Using a diverse and appropriately sized alphabet ensures the uniqueness and randomness of the generated IDs.
 	Alphabet string
-
-	// DefaultLength is the default length of the generated Nano ID when no specific length is provided during generation.
-	DefaultLength int
 }
 
 // RuntimeConfig holds the runtime configuration for the Nano ID generator.
@@ -141,9 +133,6 @@ type RuntimeConfig struct {
 	// BufferSize is the buffer size used for random byte generation.
 	BufferSize int
 
-	// DefaultLength is the default size of the generated Nano ID.
-	DefaultLength int
-
 	// AlphabetLen is the length of the alphabet, stored as an uint16.
 	AlphabetLen uint16
 
@@ -153,11 +142,8 @@ type RuntimeConfig struct {
 
 // Generator defines the interface for generating Nano IDs.
 type Generator interface {
-	// Generate returns a new Nano ID of the specified length.
-	Generate(length int) (string, error)
-
-	// MustGenerate returns a new Nano ID of the specified length if err is nil or panics otherwise.
-	MustGenerate(length int) string
+	// New returns a new Nano ID of the specified length.
+	New(length int) (string, error)
 }
 
 // Configuration defines the interface for retrieving generator configuration.
@@ -172,15 +158,14 @@ type generator struct {
 	runeBufferPool *sync.Pool
 }
 
-// New creates a new Generator with buffer pooling enabled.
+// NewGenerator creates a new Generator with buffer pooling enabled.
 // It accepts variadic Option parameters to configure the Generator.
 // It returns an error if the alphabet is invalid or contains invalid UTF-8 characters.
-func New(options ...Option) (Generator, error) {
+func NewGenerator(options ...Option) (Generator, error) {
 	// Initialize ConfigOptions with default values
 	configOpts := &ConfigOptions{
-		Alphabet:      DefaultAlphabet,
-		DefaultLength: DefaultLength,
-		RandReader:    rand.Reader,
+		Alphabet:   DefaultAlphabet,
+		RandReader: rand.Reader,
 	}
 
 	// Apply provided options
@@ -234,7 +219,7 @@ func buildRuntimeConfig(opts *ConfigOptions) (*RuntimeConfig, error) {
 	// Calculate BitsNeeded and Mask
 	alphabetLen := len(alphabetRunes)
 
-	// New check for maximum alphabet length
+	// NewGenerator check for maximum alphabet length
 	if alphabetLen > MaxAlphabetLength {
 		return nil, ErrAlphabetTooLong
 	}
@@ -247,6 +232,7 @@ func buildRuntimeConfig(opts *ConfigOptions) (*RuntimeConfig, error) {
 	if bitsNeeded == 0 {
 		return nil, ErrInvalidAlphabet
 	}
+
 	mask := uint((1 << bitsNeeded) - 1)
 	bytesNeeded := (bitsNeeded + 7) / 8
 
@@ -256,20 +242,19 @@ func buildRuntimeConfig(opts *ConfigOptions) (*RuntimeConfig, error) {
 	bufferSize := int(bytesNeeded) * bufferMultiplier
 
 	return &RuntimeConfig{
-		RuneAlphabet:  alphabetRunes,
-		Mask:          mask,
-		BitsNeeded:    bitsNeeded,
-		BytesNeeded:   bytesNeeded,
-		BufferSize:    bufferSize,
-		AlphabetLen:   uint16(alphabetLen),
-		IsPowerOfTwo:  isPowerOfTwo,
-		DefaultLength: opts.DefaultLength,
-		RandReader:    opts.RandReader,
+		RuneAlphabet: alphabetRunes,
+		Mask:         mask,
+		BitsNeeded:   bitsNeeded,
+		BytesNeeded:  bytesNeeded,
+		BufferSize:   bufferSize,
+		AlphabetLen:  uint16(alphabetLen),
+		IsPowerOfTwo: isPowerOfTwo,
+		RandReader:   opts.RandReader,
 	}, nil
 }
 
-// Generate creates a new Nano ID of the specified length.
-func (g *generator) Generate(length int) (string, error) {
+// New creates a new Nano ID of the specified length.
+func (g *generator) New(length int) (string, error) {
 	if length <= 0 {
 		return "", ErrInvalidLength
 	}
@@ -292,7 +277,7 @@ func (g *generator) Generate(length int) (string, error) {
 		return "", ErrInvalidAlphabet
 	}
 
-	// Generate ID
+	// New ID
 	for cursor < length {
 		if attempts >= maxAttempts {
 			return "", ErrExceededMaxAttempts
@@ -328,15 +313,6 @@ func (g *generator) Generate(length int) (string, error) {
 	}
 
 	return string(id), nil
-}
-
-// MustGenerate returns a new Nano ID of the specified length if err is nil or panics otherwise.
-func (g *generator) MustGenerate(length int) string {
-	id, err := g.Generate(length)
-	if err != nil {
-		panic(err)
-	}
-	return id
 }
 
 // GetConfig returns the runtime configuration for the generator.
