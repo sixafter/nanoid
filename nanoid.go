@@ -20,14 +20,15 @@ import (
 var DefaultGenerator Generator
 
 // Generate generates a Nano ID using the default generator and the default size.
-func Generate() (string, error) {
-	return DefaultGenerator.Generate(DefaultSize)
+func Generate(length ...int) (string, error) {
+	l, err := parseLength(length)
+	return DefaultGenerator.Generate(l)
 }
 
 // MustGenerate generates a Nano ID using the default generator and the default size if err
 // is nil or panics otherwise.
 // It simplifies safe initialization of global variables holding compiled UUIDs.
-func MustGenerate() string {
+func MustGenerate(length ...int) string {
 	id, err := DefaultGenerator.Generate(DefaultSize)
 	if err != nil {
 		panic(err)
@@ -36,9 +37,20 @@ func MustGenerate() string {
 	return id
 }
 
-// GenerateSize generates a Nano ID using the default generator with a specified size.
-func GenerateSize(length int) (string, error) {
-	return DefaultGenerator.Generate(length)
+func parseLength(length ...int) (int, error) {
+	var l int
+	switch {
+	case len(length) == 0:
+		l = DefaultSize
+	case len(length) == 1:
+		l = length[0]
+		if l < 0 {
+			return "", ErrInvalidLength
+		}
+	default:
+		return "", errors.New("unexpected parameter")
+	}
+
 }
 
 // MustGenerateSize generates a Nano ID using the default generator with a specified size if err
@@ -106,7 +118,7 @@ type Config struct {
 	// Alphabet is a slice of bytes representing the character set used to generate IDs.
 	Alphabet []byte // 24 bytes (slice header)
 
-	// RuneAlphabet is a slice of runes, allowing support for multi-byte characters in ID generation.
+	// RuneAlphabet is a slice of runes, allowing support for multibyte characters in ID generation.
 	RuneAlphabet []rune // 24 bytes (slice header)
 
 	// Mask is a bitmask used to obtain a random value from the character set.
@@ -121,7 +133,7 @@ type Config struct {
 	// BufferSize is the buffer size used for random byte generation.
 	BufferSize int // 8 bytes
 
-	// AlphabetLen is the length of the alphabet, stored as a uint16.
+	// AlphabetLen is the length of the alphabet, stored as an uint16.
 	AlphabetLen uint16 // 2 bytes
 
 	// IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.

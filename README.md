@@ -193,7 +193,7 @@ type Config struct {
     // Alphabet is a slice of bytes representing the character set used to generate IDs.
     Alphabet []byte
     
-    // RuneAlphabet is a slice of runes, allowing support for multi-byte characters in ID generation.
+    // RuneAlphabet is a slice of runes, allowing support for multibyte characters in ID generation.
     RuneAlphabet []rune
     
     // Mask is a bitmask used to obtain a random value from the character set.
@@ -208,7 +208,7 @@ type Config struct {
     // BufferSize is the buffer size used for random byte generation.
     BufferSize int
     
-    // AlphabetLen is the length of the alphabet, stored as a uint16.
+    // AlphabetLen is the length of the alphabet, stored as an uint16.
     AlphabetLen uint16
     
     // IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
