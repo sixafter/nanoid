@@ -71,7 +71,7 @@ import (
 )
 
 func main() {
-  id, err := nanoid.GenerateSize(10)
+  id, err := nanoid.GenerateWithLength(10)
   if err != nil {
     panic(err)
   }
@@ -111,7 +111,6 @@ func main() {
 ```
 
 ## Functions
-
 ### `Generate`
 
 Generates a Nano ID with the specified length using the default generator.
@@ -121,23 +120,23 @@ func Generate() (string, error)
 ```
 
 * Returns:
-  * `string`: The generated Nano ID.
-  * `error`: An error if the generation fails.
+    * `string`: The generated Nano ID.
+    * `error`: An error if the generation fails.
 
 
-### `GenerateSize`
+### `GenerateWithLength`
 
 Generates a Nano ID with the specified length using the default generator.
 
 ```go
-func GenerateSize(length int) (string, error)
+func GenerateWithLength(length int) (string, error)
 ```
 
 * Parameters:
-  * `length` (`int`): The desired length of the Nano ID. Must be a positive integer.
+    * `length` (`int`): The desired length of the Nano ID. Must be a positive integer.
 * Returns:
-  * `string`: The generated Nano ID.
-  * `error`: An error if the generation fails.
+    * `string`: The generated Nano ID.
+    * `error`: An error if the generation fails.
 
 ### `New`
 
@@ -161,12 +160,10 @@ Defines the method to generate Nano IDs.
 ```go
 // Generator defines the interface for generating Nano IDs.
 type Generator interface {
-    // Generate creates a new Nano ID of the specified length.
-    Generate(size int) (string, error)
+    // Generate returns a new Nano ID of the specified length.
+    Generate(length int) (string, error)
     
-    // MustGenerate returns creates a new Nano ID of the specified length if err
-    // is nil or panics otherwise.
-    // It simplifies safe initialization of global variables holding compiled UUIDs.
+    // MustGenerate returns a new Nano ID of the specified length if err is nil or panics otherwise.
     MustGenerate(length int) string
 }
 ```
@@ -231,7 +228,7 @@ The nanoid module defines several error types to handle various failure scenario
 ## Constants
 
 * `DefaultAlphabet`: The default alphabet used for ID generation: `-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz`
-* `DefaultSize`: The default size of the generated ID: `21`
+* `DefaultLength`: The default length of the generated ID: `21`
 
 ## Performance Optimizations
 

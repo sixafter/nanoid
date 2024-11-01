@@ -19,50 +19,24 @@ import (
 // DefaultGenerator is a global, shared instance of a Nano ID generator. It is safe for concurrent use.
 var DefaultGenerator Generator
 
-// Generate generates a Nano ID using the default generator and the default size.
-func Generate(length ...int) (string, error) {
-	l, err := parseLength(length)
-	return DefaultGenerator.Generate(l)
+// Generate returns a new Nano ID using `DefaultLength`.
+func Generate() (string, error) {
+	return DefaultGenerator.Generate(DefaultLength)
 }
 
-// MustGenerate generates a Nano ID using the default generator and the default size if err
-// is nil or panics otherwise.
-// It simplifies safe initialization of global variables holding compiled UUIDs.
-func MustGenerate(length ...int) string {
-	id, err := DefaultGenerator.Generate(DefaultSize)
-	if err != nil {
-		panic(err)
-	}
-
-	return id
+// GenerateWithLength returns a new Nano ID of the specified length.
+func GenerateWithLength(length int) (string, error) {
+	return DefaultGenerator.Generate(length)
 }
 
-func parseLength(length ...int) (int, error) {
-	var l int
-	switch {
-	case len(length) == 0:
-		l = DefaultSize
-	case len(length) == 1:
-		l = length[0]
-		if l < 0 {
-			return "", ErrInvalidLength
-		}
-	default:
-		return "", errors.New("unexpected parameter")
-	}
-
+// MustGenerate returns a new Nano ID using `DefaultLength` if err is nil or panics otherwise.
+func MustGenerate() string {
+	return DefaultGenerator.MustGenerate(DefaultLength)
 }
 
-// MustGenerateSize generates a Nano ID using the default generator with a specified size if err
-// is nil or panics otherwise.
-// It simplifies safe initialization of global variables holding compiled UUIDs.
-func MustGenerateSize(length int) string {
-	id, err := DefaultGenerator.Generate(length)
-	if err != nil {
-		panic(err)
-	}
-
-	return id
+// MustGenerateWithLength returns a new Nano ID of the specified length if err is nil or panics otherwise.
+func MustGenerateWithLength(length int) string {
+	return DefaultGenerator.MustGenerate(length)
 }
 
 func init() {
@@ -83,10 +57,10 @@ var (
 
 const (
 	// DefaultAlphabet as per Nano ID specification.
-	DefaultAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+	DefaultAlphabet = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz"
 
-	// DefaultSize is the default size of the generated Nano ID: 21.
-	DefaultSize = 21
+	// DefaultLength is the default size of the generated Nano ID: 21.
+	DefaultLength = 21
 
 	// maxAttemptsMultiplier defines the multiplier for maximum attempts based on length.
 	maxAttemptsMultiplier = 10
@@ -98,12 +72,10 @@ const (
 
 // Generator defines the interface for generating Nano IDs.
 type Generator interface {
-	// Generate creates a new Nano ID of the specified length.
-	Generate(size int) (string, error)
+	// Generate returns a new Nano ID of the specified length.
+	Generate(length int) (string, error)
 
-	// MustGenerate returns creates a new Nano ID of the specified length if err
-	// is nil or panics otherwise.
-	// It simplifies safe initialization of global variables holding compiled UUIDs.
+	// MustGenerate returns a new Nano ID of the specified length if err is nil or panics otherwise.
 	MustGenerate(length int) string
 }
 
@@ -188,21 +160,21 @@ func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 	}
 
 	// Determine if the alphabet is ASCII-only
-	isASCII := !isUnicode(alphabet)
+	isOnlyASCII := !isUnicode(alphabet)
 
 	var (
 		alphabetBytes []byte
 		alphabetRunes []rune
 	)
 
-	if isASCII {
+	if isOnlyASCII {
 		alphabetBytes = []byte(alphabet)
 	} else {
 		alphabetRunes = []rune(alphabet)
 	}
 
 	// Check for duplicate characters
-	if isASCII {
+	if isOnlyASCII {
 		seen := make(map[byte]bool)
 		for _, b := range alphabetBytes {
 			if seen[b] {
@@ -222,7 +194,7 @@ func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 
 	// Calculate BitsNeeded and Mask
 	alphabetLen := 0
-	if isASCII {
+	if isOnlyASCII {
 		alphabetLen = len(alphabetBytes)
 	} else {
 		alphabetLen = len(alphabetRunes)
@@ -253,14 +225,14 @@ func newGenerator(alphabet string, randReader io.Reader) (Generator, error) {
 		BufferSize:   bufferSize,
 		AlphabetLen:  uint16(alphabetLen),
 		IsPowerOfTwo: isPowerOfTwo,
-		IsASCII:      isASCII,
+		IsASCII:      isOnlyASCII,
 	}
 
 	// Initialize buffer pools
 	var byteBufferPool *sync.Pool
 	var runeBufferPool *sync.Pool
 
-	if isASCII {
+	if isOnlyASCII {
 		byteBufferPool = &sync.Pool{
 			New: func() interface{} {
 				buf := make([]byte, bufferSize)
@@ -366,9 +338,7 @@ func (g *generator) Generate(length int) (string, error) {
 	return string(id.([]rune)), nil
 }
 
-// MustGenerate returns creates a new Nano ID of the specified length if err
-// is nil or panics otherwise.
-// It simplifies safe initialization of global variables holding compiled UUIDs.
+// MustGenerate returns a new Nano ID of the specified length if err is nil or panics otherwise.
 func (g *generator) MustGenerate(length int) string {
 	id, err := g.Generate(length)
 	if err != nil {

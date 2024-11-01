@@ -23,7 +23,7 @@ func TestGenerateDefault(t *testing.T) {
 
 	id, err := Generate()
 	is.NoError(err, "Generate() should not return an error")
-	is.Equal(DefaultSize, len([]rune(id)), "Generated ID should have the default length")
+	is.Equal(DefaultLength, len([]rune(id)), "Generated ID should have the default length")
 
 	is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
 }
@@ -38,7 +38,7 @@ func TestGenerateCustomLength(t *testing.T) {
 			t.Parallel()
 			is := assert.New(t)
 
-			id, err := GenerateSize(length)
+			id, err := GenerateWithLength(length)
 			is.NoError(err, "GenerateSize(%d) should not return an error", length)
 			is.Equal(length, len([]rune(id)), "Generated ID should have the specified length")
 
@@ -53,24 +53,16 @@ func TestMustGenerateDefault(t *testing.T) {
 	is := assert.New(t)
 
 	id := MustGenerate()
-	is.Equal(DefaultSize, len([]rune(id)), "Generated ID should have the default length")
+	is.Equal(DefaultLength, len([]rune(id)), "Generated ID should have the default length")
 
-	is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
-}
-
-// TestMustGenerateSize tests the must generation of Nano IDs with a custom length.
-func TestMustGenerateSize(t *testing.T) {
-	t.Parallel()
-	is := assert.New(t)
-
-	id := MustGenerateSize(DefaultSize)
-	is.Equal(DefaultSize, len([]rune(id)), "Generated ID should have the default length")
+	id = MustGenerateWithLength(DefaultLength)
+	is.Equal(DefaultLength, len([]rune(id)), "Generated ID should have the default length")
 
 	is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
 }
 
 // TestMustGenerate tests the must generation of Nano IDs with custom lengths.
-func TestMustGenerate(t *testing.T) {
+func TestMustGenerateWithLength(t *testing.T) {
 	lengths := []int{1, 5, 10, 21, 50, 100}
 
 	gen, _ := New(DefaultAlphabet, nil)
@@ -100,7 +92,7 @@ func TestGenerateInvalidLength(t *testing.T) {
 		length := length // capture range variable
 		t.Run("InvalidLength_"+strconv.Itoa(length), func(t *testing.T) {
 			t.Parallel()
-			id, err := GenerateSize(length)
+			id, err := GenerateWithLength(length)
 			is.Error(err, "GenerateSize(%d) should return an error", length)
 			is.Empty(id, "Generated ID should be empty on error")
 			is.Equal(ErrInvalidLength, err, "Expected ErrInvalidLength")
