@@ -37,9 +37,9 @@ import "github.com/sixafter/nanoid"
 
 ## Usage
 
-### Generate a Nano ID with Default Settings
+### Basic Usage with Default Settings
 
-Generate a Nano ID using the default size (21 characters) and default alphabet:
+The simplest way to generate a Nano ID is by using the default settings. This utilizes the predefined alphabet and default ID length.
 
 ```go
 package main
@@ -58,9 +58,15 @@ func main() {
 }
 ```
 
-### Generating a NanoID with Custom Size
+**Output**:
 
-Generate a NanoID with a custom length:
+```bash
+Default Nano ID: -D5f3Z_0x1Gk9Qa
+```
+
+### Generating a NanoID with Custom length
+
+Generate a NanoID with a custom length.
 
 ```go
 package main
@@ -79,38 +85,160 @@ func main() {
 }
 ```
 
-### Generate a Nano ID with Custom Alphabet
+**Output**:
 
-Create a custom generator with a specific alphabet and use it to generate IDs:
+```bash
+Default Nano ID: 1A3F5B7C9D
+```
+
+### Customizing the Alphabet and ID Length
+
+You can customize the alphabet and the default ID length by using the WithAlphabet and WithDefaultLength options.
 
 ```go
 package main
 
 import (
-  "fmt"
-  "github.com/sixafter/nanoid"
+	"fmt"
+
+	"github.com/sixafter/nanoid"
 )
 
 func main() {
-  // Define a custom alphabet
-  alphabet := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	// Define a custom alphabet
+	customAlphabet := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-  // Create a new generator
-  gen, err := nanoid.New(alphabet, nil) // nil uses crypto/rand as the default
-  if err != nil {
-    panic(err)
-  }
+	// Define a custom default length
+	customLength := 10
 
-  // Generate a Nano ID
-  id, err := gen.Generate(10) // Custom length: 10
-  if err != nil {
-    panic(err)
-  }
-  fmt.Println("Generated ID:", id)
+	// Create a new generator with custom alphabet and default length
+	gen, err := nanoid.New(
+		nanoid.WithAlphabet(customAlphabet),
+		nanoid.WithDefaultLength(customLength),
+	)
+	if err != nil {
+		fmt.Println("Error creating Nano ID generator:", err)
+		return
+	}
+
+	// Generate a Nano ID using the custom generator
+	id, err := gen.Generate(customLength)
+	if err != nil {
+		fmt.Println("Error generating Nano ID:", err)
+		return
+	}
+
+	fmt.Println("Custom Nano ID:", id)
 }
 ```
 
+**Output**"
+
+```bash
+Custom Nano ID: G5J8K2M0QZ
+```
+
+### Using a Custom Random Reader for Deterministic ID Generation
+
+For testing or deterministic ID generation, you might want to use a custom random reader. Below is an example using a deterministic byte source.
+
+```go
+package main
+
+import (
+	"fmt"
+	"io"
+	"sync"
+
+	"github.com/sixafter/nanoid"
+)
+
+// cyclicReader is a helper type that cycles through a predefined set of bytes.
+// It implements the io.Reader interface.
+type cyclicReader struct {
+	data []byte
+	mu   sync.Mutex
+	pos  int
+}
+
+// Read fills p with bytes from the cyclicReader's data, cycling back to the start when necessary.
+func (r *cyclicReader) Read(p []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if len(r.data) == 0 {
+		return 0, io.EOF
+	}
+
+	n := 0
+	for n < len(p) {
+		p[n] = r.data[r.pos]
+		n++
+		r.pos = (r.pos + 1) % len(r.data)
+	}
+
+	return n, nil
+}
+
+func main() {
+	// Define a custom alphabet
+	customAlphabet := "ABCD"
+
+	// Define a custom byte sequence for deterministic ID generation
+	customBytes := []byte{0, 1, 2, 3} // Maps to 'A', 'B', 'C', 'D'
+
+	// Create a cyclic random reader with the custom bytes
+	cycleReader := &cyclicReader{data: customBytes}
+
+	// Initialize the generator with custom alphabet and custom random reader
+	gen, err := nanoid.New(
+		nanoid.WithAlphabet(customAlphabet),
+		nanoid.WithRandReader(cycleReader),
+	)
+	if err != nil {
+		fmt.Println("Error creating Nano ID generator:", err)
+		return
+	}
+
+	// Generate a Nano ID of length 4
+	id, err := gen.Generate(4)
+	if err != nil {
+		fmt.Println("Error generating Nano ID:", err)
+		return
+	}
+
+	fmt.Println("Generated Nano ID (Deterministic, Length 4):", id)
+
+	// Generate another Nano ID of length 4, should cycle through the bytes again
+	id2, err := gen.Generate(4)
+	if err != nil {
+		fmt.Println("Error generating Nano ID:", err)
+		return
+	}
+
+	fmt.Println("Generated Nano ID (Deterministic, Length 4):", id2)
+
+	// Generate a Nano ID of length 8, cycling through the bytes twice
+	id3, err := gen.Generate(8)
+	if err != nil {
+		fmt.Println("Error generating Nano ID:", err)
+		return
+	}
+
+	fmt.Println("Generated Nano ID (Deterministic, Length 8):", id3)
+}
+```
+
+**Output**:
+
+```shell
+Generated Nano ID (Deterministic, Length 4): ABCD
+Generated Nano ID (Deterministic, Length 4): ABCD
+Generated Nano ID (Deterministic, Length 8): ABCDABCD
+```
+
 ## Functions
+
 ### `Generate`
 
 Generates a Nano ID with the specified length using the default generator.
@@ -180,13 +308,14 @@ type Configuration interface {
 }
 ```
 
-### `Config` Struct
+### `RuntimeConfig` Struct
 
 Holds the configuration details for the generator.
 
 ```go
-// Config holds the configuration for the Nano ID generator.
-type Config struct {
+// RuntimeConfig holds the runtime configuration for the Nano ID generator.
+// It is immutable after initialization.
+type RuntimeConfig struct {
     // Alphabet is a slice of bytes representing the character set used to generate IDs.
     Alphabet []byte
     
@@ -224,10 +353,11 @@ The nanoid module defines several error types to handle various failure scenario
 * `ErrInvalidLength`: Returned when a non-positive Nano ID length is specified. 
 * `ErrInvalidAlphabet`: Returned when an alphabet is invalid; e.g. due to length constraints.
 * `ErrNonUTF8Alphabet`: Returned when an alphabet contains invalid UTF-8 characters.
+* `ErrAlphabetTooLong`: Returned when an alphabet length exceeds 256 character.
 
 ## Constants
 
-* `DefaultAlphabet`: The default alphabet used for ID generation: `-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz`
+* `DefaultAlphabet`: The default alphabet used for ID generation: `_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`
 * `DefaultLength`: The default length of the generated ID: `21`
 
 ## Performance Optimizations
@@ -265,188 +395,188 @@ goos: darwin
 goarch: arm64
 pkg: github.com/sixafter/nanoid
 cpu: Apple M2 Ultra
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen8-24           9900825               119.0 ns/op            16 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen16-24          3839343               310.7 ns/op            32 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen21-24          3697426               324.9 ns/op            48 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen32-24          3403065               355.0 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen64-24          2721128               443.3 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen128-24         1986505               611.1 ns/op           256 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen16/IDLen8-24          9938446               119.8 ns/op            16 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen16/IDLen16-24         3804894               310.2 ns/op            32 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen16/IDLen21-24         3759706               318.6 ns/op            48 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen16/IDLen32-24         3507075               343.9 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen16/IDLen64-24         2773866               429.3 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen16/IDLen128-24        2020968               591.2 ns/op           256 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen32/IDLen8-24         10467040               116.9 ns/op            16 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen32/IDLen16-24         3967908               303.9 ns/op            32 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen32/IDLen21-24         3671436               317.6 ns/op            48 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen32/IDLen32-24         3470918               345.6 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen32/IDLen64-24         2795991               430.5 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen32/IDLen128-24        2038209               591.9 ns/op           256 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen64/IDLen8-24         10072525               116.4 ns/op            16 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen64/IDLen16-24         3944463               304.5 ns/op            32 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen64/IDLen21-24         3778465               329.4 ns/op            48 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen64/IDLen32-24         3322444               346.5 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen64/IDLen64-24         2778516               430.6 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen64/IDLen128-24        2024299               588.7 ns/op           256 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen95/IDLen8-24          4929242               245.0 ns/op            16 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen95/IDLen16-24         2445019               489.8 ns/op            32 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen95/IDLen21-24         2239215               533.0 ns/op            48 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen95/IDLen32-24         1903724               624.6 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen95/IDLen64-24         1246633               964.2 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen95/IDLen128-24         880270              1365 ns/op             256 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen2/IDLen8-24         7129393               166.6 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen2/IDLen16-24        3088347               387.2 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen2/IDLen21-24        2676687               447.5 ns/op           176 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen2/IDLen32-24        2260320               529.4 ns/op           240 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen2/IDLen64-24        1503513               775.8 ns/op           464 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen2/IDLen128-24        918639              1273 ns/op             929 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen16/IDLen8-24        7141119               167.6 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen16/IDLen16-24       3094470               390.4 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen16/IDLen21-24       2659474               449.6 ns/op           176 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen16/IDLen32-24       2250259               533.7 ns/op           240 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen16/IDLen64-24       1525422               778.6 ns/op           464 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen16/IDLen128-24       939098              1275 ns/op             929 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen32/IDLen8-24        7075434               168.0 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen32/IDLen16-24       3078884               390.8 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen32/IDLen21-24       2653651               450.8 ns/op           176 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen32/IDLen32-24       2250336               534.3 ns/op           240 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen32/IDLen64-24       1535886               779.7 ns/op           464 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen32/IDLen128-24       905656              1273 ns/op             929 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen64/IDLen8-24        4705986               254.1 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen64/IDLen16-24       2362225               511.0 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen64/IDLen21-24       2024662               589.0 ns/op           176 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen64/IDLen32-24       1689366               705.7 ns/op           240 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen64/IDLen64-24       1000000              1098 ns/op             464 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen64/IDLen128-24       647395              1781 ns/op             929 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen95/IDLen8-24        4692651               251.9 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen95/IDLen16-24       2358103               510.5 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen95/IDLen21-24       2025705               591.0 ns/op           176 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen95/IDLen32-24       1684885               707.9 ns/op           240 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen95/IDLen64-24       1000000              1102 ns/op             464 B/op          2 allocs/op
-BenchmarkNanoIDGeneration/Unicode_AlphabetLen95/IDLen128-24       642933              1797 ns/op             929 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen2/IDLen8-24   2989003               390.5 ns/op            16 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen2/IDLen16-24                  1466362               825.1 ns/op            32 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen2/IDLen21-24                  1404768               857.2 ns/op            48 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen2/IDLen32-24                  1333918               920.0 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen2/IDLen64-24                  1000000              1026 ns/op             128 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen2/IDLen128-24                 1000000              1152 ns/op             256 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen16/IDLen8-24                  3085243               396.0 ns/op            16 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen16/IDLen16-24                 1466227               825.1 ns/op            32 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen16/IDLen21-24                 1410675               851.8 ns/op            48 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen16/IDLen32-24                 1333658               897.7 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen16/IDLen64-24                 1000000              1018 ns/op             128 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen16/IDLen128-24                1000000              1149 ns/op             256 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen32/IDLen8-24                  3039732               394.5 ns/op            16 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen32/IDLen16-24                 1443295               821.3 ns/op            32 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen32/IDLen21-24                 1413276               852.6 ns/op            48 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen32/IDLen32-24                 1332478               914.1 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen32/IDLen64-24                 1000000              1029 ns/op             128 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen32/IDLen128-24                1000000              1155 ns/op             256 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen64/IDLen8-24                  3071056               390.1 ns/op            16 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen64/IDLen16-24                 1457083               826.4 ns/op            32 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen64/IDLen21-24                 1398894               849.8 ns/op            48 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen64/IDLen32-24                 1346475               886.5 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen64/IDLen64-24                 1000000              1026 ns/op             128 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen64/IDLen128-24                1000000              1142 ns/op             256 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen95/IDLen8-24                  1430025               834.6 ns/op            16 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen95/IDLen16-24                  740119              1543 ns/op              32 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen95/IDLen21-24                  671708              1677 ns/op              48 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen95/IDLen32-24                  605883              1925 ns/op              64 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen95/IDLen64-24                  443612              2725 ns/op             128 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen95/IDLen128-24                 344932              3489 ns/op             256 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen2/IDLen8-24                 2391144               500.5 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen2/IDLen16-24                1237058               966.6 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen2/IDLen21-24                1000000              1044 ns/op             176 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen2/IDLen32-24                 985527              1120 ns/op             240 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen2/IDLen64-24                 954957              1294 ns/op             464 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen2/IDLen128-24                727497              1577 ns/op             929 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen16/IDLen8-24                2411503               498.8 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen16/IDLen16-24               1225498               969.1 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen16/IDLen21-24               1000000              1041 ns/op             176 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen16/IDLen32-24               1000000              1118 ns/op             240 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen16/IDLen64-24                884580              1299 ns/op             464 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen16/IDLen128-24               734211              1596 ns/op             929 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen32/IDLen8-24                2419585               497.5 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen32/IDLen16-24               1240014               974.8 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen32/IDLen21-24               1000000              1037 ns/op             176 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen32/IDLen32-24               1000000              1114 ns/op             240 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen32/IDLen64-24                946449              1307 ns/op             464 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen32/IDLen128-24               719616              1600 ns/op             929 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen64/IDLen8-24                1448635               831.5 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen64/IDLen16-24                885998              1527 ns/op             128 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen64/IDLen21-24                702578              1714 ns/op             176 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen64/IDLen32-24                600270              1952 ns/op             240 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen64/IDLen64-24                443122              2687 ns/op             464 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen64/IDLen128-24               329334              3664 ns/op             929 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen95/IDLen8-24                1452666               827.1 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen95/IDLen16-24                785490              1506 ns/op             128 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen95/IDLen21-24                704905              1707 ns/op             176 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen95/IDLen32-24                608680              1966 ns/op             240 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen95/IDLen64-24                453290              2708 ns/op             464 B/op          2 allocs/op
-BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen95/IDLen128-24               322802              3677 ns/op             929 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen2/IDLen8-24          10134021               116.7 ns/op            16 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen2/IDLen16-24          3946090               305.3 ns/op            32 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen2/IDLen21-24          3794966               313.8 ns/op            48 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen2/IDLen32-24          3502370               339.8 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen2/IDLen64-24          2760170               434.3 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen2/IDLen128-24                 1978986               604.9 ns/op           256 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen16/IDLen8-24                 10140744               117.2 ns/op            16 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen16/IDLen16-24                 3913432               306.8 ns/op            32 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen16/IDLen21-24                 3650574               325.3 ns/op            48 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen16/IDLen32-24                 3444016               344.2 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen16/IDLen64-24                 2784463               438.6 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen16/IDLen128-24                1968044               625.7 ns/op           256 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen32/IDLen8-24                  9712027               119.9 ns/op            16 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen32/IDLen16-24                 3830364               314.2 ns/op            32 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen32/IDLen21-24                 3632488               334.7 ns/op            48 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen32/IDLen32-24                 3422242               345.7 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen32/IDLen64-24                 2769238               433.6 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen32/IDLen128-24                1976390               604.3 ns/op           256 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen64/IDLen8-24                 10145660               116.9 ns/op            16 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen64/IDLen16-24                 3978235               303.7 ns/op            32 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen64/IDLen21-24                 3778012               318.5 ns/op            48 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen64/IDLen32-24                 3502041               344.3 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen64/IDLen64-24                 2775818               431.4 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen64/IDLen128-24                1977230               603.6 ns/op           256 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen95/IDLen8-24                  4833774               247.3 ns/op            16 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen95/IDLen16-24                 2449020               491.1 ns/op            32 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen95/IDLen21-24                 2243475               537.2 ns/op            48 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen95/IDLen32-24                 1885855               632.9 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen95/IDLen64-24                 1235704               973.9 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen95/IDLen128-24                 900153              1364 ns/op             256 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen2/IDLen8-24                 7047174               170.0 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen2/IDLen16-24                3047263               390.7 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen2/IDLen21-24                2634684               461.1 ns/op           176 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen2/IDLen32-24                2223579               541.8 ns/op           240 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen2/IDLen64-24                1492694               801.0 ns/op           464 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen2/IDLen128-24                906471              1319 ns/op             929 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen16/IDLen8-24                6993999               169.6 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen16/IDLen16-24               3055308               390.0 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen16/IDLen21-24               2628690               454.6 ns/op           176 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen16/IDLen32-24               2230983               540.8 ns/op           240 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen16/IDLen64-24               1488814               799.8 ns/op           464 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen16/IDLen128-24               897660              1327 ns/op             929 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen32/IDLen8-24                7030861               171.7 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen32/IDLen16-24               3014774               391.2 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen32/IDLen21-24               2646554               457.6 ns/op           176 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen32/IDLen32-24               2230081               539.6 ns/op           240 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen32/IDLen64-24               1493530               802.2 ns/op           464 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen32/IDLen128-24               924261              1326 ns/op             929 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen64/IDLen8-24                4675761               258.1 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen64/IDLen16-24               2298976               524.4 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen64/IDLen21-24               2016050               592.8 ns/op           176 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen64/IDLen32-24               1683283               712.1 ns/op           240 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen64/IDLen64-24               1000000              1139 ns/op             464 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen64/IDLen128-24               624578              1836 ns/op             929 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen95/IDLen8-24                4680818               253.9 ns/op            64 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen95/IDLen16-24               2349648               515.3 ns/op           128 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen95/IDLen21-24               2006119               596.1 ns/op           176 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen95/IDLen32-24               1638229               731.4 ns/op           240 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen95/IDLen64-24               1000000              1135 ns/op             464 B/op          2 allocs/op
-BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen95/IDLen128-24               636212              1885 ns/op             929 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen8-24           8287710               143.6 ns/op            48 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen16-24          3458908               349.1 ns/op            88 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen21-24          3118034               385.5 ns/op           120 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen32-24          2668833               453.0 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen64-24          1801447               666.0 ns/op           336 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen128-24         1000000              1052 ns/op             656 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen16/IDLen8-24          8245402               144.8 ns/op            48 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen16/IDLen16-24         3409947               349.2 ns/op            88 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen16/IDLen21-24         3095005               388.4 ns/op           120 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen16/IDLen32-24         2632291               455.8 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen16/IDLen64-24         1802788               665.3 ns/op           336 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen16/IDLen128-24        1000000              1047 ns/op             656 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen32/IDLen8-24          8208511               145.9 ns/op            48 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen32/IDLen16-24         3414762               351.9 ns/op            88 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen32/IDLen21-24         3106312               394.5 ns/op           120 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen32/IDLen32-24         2491836               461.3 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen32/IDLen64-24         1797640               665.4 ns/op           336 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen32/IDLen128-24        1000000              1049 ns/op             657 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen64/IDLen8-24          8189415               150.2 ns/op            48 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen64/IDLen16-24         3376741               351.2 ns/op            88 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen64/IDLen21-24         3045118               390.2 ns/op           120 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen64/IDLen32-24         2488202               457.0 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen64/IDLen64-24         1750443               675.7 ns/op           336 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen64/IDLen128-24        1000000              1064 ns/op             657 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen95/IDLen8-24          4129323               289.7 ns/op            48 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen95/IDLen16-24         2211400               543.2 ns/op            88 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen95/IDLen21-24         2004159               600.0 ns/op           120 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen95/IDLen32-24         1608355               736.3 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen95/IDLen64-24         1000000              1206 ns/op             336 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen95/IDLen128-24         650894              1825 ns/op             657 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen2/IDLen8-24         7663106               156.3 ns/op            64 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen2/IDLen16-24        3271550               368.0 ns/op           128 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen2/IDLen21-24        2790944               431.5 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen2/IDLen32-24        2361598               507.3 ns/op           240 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen2/IDLen64-24        1622791               732.8 ns/op           464 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen2/IDLen128-24       1000000              1187 ns/op             929 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen16/IDLen8-24        7617163               157.0 ns/op            64 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen16/IDLen16-24       3185416               376.5 ns/op           128 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen16/IDLen21-24       2752042               437.5 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen16/IDLen32-24       2334298               505.6 ns/op           240 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen16/IDLen64-24       1637635               731.9 ns/op           464 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen16/IDLen128-24      1000000              1180 ns/op             929 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen32/IDLen8-24        7661036               157.5 ns/op            64 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen32/IDLen16-24       3113401               375.7 ns/op           128 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen32/IDLen21-24       2801428               426.5 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen32/IDLen32-24       2371736               501.8 ns/op           240 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen32/IDLen64-24       1640449               730.1 ns/op           464 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen32/IDLen128-24       991594              1184 ns/op             929 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen64/IDLen8-24        4916432               244.0 ns/op            64 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen64/IDLen16-24       2408094               495.9 ns/op           128 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen64/IDLen21-24       2108852               570.9 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen64/IDLen32-24       1753929               682.8 ns/op           240 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen64/IDLen64-24       1000000              1074 ns/op             464 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen64/IDLen128-24       629872              1787 ns/op             929 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen95/IDLen8-24        4896202               243.7 ns/op            64 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen95/IDLen16-24       2402408               493.0 ns/op           128 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen95/IDLen21-24       2107456               570.0 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen95/IDLen32-24       1666522               685.7 ns/op           240 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen95/IDLen64-24       1000000              1056 ns/op             464 B/op          2 allocs/op
+BenchmarkNanoIDGeneration/Unicode_AlphabetLen95/IDLen128-24       687913              1717 ns/op             929 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen2/IDLen8-24   2679631               447.8 ns/op            48 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen2/IDLen16-24                  1343784               892.1 ns/op            88 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen2/IDLen21-24                  1257314               951.5 ns/op           120 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen2/IDLen32-24                  1000000              1023 ns/op             176 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen2/IDLen64-24                  1000000              1203 ns/op             336 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen2/IDLen128-24                  802926              1436 ns/op             657 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen16/IDLen8-24                  2578495               463.3 ns/op            48 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen16/IDLen16-24                 1317555               903.5 ns/op            88 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen16/IDLen21-24                 1252080               955.6 ns/op           120 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen16/IDLen32-24                 1000000              1030 ns/op             176 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen16/IDLen64-24                 1000000              1191 ns/op             336 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen16/IDLen128-24                 913140              1443 ns/op             657 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen32/IDLen8-24                  2639306               452.1 ns/op            48 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen32/IDLen16-24                 1345076               898.2 ns/op            88 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen32/IDLen21-24                 1263411               955.0 ns/op           120 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen32/IDLen32-24                 1000000              1020 ns/op             176 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen32/IDLen64-24                 1000000              1186 ns/op             336 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen32/IDLen128-24                 872174              1433 ns/op             657 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen64/IDLen8-24                  2599221               456.1 ns/op            48 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen64/IDLen16-24                 1348374               887.3 ns/op            88 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen64/IDLen21-24                 1251062               941.7 ns/op           120 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen64/IDLen32-24                 1000000              1021 ns/op             176 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen64/IDLen64-24                 1000000              1171 ns/op             336 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen64/IDLen128-24                 865360              1424 ns/op             657 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen95/IDLen8-24                  1315418               914.2 ns/op            48 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen95/IDLen16-24                  750210              1623 ns/op              88 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen95/IDLen21-24                  727192              1787 ns/op             120 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen95/IDLen32-24                  543541              2136 ns/op             176 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen95/IDLen64-24                  388136              3092 ns/op             336 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/ASCII_AlphabetLen95/IDLen128-24                 301182              3952 ns/op             657 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen2/IDLen8-24                 2506696               482.9 ns/op            64 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen2/IDLen16-24                1294630               925.6 ns/op           128 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen2/IDLen21-24                1000000              1005 ns/op             176 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen2/IDLen32-24                1000000              1080 ns/op             240 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen2/IDLen64-24                 979814              1245 ns/op             464 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen2/IDLen128-24                822366              1523 ns/op             929 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen16/IDLen8-24                2538175               479.4 ns/op            64 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen16/IDLen16-24               1293229               928.7 ns/op           128 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen16/IDLen21-24               1000000              1002 ns/op             176 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen16/IDLen32-24               1000000              1070 ns/op             240 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen16/IDLen64-24                949635              1257 ns/op             464 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen16/IDLen128-24               825680              1524 ns/op             929 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen32/IDLen8-24                2459442               482.7 ns/op            64 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen32/IDLen16-24               1289870               922.8 ns/op           128 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen32/IDLen21-24               1000000              1018 ns/op             176 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen32/IDLen32-24               1000000              1068 ns/op             240 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen32/IDLen64-24                970238              1260 ns/op             464 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen32/IDLen128-24               787030              1524 ns/op             929 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen64/IDLen8-24                1496124               802.1 ns/op            64 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen64/IDLen16-24                755793              1485 ns/op             128 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen64/IDLen21-24                696702              1672 ns/op             176 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen64/IDLen32-24                635422              1908 ns/op             240 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen64/IDLen64-24                468843              2611 ns/op             464 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen64/IDLen128-24               333549              3574 ns/op             929 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen95/IDLen8-24                1498758               800.0 ns/op            64 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen95/IDLen16-24                804652              1529 ns/op             128 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen95/IDLen21-24                744152              1668 ns/op             176 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen95/IDLen32-24                631968              1902 ns/op             240 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen95/IDLen64-24                455257              2609 ns/op             464 B/op          2 allocs/op
+BenchmarkNanoIDGenerationParallel/Unicode_AlphabetLen95/IDLen128-24               336698              3552 ns/op             929 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen2/IDLen8-24           8122065               146.2 ns/op            48 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen2/IDLen16-24          3434354               346.5 ns/op            88 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen2/IDLen21-24          3112950               384.2 ns/op           120 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen2/IDLen32-24          2634900               455.7 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen2/IDLen64-24          1758133               683.0 ns/op           336 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen2/IDLen128-24                 1000000              1078 ns/op             656 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen16/IDLen8-24                  8283176               145.7 ns/op            48 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen16/IDLen16-24                 3437125               346.7 ns/op            88 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen16/IDLen21-24                 3078442               394.9 ns/op           120 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen16/IDLen32-24                 2597701               460.2 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen16/IDLen64-24                 1763136               712.3 ns/op           336 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen16/IDLen128-24                1000000              1086 ns/op             656 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen32/IDLen8-24                  8244777               145.1 ns/op            48 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen32/IDLen16-24                 3432304               347.3 ns/op            88 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen32/IDLen21-24                 3090642               387.3 ns/op           120 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen32/IDLen32-24                 2600820               458.1 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen32/IDLen64-24                 1772391               680.6 ns/op           336 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen32/IDLen128-24                1000000              1085 ns/op             656 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen64/IDLen8-24                  8314324               144.5 ns/op            48 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen64/IDLen16-24                 3452112               348.6 ns/op            88 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen64/IDLen21-24                 3076152               389.5 ns/op           120 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen64/IDLen32-24                 2621108               474.5 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen64/IDLen64-24                 1761447               686.1 ns/op           336 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen64/IDLen128-24                1000000              1074 ns/op             656 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen95/IDLen8-24                  4312852               279.6 ns/op            48 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen95/IDLen16-24                 2229373               537.6 ns/op            88 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen95/IDLen21-24                 2003446               604.8 ns/op           120 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen95/IDLen32-24                 1578762               749.6 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen95/IDLen64-24                  957735              1216 ns/op             336 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/ASCII_AlphabetLen95/IDLen128-24                 627285              1861 ns/op             656 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen2/IDLen8-24                 7527574               158.8 ns/op            64 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen2/IDLen16-24                3208182               374.1 ns/op           128 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen2/IDLen21-24                2758483               434.3 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen2/IDLen32-24                2320950               519.3 ns/op           240 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen2/IDLen64-24                1568509               783.7 ns/op           464 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen2/IDLen128-24                977128              1280 ns/op             929 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen16/IDLen8-24                7234887               164.8 ns/op            64 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen16/IDLen16-24               3107169               387.1 ns/op           128 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen16/IDLen21-24               2633612               452.2 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen16/IDLen32-24               2252991               535.9 ns/op           240 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen16/IDLen64-24               1528117               785.9 ns/op           464 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen16/IDLen128-24               884773              1282 ns/op             929 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen32/IDLen8-24                7222017               166.7 ns/op            64 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen32/IDLen16-24               3107734               386.7 ns/op           128 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen32/IDLen21-24               2653728               454.3 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen32/IDLen32-24               2233526               523.9 ns/op           240 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen32/IDLen64-24               1598574               749.7 ns/op           464 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen32/IDLen128-24               946707              1224 ns/op             929 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen64/IDLen8-24                4904601               244.5 ns/op            64 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen64/IDLen16-24               2415222               496.4 ns/op           128 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen64/IDLen21-24               2091091               571.0 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen64/IDLen32-24               1745792               688.8 ns/op           240 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen64/IDLen64-24               1000000              1072 ns/op             464 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen64/IDLen128-24               670449              1763 ns/op             929 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen95/IDLen8-24                4887175               243.1 ns/op            64 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen95/IDLen16-24               2414070               496.3 ns/op           128 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen95/IDLen21-24               2105001               569.5 ns/op           176 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen95/IDLen32-24               1749606               687.3 ns/op           240 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen95/IDLen64-24               1000000              1072 ns/op             464 B/op          2 allocs/op
+BenchmarkNanoIDWithVaryingAlphabetLengths/Unicode_AlphabetLen95/IDLen128-24               681955              1764 ns/op             929 B/op          2 allocs/op
 PASS
-ok      github.com/sixafter/nanoid      279.780s
+ok      github.com/sixafter/nanoid      272.993s
 ```
 </details>
 
