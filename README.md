@@ -15,7 +15,8 @@ A simple, fast, and efficient Go implementation of [Nano ID](https://github.com/
 - **Cryptographically Secure**: Utilizes Go's `crypto/rand` package for generating cryptographically secure random numbers. This guarantees that the generated IDs are both unpredictable and suitable for security-sensitive applications.
 - **Customizable**: 
   - Define your own set of characters for ID generation with a minimum length of 2 characters and maximum length of 256 characters.
-  - Define your own cryptographically secure random number generator.
+  - Define your own random number generator.
+  - Unicode and ASCII alphabets supported.
 - **Concurrency Safe**: Designed to be safe for use in concurrent environments.
 - **High Performance**: Optimized with buffer pooling to minimize allocations and enhance speed.
 - **Zero Dependencies**: Lightweight implementation with no external dependencies beyond the standard library.
