@@ -221,8 +221,8 @@ Provides access to the generator's configuration.
 ```go
 // Configuration defines the interface for retrieving generator configuration.
 type Configuration interface {
-    // GetConfig returns the configuration of the generator.
-    GetConfig() Config
+    // GetConfig returns the runtime configuration of the generator.
+    GetConfig() RuntimeConfig
 }
 ```
 
@@ -257,7 +257,7 @@ The `generator` struct is optimized for memory alignment and size by ordering fr
 
 ## Execute Benchmarks:
 
-Run the benchmarks using the go test command with the `bench` make target:
+Run the benchmarks using the `go test` command with the `bench` make target:
 
 ```shell
 make bench
