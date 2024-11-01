@@ -1,5 +1,3 @@
-// nanoid_benchmark_test.go
-
 // Copyright (c) 2024 Six After, Inc.
 //
 // This source code is licensed under the MIT License found in the

@@ -3,15 +3,6 @@
 // This source code is licensed under the MIT License found in the
 // LICENSE file in the root directory of this source tree.
 
-// nanoid_test.go
-
-// nanoid_test.go
-
-// Copyright (c) 2024 Six After, Inc
-//
-// This source code is licensed under the MIT License found in the
-// LICENSE file in the root directory of this source tree.
-
 package nanoid
 
 import (
