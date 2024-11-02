@@ -145,6 +145,27 @@ func TestNewGeneratorWithInvalidAlphabet(t *testing.T) {
 }
 
 // TestGetConfig tests the Config() method of the generator.
+func TestInvalidUTF8Alphabet(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Create a byte slice with an invalid UTF-8 sequence.
+	// Here, 0x80 is a continuation byte, which by itself is not valid UTF-8.
+	invalidUTF8 := []byte{0x80}
+
+	// Convert the byte slice to a string.
+	alphabet := string(invalidUTF8)
+
+	gen, err := NewGenerator(
+		WithAlphabet(alphabet),
+	)
+
+	is.Error(err, "NewGenerator() should return an error with an invalid alphabet")
+	is.Nil(gen, "Generator should be nil when initialization fails")
+	is.Equal(ErrNonUTF8Alphabet, err, "Expected ErrNonUTF8Alphabet")
+}
+
+// TestGetConfig tests the Config() method of the generator.
 func TestGetConfig(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
