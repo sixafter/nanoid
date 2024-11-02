@@ -53,6 +53,8 @@ func makeUnicodeAlphabet(length int) string {
 
 // BenchmarkNanoIDGeneration benchmarks Nano ID generation for varying alphabet types, alphabet lengths, and ID lengths
 func BenchmarkNanoIDGeneration(b *testing.B) {
+	b.ReportAllocs() // Report memory allocations
+
 	// Define the Nano ID lengths to test
 	idLengths := []int{8, 16, 21, 32, 64, 128}
 
@@ -64,7 +66,7 @@ func BenchmarkNanoIDGeneration(b *testing.B) {
 
 	for _, alphabetType := range alphabetTypes {
 		for _, alphaLen := range alphabetLengths {
-			// Generate the appropriate alphabet
+			// New the appropriate alphabet
 			var alphabet string
 			if alphabetType == "ASCII" {
 				alphabet = makeASCIIBasedAlphabet(alphaLen)
@@ -72,8 +74,10 @@ func BenchmarkNanoIDGeneration(b *testing.B) {
 				alphabet = makeUnicodeAlphabet(alphaLen)
 			}
 
-			// Initialize the generator
-			g, err := New(alphabet, nil)
+			// Initialize the generator without passing 'nil'
+			gen, err := NewGenerator(
+				WithAlphabet(alphabet),
+			)
 			if err != nil {
 				b.Fatalf("Failed to create generator with %s alphabet of length %d: %v", alphabetType, alphaLen, err)
 			}
@@ -86,7 +90,8 @@ func BenchmarkNanoIDGeneration(b *testing.B) {
 						// Reset the timer to exclude setup time
 						b.ResetTimer()
 						for i := 0; i < b.N; i++ {
-							_, err := g.Generate(idLen)
+							_, err := gen.New(idLen)
+							//_, err := Generate(alphabet, idLen)
 							if err != nil {
 								b.Fatalf("Failed to generate Nano ID: %v", err)
 							}
@@ -100,6 +105,8 @@ func BenchmarkNanoIDGeneration(b *testing.B) {
 
 // BenchmarkNanoIDGenerationParallel benchmarks Nano ID generation in parallel for varying configurations
 func BenchmarkNanoIDGenerationParallel(b *testing.B) {
+	b.ReportAllocs() // Report memory allocations
+
 	// Define the Nano ID lengths to test
 	idLengths := []int{8, 16, 21, 32, 64, 128}
 
@@ -111,7 +118,7 @@ func BenchmarkNanoIDGenerationParallel(b *testing.B) {
 
 	for _, alphabetType := range alphabetTypes {
 		for _, alphaLen := range alphabetLengths {
-			// Generate the appropriate alphabet
+			// New the appropriate alphabet
 			var alphabet string
 			if alphabetType == "ASCII" {
 				alphabet = makeASCIIBasedAlphabet(alphaLen)
@@ -119,8 +126,10 @@ func BenchmarkNanoIDGenerationParallel(b *testing.B) {
 				alphabet = makeUnicodeAlphabet(alphaLen)
 			}
 
-			// Initialize the generator
-			g, err := New(alphabet, nil)
+			// Initialize the generator without passing 'nil'
+			gen, err := NewGenerator(
+				WithAlphabet(alphabet),
+			)
 			if err != nil {
 				b.Fatalf("Failed to create generator with %s alphabet of length %d: %v", alphabetType, alphaLen, err)
 			}
@@ -134,7 +143,8 @@ func BenchmarkNanoIDGenerationParallel(b *testing.B) {
 						b.ResetTimer()
 						b.RunParallel(func(pb *testing.PB) {
 							for pb.Next() {
-								_, err := g.Generate(idLen)
+								_, err := gen.New(idLen)
+								//_, err := Generate(alphabet, idLen)
 								if err != nil {
 									b.Fatalf("Failed to generate Nano ID: %v", err)
 								}
@@ -149,6 +159,8 @@ func BenchmarkNanoIDGenerationParallel(b *testing.B) {
 
 // BenchmarkNanoIDWithVaryingAlphabetLengths benchmarks how different alphabet lengths affect Nano ID generation
 func BenchmarkNanoIDWithVaryingAlphabetLengths(b *testing.B) {
+	b.ReportAllocs() // Report memory allocations
+
 	// Define the alphabet types to test
 	alphabetTypes := []string{"ASCII", "Unicode"}
 
@@ -160,7 +172,7 @@ func BenchmarkNanoIDWithVaryingAlphabetLengths(b *testing.B) {
 
 	for _, alphabetType := range alphabetTypes {
 		for _, alphaLen := range alphabetLengths {
-			// Generate the appropriate alphabet
+			// New the appropriate alphabet
 			var alphabet string
 			if alphabetType == "ASCII" {
 				alphabet = makeASCIIBasedAlphabet(alphaLen)
@@ -168,8 +180,10 @@ func BenchmarkNanoIDWithVaryingAlphabetLengths(b *testing.B) {
 				alphabet = makeUnicodeAlphabet(alphaLen)
 			}
 
-			// Initialize the generator
-			g, err := New(alphabet, nil)
+			// Initialize the generator without passing 'nil'
+			gen, err := NewGenerator(
+				WithAlphabet(alphabet),
+			)
 			if err != nil {
 				b.Fatalf("Failed to create generator with %s alphabet of length %d: %v", alphabetType, alphaLen, err)
 			}
@@ -182,7 +196,8 @@ func BenchmarkNanoIDWithVaryingAlphabetLengths(b *testing.B) {
 						// Reset the timer to exclude setup time
 						b.ResetTimer()
 						for i := 0; i < b.N; i++ {
-							_, err := g.Generate(idLen)
+							_, err := gen.New(idLen)
+							//_, err := Generate(alphabet, idLen)
 							if err != nil {
 								b.Fatalf("Failed to generate Nano ID: %v", err)
 							}

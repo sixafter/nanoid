@@ -3,11 +3,11 @@
 // This source code is licensed under the MIT License found in the
 // LICENSE file in the root directory of this source tree.
 
-// nanoid_test.go
-
 package nanoid
 
 import (
+	"crypto/rand"
+	"io"
 	"math/bits"
 	"strconv"
 	"sync"
@@ -16,20 +16,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestGenerateDefault tests the generation of a default Nano ID.
-func TestGenerateDefault(t *testing.T) {
-	t.Parallel()
-	is := assert.New(t)
-
-	id, err := Generate()
-	is.NoError(err, "Generate() should not return an error")
-	is.Equal(DefaultSize, len([]rune(id)), "Generated ID should have the default length")
-
-	is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
-}
-
-// TestGenerateCustomLength tests the generation of Nano IDs with custom lengths.
-func TestGenerateCustomLength(t *testing.T) {
+// TestNewWithCustomLengths tests the generation of Nano IDs with custom lengths.
+func TestNewWithCustomLengths(t *testing.T) {
 	lengths := []int{1, 5, 10, 21, 50, 100}
 
 	for _, length := range lengths {
@@ -38,8 +26,8 @@ func TestGenerateCustomLength(t *testing.T) {
 			t.Parallel()
 			is := assert.New(t)
 
-			id, err := GenerateSize(length)
-			is.NoError(err, "GenerateSize(%d) should not return an error", length)
+			id, err := NewWithLength(length)
+			is.NoError(err, "NewWithLength(%d) should not return an error", length)
 			is.Equal(length, len([]rune(id)), "Generated ID should have the specified length")
 
 			is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
@@ -47,52 +35,23 @@ func TestGenerateCustomLength(t *testing.T) {
 	}
 }
 
-// TestMustGenerateDefault tests the must generation of a default Nano ID.
-func TestMustGenerateDefault(t *testing.T) {
+// TestNewAndMustDefault tests the must generation of a default Nano ID.
+func TestNewAndMustDefault(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
-	id := MustGenerate()
-	is.Equal(DefaultSize, len([]rune(id)), "Generated ID should have the default length")
+	id := Must()
+	is.Equal(DefaultLength, len([]rune(id)), "Generated ID should have the default length")
+
+	id = MustWithLength(DefaultLength)
+	is.Equal(DefaultLength, len([]rune(id)), "Generated ID should have the default length")
 
 	is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
 }
 
-// TestMustGenerateSize tests the must generation of Nano IDs with a custom length.
-func TestMustGenerateSize(t *testing.T) {
+// TestNewInvalidLength tests the generator's response to invalid lengths.
+func TestNewInvalidLength(t *testing.T) {
 	t.Parallel()
-	is := assert.New(t)
-
-	id := MustGenerateSize(DefaultSize)
-	is.Equal(DefaultSize, len([]rune(id)), "Generated ID should have the default length")
-
-	is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
-}
-
-// TestMustGenerate tests the must generation of Nano IDs with custom lengths.
-func TestMustGenerate(t *testing.T) {
-	lengths := []int{1, 5, 10, 21, 50, 100}
-
-	gen, _ := New(DefaultAlphabet, nil)
-
-	for _, length := range lengths {
-		length := length // capture range variable
-		t.Run("Length_"+strconv.Itoa(length), func(t *testing.T) {
-			t.Parallel()
-			is := assert.New(t)
-
-			id := gen.MustGenerate(length)
-			is.Equal(length, len([]rune(id)), "Generated ID should have the specified length")
-
-			is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
-		})
-	}
-}
-
-// TestGenerateInvalidLength tests the generator's response to invalid lengths.
-func TestGenerateInvalidLength(t *testing.T) {
-	t.Parallel()
-	is := assert.New(t)
 
 	invalidLengths := []int{0, -1, -10}
 
@@ -100,8 +59,10 @@ func TestGenerateInvalidLength(t *testing.T) {
 		length := length // capture range variable
 		t.Run("InvalidLength_"+strconv.Itoa(length), func(t *testing.T) {
 			t.Parallel()
-			id, err := GenerateSize(length)
-			is.Error(err, "GenerateSize(%d) should return an error", length)
+			is := assert.New(t)
+
+			id, err := NewWithLength(length)
+			is.Error(err, "NewWithLength(%d) should return an error", length)
 			is.Empty(id, "Generated ID should be empty on error")
 			is.Equal(ErrInvalidLength, err, "Expected ErrInvalidLength")
 		})
@@ -116,11 +77,13 @@ func TestGenerateWithCustomAlphabet(t *testing.T) {
 	// Include Unicode characters in the custom alphabet
 	customAlphabet := "abc😊🚀🌟"
 
-	gen, err := New(customAlphabet, nil)
-	is.NoError(err, "New() should not return an error with a valid custom alphabet")
+	gen, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with a valid custom alphabet")
 
-	id, err := gen.Generate(10)
-	is.NoError(err, "Generate(10) should not return an error")
+	id, err := gen.New(10)
+	is.NoError(err, "New(10) should not return an error")
 	is.Equal(10, len([]rune(id)), "Generated ID should have the specified length")
 
 	is.True(isValidID(id, customAlphabet), "Generated ID contains invalid characters")
@@ -132,32 +95,42 @@ func TestGenerateWithDuplicateAlphabet(t *testing.T) {
 	is := assert.New(t)
 
 	duplicateAlphabet := "aabbcc😊😊"
-	_, err := New(duplicateAlphabet, nil)
-	is.Error(err, "New() should return an error with duplicate characters in the alphabet")
+	gen, err := NewGenerator(
+		WithAlphabet(duplicateAlphabet),
+	)
+	is.Error(err, "NewGenerator() should return an error with duplicate characters in the alphabet")
+	is.Nil(gen, "Generator should be nil when initialization fails")
 	is.Equal(ErrDuplicateCharacters, err, "Expected ErrDuplicateCharacters")
 }
 
-// TestGetConfig tests the GetConfig() method of the generator.
+// TestGetConfig tests the Config() method of the generator.
 func TestGetConfig(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
-	gen, err := New(DefaultAlphabet, nil)
-	is.NoError(err, "New() should not return an error with the default alphabet")
+	gen, err := NewGenerator(
+		WithAlphabet(DefaultAlphabet),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with the default alphabet")
 
-	config := gen.(Configuration).GetConfig()
+	// Assert that generator implements Configuration interface
+	config, ok := gen.(Configuration)
+	is.True(ok, "Generator should implement Configuration interface")
 
-	is.Equal(DefaultAlphabet, string(config.Alphabet), "Config.Alphabet should match the default alphabet")
-	is.Equal(uint16(len([]rune(DefaultAlphabet))), config.AlphabetLen, "Config.AlphabetLen should match the default alphabet length")
+	runtimeConfig := config.Config()
 
-	// Update expectedMask calculation for uint32
-	expectedMask := uint((1 << bits.Len(uint(config.AlphabetLen-1))) - 1)
-	is.Equal(expectedMask, config.Mask, "Config.Mask should be correctly calculated")
+	is.Equal(DefaultAlphabet, string(runtimeConfig.RuneAlphabet()), "Config.RuneAlphabet should match the default alphabet")
+	is.Equal(uint16(len([]rune(DefaultAlphabet))), runtimeConfig.AlphabetLen(), "Config.AlphabetLen should match the default alphabet length")
 
-	is.Equal((config.AlphabetLen&(config.AlphabetLen-1)) == 0, config.IsPowerOfTwo, "Config.IsPowerOfTwo should be correct")
+	// Update expectedMask calculation based on RuntimeConfig
+	expectedMask := uint((1 << bits.Len(uint(runtimeConfig.AlphabetLen()-1))) - 1)
+	is.Equal(expectedMask, runtimeConfig.Mask(), "Config.Mask should be correctly calculated")
 
-	is.Positive(config.BitsNeeded, "Config.BitsNeeded should be a positive integer")
-	is.Positive(config.BytesNeeded, "Config.BytesNeeded should be a positive integer")
+	is.Equal((runtimeConfig.AlphabetLen()&(runtimeConfig.AlphabetLen()-1)) == 0, runtimeConfig.IsPowerOfTwo(), "Config.IsPowerOfTwo should be correct")
+
+	is.Positive(runtimeConfig.BitsNeeded(), "Config.BitsNeeded should be a positive integer")
+	is.Positive(runtimeConfig.BytesNeeded(), "Config.BytesNeeded should be a positive integer")
+	is.Equal(rand.Reader, runtimeConfig.RandReader(), "Config.RandReader should be rand.Reader by default")
 }
 
 // TestUniqueness tests that multiple generated IDs are unique.
@@ -169,8 +142,8 @@ func TestUniqueness(t *testing.T) {
 	ids := make(map[string]struct{}, numIDs)
 
 	for i := 0; i < numIDs; i++ {
-		id, err := Generate()
-		is.NoError(err, "Generate() should not return an error")
+		id, err := New()
+		is.NoError(err, "New() should not return an error")
 		is.NotContains(ids, id, "Duplicate ID found: %s", id)
 		ids[id] = struct{}{}
 	}
@@ -194,7 +167,7 @@ func TestConcurrency(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < numIDsPerGoroutine; j++ {
-				id, err := Generate()
+				id, err := New()
 				if err != nil {
 					errorsChan <- err
 					continue
@@ -209,7 +182,7 @@ func TestConcurrency(t *testing.T) {
 	close(errorsChan)
 
 	for err := range errorsChan {
-		is.NoError(err, "Generate() should not return an error in concurrent execution")
+		is.NoError(err, "New() should not return an error in concurrent execution")
 	}
 
 	idSet := make(map[string]struct{}, numGoroutines*numIDsPerGoroutine)
@@ -228,8 +201,11 @@ func TestInvalidAlphabetLength(t *testing.T) {
 
 	// Alphabet length less than 2
 	shortAlphabet := "a"
-	_, err := New(shortAlphabet, nil)
-	is.Error(err, "New() should return an error for alphabets shorter than 2 characters")
+	gen, err := NewGenerator(
+		WithAlphabet(shortAlphabet),
+	)
+	is.Error(err, "NewGenerator() should return an error for alphabets shorter than 2 characters")
+	is.Nil(gen, "Generator should be nil when initialization fails")
 	is.Equal(ErrInvalidAlphabet, err, "Expected ErrInvalidAlphabet")
 }
 
@@ -246,4 +222,134 @@ func isValidID(id string, alphabet string) bool {
 		}
 	}
 	return true
+}
+
+// cyclicReader is a helper type that cycles through a predefined set of bytes.
+// It implements the io.Reader interface.
+type cyclicReader struct {
+	data []byte
+	mu   sync.Mutex
+	pos  int
+}
+
+// Read fills p with bytes from the cyclicReader's data, cycling back to the start when necessary.
+func (r *cyclicReader) Read(p []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if len(r.data) == 0 {
+		return 0, io.EOF
+	}
+
+	n := 0
+	for n < len(p) {
+		p[n] = r.data[r.pos]
+		n++
+		r.pos = (r.pos + 1) % len(r.data)
+	}
+
+	return n, nil
+}
+
+// TestWithRandReader tests the WithRandReader option to ensure that the generator uses the provided random source.
+func TestWithRandReader(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Define a custom alphabet
+	customAlphabet := "ABCD"
+
+	// Define a custom random source with known bytes
+	// For example, bytes [0,1,2,3] should map to 'A','B','C','D'
+	customBytes := []byte{0, 1, 2, 3}
+	customReader := &cyclicReader{data: customBytes}
+
+	// Initialize the generator with custom alphabet and custom random reader
+	gen, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+		WithRandReader(customReader),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with valid custom alphabet and random reader")
+
+	// New ID of length 4
+	id, err := gen.New(4)
+	is.NoError(err, "New(4) should not return an error")
+	is.Equal("ABCD", id, "Generated ID should match the expected sequence 'ABCD'")
+
+	// New another ID of length 4, should cycle through customBytes again
+	id, err = gen.New(4)
+	is.NoError(err, "New(4) should not return an error on subsequent generation")
+	is.Equal("ABCD", id, "Generated ID should match the expected sequence 'ABCD' on subsequent generation")
+
+	// New ID of length 8, should cycle through customBytes twice
+	id, err = gen.New(8)
+	is.NoError(err, "New(8) should not return an error")
+	is.Equal("ABCDABCD", id, "Generated ID should match the expected sequence 'ABCDABCD' for length 8")
+}
+
+// TestWithRandReaderDifferentSequence tests the WithRandReader option with a different byte sequence and alphabet.
+func TestWithRandReaderDifferentSequence(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Define a different custom alphabet
+	customAlphabet := "WXYZ"
+
+	// Define a different custom random source with known bytes
+	// For example, bytes [3,2,1,0] should map to 'Z','Y','X','W'
+	customBytes := []byte{3, 2, 1, 0}
+	customReader := &cyclicReader{data: customBytes}
+
+	// Initialize the generator with custom alphabet and custom random reader
+	gen, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+		WithRandReader(customReader),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with valid custom alphabet and random reader")
+
+	// New ID of length 4
+	id, err := gen.New(4)
+	is.NoError(err, "New(4) should not return an error")
+	is.Equal("ZYXW", id, "Generated ID should match the expected sequence 'ZYXW'")
+
+	// New another ID of length 4, should cycle through customBytes again
+	id, err = gen.New(4)
+	is.NoError(err, "New(4) should not return an error on subsequent generation")
+	is.Equal("ZYXW", id, "Generated ID should match the expected sequence 'ZYXW' on subsequent generation")
+
+	// New ID of length 8, should cycle through customBytes twice
+	id, err = gen.New(8)
+	is.NoError(err, "New(8) should not return an error")
+	is.Equal("ZYXWZYXW", id, "Generated ID should match the expected sequence 'ZYXWZYXW' for length 8")
+}
+
+// TestWithRandReaderInsufficientBytes tests the generator's behavior when the custom reader provides insufficient bytes.
+// Since cyclicReader cycles through the data, it should still work correctly.
+func TestWithRandReaderInsufficientBytes(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Define a custom alphabet
+	customAlphabet := "EFGH"
+
+	// Define a custom random source with a single byte
+	customBytes := []byte{1} // Should map to 'F' repeatedly
+	customReader := &cyclicReader{data: customBytes}
+
+	// Initialize the generator with custom alphabet and custom random reader
+	gen, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+		WithRandReader(customReader),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with valid custom alphabet and random reader")
+
+	// New ID of length 4, expecting 'FFFF'
+	id, err := gen.New(4)
+	is.NoError(err, "New(4) should not return an error")
+	is.Equal("FFFF", id, "Generated ID should match the expected sequence 'FFFF'")
+
+	// New ID of length 6, expecting 'FFFFFF'
+	id, err = gen.New(6)
+	is.NoError(err, "New(6) should not return an error")
+	is.Equal("FFFFFF", id, "Generated ID should match the expected sequence 'FFFFFF'")
 }
