@@ -108,33 +108,32 @@ func TestNewGeneratorWithInvalidAlphabet(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
-	lengths := []int{1, 2, 265, 257}
+	lengths := []int{1, 2, 256, 257}
 
-	for _, i := range []int{1, 2} {
+	// Define the alphabet types to test
+	alphabetTypes := []string{"ASCII", "Unicode"}
+
+	for _, alphabetType := range alphabetTypes {
 		for _, length := range lengths {
-			alphabet := func(x int) string {
-				a := ""
-				switch x {
-				case 1:
-					a = makeASCIIBasedAlphabet(length)
-				case 2:
-					a = makeASCIIBasedAlphabet(length)
-				}
-
-				return a
-			}(i)
+			// New the appropriate alphabet
+			var alphabet string
+			if alphabetType == "ASCII" {
+				alphabet = makeASCIIBasedAlphabet(length)
+			} else {
+				alphabet = makeUnicodeAlphabet(length)
+			}
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
 			)
 
 			alphabetRunes := []rune(alphabet)
-
-			switch l := len(alphabetRunes); l {
-			case MinAlphabetLength - 1:
+			l := len(alphabetRunes)
+			switch true {
+			case l < MinAlphabetLength:
 				is.Error(err, "NewGenerator() should return an error with an invalid alphabet length")
 				is.Nil(gen, "Generator should be nil when initialization fails")
 				is.Equal(ErrAlphabetTooShort, err, "Expected ErrAlphabetTooShort")
-			case MaxAlphabetLength + 1:
+			case l > MaxAlphabetLength:
 				is.Error(err, "NewGenerator() should return an error with an invalid alphabet length")
 				is.Nil(gen, "Generator should be nil when initialization fails")
 				is.Equal(ErrAlphabetTooLong, err, "Expected ErrAlphabetTooLong")
@@ -170,6 +169,7 @@ func TestGetConfig(t *testing.T) {
 
 	is.Equal((runtimeConfig.AlphabetLen()&(runtimeConfig.AlphabetLen()-1)) == 0, runtimeConfig.IsPowerOfTwo(), "Config.IsPowerOfTwo should be correct")
 
+	is.Positive(runtimeConfig.BufferSize(), "Config.BufferSize should be a positive integer")
 	is.Positive(runtimeConfig.BitsNeeded(), "Config.BitsNeeded should be a positive integer")
 	is.Positive(runtimeConfig.BytesNeeded(), "Config.BytesNeeded should be a positive integer")
 	is.Equal(rand.Reader, runtimeConfig.RandReader(), "Config.RandReader should be rand.Reader by default")
