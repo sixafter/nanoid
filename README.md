@@ -496,7 +496,7 @@ Nano ID generates unique identifiers based on the following:
 
 ## Determining Collisions
 
-To determine the practical length for a NanoID, see the collision time calculator [here](https://sixafter.github.io/nanoid/).
+To determine the practical length for a NanoID for your use cases, see the collision time calculator [here](https://sixafter.github.io/nanoid/).
 
 ## Contributing
 
