@@ -18,6 +18,7 @@ import (
 
 // TestNewWithCustomLengths tests the generation of Nano IDs with custom lengths.
 func TestNewWithCustomLengths(t *testing.T) {
+	t.Parallel()
 	lengths := []int{1, 5, 10, 21, 50, 100}
 
 	for _, length := range lengths {
