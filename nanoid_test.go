@@ -103,6 +103,47 @@ func TestGenerateWithDuplicateAlphabet(t *testing.T) {
 	is.Equal(ErrDuplicateCharacters, err, "Expected ErrDuplicateCharacters")
 }
 
+// TestNewGeneratorWithInvalidAlphabet tests that the generator returns an error with invalid alphabets.
+func TestNewGeneratorWithInvalidAlphabet(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	lengths := []int{1, 2, 256, 257}
+
+	// Define the alphabet types to test
+	alphabetTypes := []string{"ASCII", "Unicode"}
+
+	for _, alphabetType := range alphabetTypes {
+		for _, length := range lengths {
+			// New the appropriate alphabet
+			var alphabet string
+			if alphabetType == "ASCII" {
+				alphabet = makeASCIIBasedAlphabet(length)
+			} else {
+				alphabet = makeUnicodeAlphabet(length)
+			}
+			gen, err := NewGenerator(
+				WithAlphabet(alphabet),
+			)
+
+			alphabetRunes := []rune(alphabet)
+			l := len(alphabetRunes)
+			switch true {
+			case l < MinAlphabetLength:
+				is.Error(err, "NewGenerator() should return an error with an invalid alphabet length")
+				is.Nil(gen, "Generator should be nil when initialization fails")
+				is.Equal(ErrAlphabetTooShort, err, "Expected ErrAlphabetTooShort")
+			case l > MaxAlphabetLength:
+				is.Error(err, "NewGenerator() should return an error with an invalid alphabet length")
+				is.Nil(gen, "Generator should be nil when initialization fails")
+				is.Equal(ErrAlphabetTooLong, err, "Expected ErrAlphabetTooLong")
+			default:
+				is.NoError(err, "NewGenerator() should not return an error when initialization succeeds")
+			}
+		}
+	}
+}
+
 // TestGetConfig tests the Config() method of the generator.
 func TestGetConfig(t *testing.T) {
 	t.Parallel()
@@ -128,6 +169,7 @@ func TestGetConfig(t *testing.T) {
 
 	is.Equal((runtimeConfig.AlphabetLen()&(runtimeConfig.AlphabetLen()-1)) == 0, runtimeConfig.IsPowerOfTwo(), "Config.IsPowerOfTwo should be correct")
 
+	is.Positive(runtimeConfig.BufferSize(), "Config.BufferSize should be a positive integer")
 	is.Positive(runtimeConfig.BitsNeeded(), "Config.BitsNeeded should be a positive integer")
 	is.Positive(runtimeConfig.BytesNeeded(), "Config.BytesNeeded should be a positive integer")
 	is.Equal(rand.Reader, runtimeConfig.RandReader(), "Config.RandReader should be rand.Reader by default")
@@ -192,21 +234,6 @@ func TestConcurrency(t *testing.T) {
 		}
 		idSet[id] = struct{}{}
 	}
-}
-
-// TestInvalidAlphabetLength tests that alphabets with invalid lengths are rejected.
-func TestInvalidAlphabetLength(t *testing.T) {
-	t.Parallel()
-	is := assert.New(t)
-
-	// Alphabet length less than 2
-	shortAlphabet := "a"
-	gen, err := NewGenerator(
-		WithAlphabet(shortAlphabet),
-	)
-	is.Error(err, "NewGenerator() should return an error for alphabets shorter than 2 characters")
-	is.Nil(gen, "Generator should be nil when initialization fails")
-	is.Equal(ErrInvalidAlphabet, err, "Expected ErrInvalidAlphabet")
 }
 
 // isValidID checks if all characters in the ID are within the specified alphabet.

@@ -235,7 +235,8 @@ The nanoid module defines several error types to handle various failure scenario
 * `ErrInvalidLength`: Returned when a non-positive Nano ID length is specified. 
 * `ErrInvalidAlphabet`: Returned when an alphabet is invalid; e.g. due to length constraints.
 * `ErrNonUTF8Alphabet`: Returned when an alphabet contains invalid UTF-8 characters.
-* `ErrAlphabetTooLong`: Returned when an alphabet length exceeds 256 character.
+* `ErrAlphabetTooShort`: Returned when alphabet length is less than 2 characters.
+* `ErrAlphabetTooLong`: Returned when an alphabet length exceeds 256 characters.
 
 ## Constants
 
