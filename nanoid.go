@@ -79,7 +79,7 @@ const (
 	bufferMultiplier = 128
 
 	// MinAlphabetLength defines the minimum allowed length for the alphabet.
-	MinAlphabetLength = 1
+	MinAlphabetLength = 2
 
 	// MaxAlphabetLength defines the maximum allowed length for the alphabet.
 	MaxAlphabetLength = 256
