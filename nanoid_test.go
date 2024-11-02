@@ -103,6 +103,48 @@ func TestGenerateWithDuplicateAlphabet(t *testing.T) {
 	is.Equal(ErrDuplicateCharacters, err, "Expected ErrDuplicateCharacters")
 }
 
+// TestNewGeneratorWithInvalidAlphabet tests that the generator returns an error with invalid alphabets.
+func TestNewGeneratorWithInvalidAlphabet(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	lengths := []int{1, 2, 265, 257}
+
+	for _, i := range []int{1, 2} {
+		for _, length := range lengths {
+			alphabet := func(x int) string {
+				a := ""
+				switch x {
+				case 1:
+					a = makeASCIIBasedAlphabet(length)
+				case 2:
+					a = makeASCIIBasedAlphabet(length)
+				}
+
+				return a
+			}(i)
+			gen, err := NewGenerator(
+				WithAlphabet(alphabet),
+			)
+
+			alphabetRunes := []rune(alphabet)
+
+			switch l := len(alphabetRunes); l {
+			case MinAlphabetLength - 1:
+				is.Error(err, "NewGenerator() should return an error with an invalid alphabet length")
+				is.Nil(gen, "Generator should be nil when initialization fails")
+				is.Equal(ErrAlphabetTooShort, err, "Expected ErrAlphabetTooShort")
+			case MaxAlphabetLength + 1:
+				is.Error(err, "NewGenerator() should return an error with an invalid alphabet length")
+				is.Nil(gen, "Generator should be nil when initialization fails")
+				is.Equal(ErrAlphabetTooLong, err, "Expected ErrAlphabetTooLong")
+			default:
+				is.NoError(err, "NewGenerator() should not return an error when initialization succeeds")
+			}
+		}
+	}
+}
+
 // TestGetConfig tests the Config() method of the generator.
 func TestGetConfig(t *testing.T) {
 	t.Parallel()
@@ -192,21 +234,6 @@ func TestConcurrency(t *testing.T) {
 		}
 		idSet[id] = struct{}{}
 	}
-}
-
-// TestInvalidAlphabetLength tests that alphabets with invalid lengths are rejected.
-func TestInvalidAlphabetLength(t *testing.T) {
-	t.Parallel()
-	is := assert.New(t)
-
-	// Alphabet length less than 2
-	shortAlphabet := "a"
-	gen, err := NewGenerator(
-		WithAlphabet(shortAlphabet),
-	)
-	is.Error(err, "NewGenerator() should return an error for alphabets shorter than 2 characters")
-	is.Nil(gen, "Generator should be nil when initialization fails")
-	is.Equal(ErrInvalidAlphabet, err, "Expected ErrInvalidAlphabet")
 }
 
 // isValidID checks if all characters in the ID are within the specified alphabet.

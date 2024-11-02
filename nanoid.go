@@ -61,6 +61,7 @@ var (
 	ErrInvalidLength       = errors.New("invalid length")
 	ErrInvalidAlphabet     = errors.New("invalid alphabet")
 	ErrNonUTF8Alphabet     = errors.New("alphabet contains invalid UTF-8 characters")
+	ErrAlphabetTooShort    = errors.New("alphabet length is less than 2")
 	ErrAlphabetTooLong     = errors.New("alphabet length exceeds 256")
 )
 
@@ -256,7 +257,7 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 	}
 
 	if alphabetLen < MinAlphabetLength {
-		return nil, ErrInvalidAlphabet
+		return nil, ErrAlphabetTooShort
 	}
 
 	// Represents how many bits are required to generate an index for selecting a character from the alphabet.
