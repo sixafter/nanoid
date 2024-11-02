@@ -19,12 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.10.1] - 2024-NOV-02
 
 ### Added
-- **FEATURE:** Added new `Must` function to simplify safe initialization of global variables.
 ### Changed
 ### Deprecated
 ### Removed
 ### Fixed
-- **DEFECT:** Addressed various documentation issues in the [README](../README.md).
+- **DEFECT:** Fixed minimum alphabet length logic and related tests and test functions for generating ASCII and Unicode alphabets.
 ### Security
 
 ---
