@@ -110,7 +110,6 @@ func BenchmarkNanoIDGeneration(b *testing.B) {
 						b.ResetTimer()
 						for i := 0; i < b.N; i++ {
 							_, err := gen.New(idLen)
-							//_, err := Generate(alphabet, idLen)
 							if err != nil {
 								b.Fatalf("Failed to generate Nano ID: %v", err)
 							}
@@ -163,7 +162,6 @@ func BenchmarkNanoIDGenerationParallel(b *testing.B) {
 						b.RunParallel(func(pb *testing.PB) {
 							for pb.Next() {
 								_, err := gen.New(idLen)
-								//_, err := Generate(alphabet, idLen)
 								if err != nil {
 									b.Fatalf("Failed to generate Nano ID: %v", err)
 								}
@@ -216,7 +214,6 @@ func BenchmarkNanoIDWithVaryingAlphabetLengths(b *testing.B) {
 						b.ResetTimer()
 						for i := 0; i < b.N; i++ {
 							_, err := gen.New(idLen)
-							//_, err := Generate(alphabet, idLen)
 							if err != nil {
 								b.Fatalf("Failed to generate Nano ID: %v", err)
 							}
