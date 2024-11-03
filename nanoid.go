@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/bits"
 	"sync"
 	"unicode/utf8"
@@ -66,7 +67,7 @@ var (
 )
 
 const (
-	// DefaultAlphabet as per Nano ID specification.
+	// DefaultAlphabet as per Nano ID specification; A-Za-z0-9_-.
 	DefaultAlphabet = "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 	// DefaultLength is the default size of the generated Nano ID: 21.
@@ -77,7 +78,7 @@ const (
 
 	// bufferMultiplier defines how many characters the buffer should handle per read.
 	// Adjust this value based on performance and memory considerations.
-	bufferMultiplier = 128
+	//bufferMultiplier = 128
 
 	// MinAlphabetLength defines the minimum allowed length for the alphabet.
 	MinAlphabetLength = 2
@@ -103,6 +104,13 @@ func WithRandReader(reader io.Reader) Option {
 	}
 }
 
+// WithLengthHint sets the hint of the intended length of the IDs to be r for the Generator.
+func WithLengthHint(hint int) Option {
+	return func(c *ConfigOptions) {
+		c.LengthHint = hint
+	}
+}
+
 // ConfigOptions holds the configurable options for the Generator.
 // It is used with the Function Options pattern.
 type ConfigOptions struct {
@@ -114,6 +122,9 @@ type ConfigOptions struct {
 	// It must be a valid UTF-8 string containing between 2 and 256 unique characters.
 	// Using a diverse and appropriately sized alphabet ensures the uniqueness and randomness of the generated IDs.
 	Alphabet string
+
+	// LengthHint specifies a typical or default length for generated IDs.
+	LengthHint int
 }
 
 // Config holds the runtime configuration for the Nano ID generator.
@@ -142,6 +153,13 @@ type Config interface {
 
 	// IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
 	IsPowerOfTwo() bool
+
+	// BufferMultiplier defines how many characters the buffer should handle per read.
+	BufferMultiplier() int
+
+	BaseMultiplier() int
+
+	ScalingFactor() int
 }
 
 // Configuration defines the interface for retrieving generator configuration.
@@ -168,14 +186,21 @@ type runtimeConfig struct {
 	// BytesNeeded specifies the number of bytes required from a random source to produce the ID.
 	bytesNeeded uint
 
-	// BufferSize is the buffer size used for random byte generation.
-	bufferSize int
-
 	// AlphabetLen is the length of the alphabet, stored as an uint16.
 	alphabetLen uint16
 
 	// IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
 	isPowerOfTwo bool
+
+	baseMultiplier int
+
+	scalingFactor int
+
+	// bufferMultiplier defines how many characters the buffer should handle per read.
+	bufferMultiplier int
+
+	// BufferSize is the buffer size used for random byte generation.
+	bufferSize int
 }
 
 // Generator defines the interface for generating Nano IDs.
@@ -198,6 +223,7 @@ func NewGenerator(options ...Option) (Generator, error) {
 	configOpts := &ConfigOptions{
 		Alphabet:   DefaultAlphabet,
 		RandReader: rand.Reader,
+		LengthHint: DefaultLength,
 	}
 
 	// Apply provided options
@@ -249,19 +275,17 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 	}
 
 	// Calculate BitsNeeded and Mask
-	alphabetLen := len(alphabetRunes)
-
 	// NewGenerator check for maximum alphabet length
-	if alphabetLen > MaxAlphabetLength {
+	if len(alphabetRunes) > MaxAlphabetLength {
 		return nil, ErrAlphabetTooLong
 	}
 
-	if alphabetLen < MinAlphabetLength {
+	if len(alphabetRunes) < MinAlphabetLength {
 		return nil, ErrAlphabetTooShort
 	}
 
 	// Represents how many bits are required to generate an index for selecting a character from the alphabet.
-	bitsNeeded := uint(bits.Len(uint(alphabetLen - 1)))
+	bitsNeeded := uint(bits.Len(uint(len(alphabetRunes) - 1)))
 	if bitsNeeded == 0 {
 		return nil, ErrInvalidAlphabet
 	}
@@ -272,20 +296,62 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 	// Ensures that any fractional number of bits rounds up to the nearest whole byte.
 	bytesNeeded := (bitsNeeded + 7) / 8
 
-	isPowerOfTwo := (alphabetLen & (alphabetLen - 1)) == 0
+	isPowerOfTwo := (len(alphabetRunes) & (len(alphabetRunes) - 1)) == 0
+
+	// Dynamically calculate the base multiplier
+	//baseMultiplier := int(math.Ceil(float64(opts.LengthHint) / 4))
+	// Dynamically calculate the base multiplier with a smoother scaling for smaller ID Lengths
+	//baseMultiplier := int(math.Ceil(float64(opts.LengthHint) / 5))
+	//baseMultiplier := int(math.Ceil(float64(opts.LengthHint) / 7.5)) // Adjust divisor for better control over growth
+
+	// Dynamically calculate the scaling factor based on alphabet length and ID length
+	//scalingFactor := int(math.Max(2, float64(len(alphabetRunes)/opts.LengthHint)))
+	// Dynamically calculate the scaling factor based on alphabet length
+	//scalingFactor := int(math.Max(2, float64(len(alphabetRunes)/16)))
+	// Refine the scaling factor to prevent aggressive growth, particularly for large ID Lengths
+	//scalingFactor := int(math.Max(2, float64(len(alphabetRunes))/(float64(opts.LengthHint)*1.5)))
+	// Refine the scaling factor to prevent aggressive growth, particularly for large ID Lengths and higher AlphabetLens
+	//scalingFactor := int(math.Max(2, float64(len(alphabetRunes))/(float64(opts.LengthHint)*2.0)))
+
+	// Calculate the final bufferMultiplier
+	//bufferMultiplier := baseMultiplier + (len(alphabetRunes) / scalingFactor)
+	//bufferMultiplier := baseMultiplier + scalingFactor
 
 	// Calculate bufferSize dynamically based on bytesNeeded and bufferMultiplier
-	bufferSize := int(bytesNeeded) * bufferMultiplier
+	//bufferSize := bufferMultiplier * int(bytesNeeded)
+	// Calculate bufferSize dynamically, making it depend on both the ID length and alphabet complexity
+	//bufferSize := bufferMultiplier * int(bytesNeeded) * int(math.Ceil(float64(opts.LengthHint)/8))
+	// Calculate bufferSize dynamically, making it depend on both the ID length and alphabet complexity
+	//bufferSize := bufferMultiplier * int(bytesNeeded) * int(math.Max(1.5, float64(scalingFactor)*float64(opts.LengthHint)/16.0))
+	// Calculate bufferSize, ensuring it scales smoothly with both ID Length and AlphabetLen
+	//bufferSize := bufferMultiplier * int(bytesNeeded) * int(math.Max(1.25, float64(opts.LengthHint)/10.0))
+	// Calculate bufferSize, ensuring it scales smoothly with both ID Length and AlphabetLen
+	//bufferSize := bufferMultiplier * int(bytesNeeded) * int(math.Max(1.1, float64(opts.LengthHint)/15.0))
+
+	// Adjust the calculation for the baseMultiplier to achieve smooth growth based on id length and alphabet length
+	baseMultiplier := int(math.Ceil(math.Log2(float64(opts.LengthHint) + 2.0)))
+
+	// Modify the scaling factor to balance alphabet size and id length for smoother scaling
+	scalingFactor := int(math.Max(3.0, float64(len(alphabetRunes))/math.Pow(float64(opts.LengthHint), 0.6)))
+
+	// Refine bufferMultiplier calculation for a smooth scaling pattern
+	bufferMultiplier := baseMultiplier + int(math.Ceil(float64(scalingFactor)/1.5))
+
+	// Recalculate bufferSize to ensure consistent and smooth scaling
+	bufferSize := bufferMultiplier * int(bytesNeeded) * int(math.Max(1.5, float64(opts.LengthHint)/10.0))
 
 	return &runtimeConfig{
-		runeAlphabet: alphabetRunes,
-		mask:         mask,
-		bitsNeeded:   bitsNeeded,
-		bytesNeeded:  bytesNeeded,
-		bufferSize:   bufferSize,
-		alphabetLen:  uint16(alphabetLen),
-		isPowerOfTwo: isPowerOfTwo,
-		randReader:   opts.RandReader,
+		runeAlphabet:     alphabetRunes,
+		mask:             mask,
+		bitsNeeded:       bitsNeeded,
+		bytesNeeded:      bytesNeeded,
+		bufferSize:       bufferSize,
+		alphabetLen:      uint16(len(alphabetRunes)),
+		isPowerOfTwo:     isPowerOfTwo,
+		randReader:       opts.RandReader,
+		bufferMultiplier: bufferMultiplier,
+		scalingFactor:    scalingFactor,
+		baseMultiplier:   baseMultiplier,
 	}, nil
 }
 
@@ -358,41 +424,53 @@ func (g *generator) Config() Config {
 }
 
 // RandReader is the source of randomness used for generating IDs.
-func (r *runtimeConfig) RandReader() io.Reader {
+func (r runtimeConfig) RandReader() io.Reader {
 	return r.randReader
 }
 
 // RuneAlphabet is a slice of runes, allowing support for multibyte characters in ID generation.
-func (r *runtimeConfig) RuneAlphabet() []rune {
+func (r runtimeConfig) RuneAlphabet() []rune {
 	return r.runeAlphabet
 }
 
 // Mask is a bitmask used to obtain a random value from the character set.
-func (r *runtimeConfig) Mask() uint {
+func (r runtimeConfig) Mask() uint {
 	return r.mask
 }
 
 // BitsNeeded represents the number of bits required to generate each character in the ID.
-func (r *runtimeConfig) BitsNeeded() uint {
+func (r runtimeConfig) BitsNeeded() uint {
 	return r.bitsNeeded
 }
 
 // BytesNeeded specifies the number of bytes required from a random source to produce the ID.
-func (r *runtimeConfig) BytesNeeded() uint {
+func (r runtimeConfig) BytesNeeded() uint {
 	return r.bytesNeeded
 }
 
 // BufferSize is the buffer size used for random byte generation.
-func (r *runtimeConfig) BufferSize() int {
+func (r runtimeConfig) BufferSize() int {
 	return r.bufferSize
 }
 
 // AlphabetLen is the length of the alphabet, stored as an uint16.
-func (r *runtimeConfig) AlphabetLen() uint16 {
+func (r runtimeConfig) AlphabetLen() uint16 {
 	return r.alphabetLen
 }
 
 // IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
-func (r *runtimeConfig) IsPowerOfTwo() bool {
+func (r runtimeConfig) IsPowerOfTwo() bool {
 	return r.isPowerOfTwo
+}
+
+func (r runtimeConfig) BufferMultiplier() int {
+	return r.bufferMultiplier
+}
+
+func (r runtimeConfig) BaseMultiplier() int {
+	return r.baseMultiplier
+}
+
+func (r runtimeConfig) ScalingFactor() int {
+	return r.scalingFactor
 }
