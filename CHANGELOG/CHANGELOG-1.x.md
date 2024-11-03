@@ -16,19 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.12.0] - 2024-NOV-03
-
-### Added
-- **FEATURE**: Added dynamic buffer scaling:
-- Adaptive Buffer Size Growth based on alphabet size while ensuring sufficient randomness for smaller alphabets. 
-- Lower Memory Usage when the context allows, avoiding unnecessarily large buffers when the alphabet or ID length does not demand it.
-### Changed
-### Deprecated
-### Removed
-### Fixed
-### Security
-
----
 ## [1.11.0] - 2024-NOV-02
 
 ### Added
@@ -240,8 +227,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.12.0..HEAD
-[1.11.1]: https://github.com/sixafter/nanoid/compare/v1.11.0...v1.12.0
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.11.0..HEAD
 [1.11.0]: https://github.com/sixafter/nanoid/compare/v1.10.2...v1.11.0
 [1.10.2]: https://github.com/sixafter/nanoid/compare/v1.10.1...v1.10.2
 [1.10.1]: https://github.com/sixafter/nanoid/compare/v1.10.0...v1.10.1

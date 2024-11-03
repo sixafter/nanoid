@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-
-	"golang.org/x/exp/constraints"
 )
 
 // Helper function to create an ASCII-based alphabet of a specified length without duplicates
@@ -72,29 +70,12 @@ func makeUnicodeAlphabet(length int) string {
 	return builder.String()
 }
 
-type Number interface {
-	constraints.Float | constraints.Integer
-}
-
-func mean[T Number](data []T) float64 {
-	if len(data) == 0 {
-		return 0
-	}
-	var sum float64
-	for _, d := range data {
-		sum += float64(d)
-	}
-	return sum / float64(len(data))
-}
-
 // BenchmarkNanoIDGeneration benchmarks Nano ID generation for varying alphabet types, alphabet lengths, and ID lengths
 func BenchmarkNanoIDGeneration(b *testing.B) {
 	b.ReportAllocs() // Report memory allocations
 
 	// Define the Nano ID lengths to test
 	idLengths := []int{8, 16, 21, 32, 64, 128}
-
-	mean := mean(idLengths)
 
 	// Define the alphabet lengths to test
 	alphabetLengths := []int{2, 16, 32, 64, 95}
@@ -115,7 +96,6 @@ func BenchmarkNanoIDGeneration(b *testing.B) {
 			// Initialize the generator without passing 'nil'
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
-				WithLengthHint(int(mean)),
 			)
 			if err != nil {
 				b.Fatalf("Failed to create generator with %s alphabet of length %d: %v", alphabetType, alphaLen, err)
@@ -147,7 +127,6 @@ func BenchmarkNanoIDGenerationParallel(b *testing.B) {
 
 	// Define the Nano ID lengths to test
 	idLengths := []int{8, 16, 21, 32, 64, 128}
-	mean := mean(idLengths)
 
 	// Define the alphabet lengths to test
 	alphabetLengths := []int{2, 16, 32, 64, 95}
@@ -168,7 +147,6 @@ func BenchmarkNanoIDGenerationParallel(b *testing.B) {
 			// Initialize the generator without passing 'nil'
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
-				WithLengthHint(int(mean)),
 			)
 			if err != nil {
 				b.Fatalf("Failed to create generator with %s alphabet of length %d: %v", alphabetType, alphaLen, err)
@@ -208,7 +186,6 @@ func BenchmarkNanoIDWithVaryingAlphabetLengths(b *testing.B) {
 
 	// Define the Nano ID lengths to test
 	idLengths := []int{8, 16, 21, 32, 64, 128}
-	mean := mean(idLengths)
 
 	for _, alphabetType := range alphabetTypes {
 		for _, alphaLen := range alphabetLengths {
@@ -223,7 +200,6 @@ func BenchmarkNanoIDWithVaryingAlphabetLengths(b *testing.B) {
 			// Initialize the generator without passing 'nil'
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
-				WithLengthHint(int(mean)),
 			)
 			if err != nil {
 				b.Fatalf("Failed to create generator with %s alphabet of length %d: %v", alphabetType, alphaLen, err)
