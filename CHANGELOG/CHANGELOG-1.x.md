@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
+## [1.11.0] - 2024-NOV-02
+
+### Added
+### Changed
+- **RISK:** Adopted the [Apache 2.0 License](https://choosealicense.com/licenses/apache-2.0/).
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.10.2] - 2024-NOV-02
 
 ### Added
@@ -216,7 +227,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.10.12..HEAD
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.11.0..HEAD
+[1.11.0]: https://github.com/sixafter/nanoid/compare/v1.10.2...v1.11.0
 [1.10.2]: https://github.com/sixafter/nanoid/compare/v1.10.1...v1.10.2
 [1.10.1]: https://github.com/sixafter/nanoid/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/sixafter/nanoid/compare/v1.9.0...v1.10.0
