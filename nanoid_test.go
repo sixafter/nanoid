@@ -879,3 +879,32 @@ func TestGenerateWithNilRandReader(t *testing.T) {
 	)
 	is.Error(err, "NewGenerator() should return an error when RandReader is nil")
 }
+
+// TestProcessRandomBytes tests the processRandomBytes function to ensure coverage for different cases.
+func TestProcessRandomBytes(t *testing.T) {
+	is := assert.New(t)
+	gen, err := NewGenerator()
+	is.NoError(err, "NewGenerator() should not return an error with default configuration")
+
+	randomBytes := []byte{0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC}
+
+	// Case 1: bytesNeeded = 1
+	gen.(*generator).config.bytesNeeded = 1
+	result := gen.(*generator).processRandomBytes(randomBytes, 0)
+	is.Equal(uint(0x12), result, "Expected result to be 0x12 for bytesNeeded=1")
+
+	// Case 2: bytesNeeded = 2
+	gen.(*generator).config.bytesNeeded = 2
+	result = gen.(*generator).processRandomBytes(randomBytes, 0)
+	is.Equal(uint(0x1234), result, "Expected result to be 0x1234 for bytesNeeded=2")
+
+	// Case 3: bytesNeeded = 4
+	gen.(*generator).config.bytesNeeded = 4
+	result = gen.(*generator).processRandomBytes(randomBytes, 0)
+	is.Equal(uint(0x12345678), result, "Expected result to be 0x12345678 for bytesNeeded=4")
+
+	// Case 4: bytesNeeded > 4 (default case)
+	gen.(*generator).config.bytesNeeded = 6
+	result = gen.(*generator).processRandomBytes(randomBytes, 0)
+	is.Equal(uint(0x123456789ABC), result, "Expected result to be 0x123456789ABC for bytesNeeded=6")
+}
