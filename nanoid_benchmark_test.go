@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"golang.org/x/exp/constraints"
 )
 
 // Helper function to create an ASCII-based alphabet of a specified length without duplicates
@@ -70,12 +72,85 @@ func makeUnicodeAlphabet(length int) string {
 	return builder.String()
 }
 
+type Number interface {
+	constraints.Float | constraints.Integer
+}
+
+func mean[T Number](data []T) float64 {
+	if len(data) == 0 {
+		return 0
+	}
+	var sum float64
+	for _, d := range data {
+		sum += float64(d)
+	}
+	return sum / float64(len(data))
+}
+
+const asciiAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+// BenchmarkNanoIDAllocations benchmarks the memory allocations and performance of generating a Nano ID
+// with a length of 21 and an alphabet consisting of uppercase letters, lowercase letters, and numbers.
+func BenchmarkNanoIDAllocations(b *testing.B) {
+	b.ReportAllocs() // Report memory allocations
+
+	const idLength = 21
+
+	// Initialize the generator with the specified length and alphabet
+	gen, err := NewGenerator(
+		WithAlphabet(asciiAlphabet),
+		WithLengthHint(idLength))
+	if err != nil {
+		b.Fatalf("failed to create generator: %v", err)
+	}
+
+	// Reset the timer to ignore setup time and track only the ID generation
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = gen.New(idLength)
+	}
+}
+
+// BenchmarkNanoIDAllocationsConcurrent benchmarks the memory allocations and performance of generating
+// a Nano ID concurrently with a length of 21 and an alphabet consisting of uppercase letters,
+// lowercase letters, and numbers.
+func BenchmarkNanoIDAllocationsConcurrent(b *testing.B) {
+	b.ReportAllocs() // Report memory allocations
+
+	// Alphabet and ID length for the test
+	const idLength = 21
+
+	// Initialize the generator with the specified length and alphabet
+	gen, err := NewGenerator(
+		WithAlphabet(asciiAlphabet),
+		WithLengthHint(idLength))
+	if err != nil {
+		b.Fatalf("failed to create generator: %v", err)
+	}
+
+	// Reset the timer to ignore setup time and track only the ID generation
+	b.ResetTimer()
+
+	// Run the benchmark in parallel
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_, err := gen.New(idLength)
+			if err != nil {
+				b.Errorf("failed to generate ID: %v", err)
+			}
+		}
+	})
+}
+
 // BenchmarkNanoIDGeneration benchmarks Nano ID generation for varying alphabet types, alphabet lengths, and ID lengths
 func BenchmarkNanoIDGeneration(b *testing.B) {
 	b.ReportAllocs() // Report memory allocations
 
 	// Define the Nano ID lengths to test
 	idLengths := []int{8, 16, 21, 32, 64, 128}
+
+	mean := mean(idLengths)
 
 	// Define the alphabet lengths to test
 	alphabetLengths := []int{2, 16, 32, 64, 95}
@@ -96,6 +171,7 @@ func BenchmarkNanoIDGeneration(b *testing.B) {
 			// Initialize the generator without passing 'nil'
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
+				WithLengthHint(int(mean)),
 			)
 			if err != nil {
 				b.Fatalf("Failed to create generator with %s alphabet of length %d: %v", alphabetType, alphaLen, err)
@@ -127,6 +203,7 @@ func BenchmarkNanoIDGenerationParallel(b *testing.B) {
 
 	// Define the Nano ID lengths to test
 	idLengths := []int{8, 16, 21, 32, 64, 128}
+	mean := mean(idLengths)
 
 	// Define the alphabet lengths to test
 	alphabetLengths := []int{2, 16, 32, 64, 95}
@@ -147,6 +224,7 @@ func BenchmarkNanoIDGenerationParallel(b *testing.B) {
 			// Initialize the generator without passing 'nil'
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
+				WithLengthHint(int(mean)),
 			)
 			if err != nil {
 				b.Fatalf("Failed to create generator with %s alphabet of length %d: %v", alphabetType, alphaLen, err)
@@ -186,6 +264,7 @@ func BenchmarkNanoIDWithVaryingAlphabetLengths(b *testing.B) {
 
 	// Define the Nano ID lengths to test
 	idLengths := []int{8, 16, 21, 32, 64, 128}
+	mean := mean(idLengths)
 
 	for _, alphabetType := range alphabetTypes {
 		for _, alphaLen := range alphabetLengths {
@@ -200,6 +279,7 @@ func BenchmarkNanoIDWithVaryingAlphabetLengths(b *testing.B) {
 			// Initialize the generator without passing 'nil'
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
+				WithLengthHint(int(mean)),
 			)
 			if err != nil {
 				b.Fatalf("Failed to create generator with %s alphabet of length %d: %v", alphabetType, alphaLen, err)

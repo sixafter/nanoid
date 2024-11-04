@@ -77,15 +77,16 @@ func TestGenerateWithCustomAlphabet(t *testing.T) {
 
 	// Include Unicode characters in the custom alphabet
 	customAlphabet := "abc😊🚀🌟"
-
+	const idLength = 10
 	gen, err := NewGenerator(
 		WithAlphabet(customAlphabet),
+		WithLengthHint(idLength),
 	)
 	is.NoError(err, "NewGenerator() should not return an error with a valid custom alphabet")
 
-	id, err := gen.New(10)
+	id, err := gen.New(idLength)
 	is.NoError(err, "New(10) should not return an error")
-	is.Equal(10, len([]rune(id)), "Generated ID should have the specified length")
+	is.Equal(idLength, len([]rune(id)), "Generated ID should have the specified length")
 
 	is.True(isValidID(id, customAlphabet), "Generated ID contains invalid characters")
 }
@@ -111,6 +112,8 @@ func TestNewGeneratorWithInvalidAlphabet(t *testing.T) {
 
 	lengths := []int{1, 2, 256, 257}
 
+	mean := mean(lengths)
+
 	// Define the alphabet types to test
 	alphabetTypes := []string{"ASCII", "Unicode"}
 
@@ -125,6 +128,7 @@ func TestNewGeneratorWithInvalidAlphabet(t *testing.T) {
 			}
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
+				WithLengthHint(int(mean)),
 			)
 
 			alphabetRunes := []rune(alphabet)
@@ -171,9 +175,7 @@ func TestGetConfig(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
-	gen, err := NewGenerator(
-		WithAlphabet(DefaultAlphabet),
-	)
+	gen, err := NewGenerator()
 	is.NoError(err, "NewGenerator() should not return an error with the default alphabet")
 
 	// Assert that generator implements Configuration interface
@@ -190,11 +192,15 @@ func TestGetConfig(t *testing.T) {
 	is.Equal(expectedMask, runtimeConfig.Mask(), "Config.Mask should be correctly calculated")
 
 	is.Equal((runtimeConfig.AlphabetLen()&(runtimeConfig.AlphabetLen()-1)) == 0, runtimeConfig.IsPowerOfTwo(), "Config.IsPowerOfTwo should be correct")
-
 	is.Positive(runtimeConfig.BufferSize(), "Config.BufferSize should be a positive integer")
 	is.Positive(runtimeConfig.BitsNeeded(), "Config.BitsNeeded should be a positive integer")
 	is.Positive(runtimeConfig.BytesNeeded(), "Config.BytesNeeded should be a positive integer")
 	is.Equal(rand.Reader, runtimeConfig.RandReader(), "Config.RandReader should be rand.Reader by default")
+	is.Equal(true, runtimeConfig.IsASCII(), "Config.IsASCII should be true by default")
+	is.NotNil(runtimeConfig.RuneAlphabet(), "Config.RuneAlphabet should not be nil")
+	is.NotNil(runtimeConfig.ByteAlphabet(), "Config.ByteAlphabet should not be nil")
+	is.Positive(runtimeConfig.BufferMultiplier(), "Config.BufferMultiplier should be a positive integer")
+	is.Positive(runtimeConfig.LengthHint(), "Config.LengthHint should be a positive integer")
 }
 
 // TestUniqueness tests that multiple generated IDs are unique.
