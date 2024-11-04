@@ -164,6 +164,9 @@ type Config interface {
 
 	// ScalingFactor returns the scaling factor used to balance the alphabet size and ID length, ensuring smoother growth in buffer size calculations.
 	ScalingFactor() int
+
+	// LengthHint returns the hint of the intended length of the IDs to be generated.
+	LengthHint() int
 }
 
 // Configuration defines the interface for retrieving generator configuration.
@@ -213,6 +216,9 @@ type runtimeConfig struct {
 
 	// IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
 	isPowerOfTwo bool
+
+	// LengthHint the hint of the intended length of the IDs to be generated.
+	lengthHint int
 }
 
 // Generator defines the interface for generating Nano IDs.
@@ -356,6 +362,7 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 		alphabetLen:      uint16(len(alphabetRunes)),
 		isASCII:          isASCII,
 		isPowerOfTwo:     isPowerOfTwo,
+		lengthHint:       opts.LengthHint,
 	}, nil
 }
 
@@ -516,4 +523,9 @@ func (r runtimeConfig) IsASCII() bool {
 // ByteAlphabet returns a slice of bytes for ASCII alphabets.
 func (r runtimeConfig) ByteAlphabet() []byte {
 	return r.byteAlphabet
+}
+
+// LengthHint the hint of the intended length of the IDs to be generated.
+func (r runtimeConfig) LengthHint() int {
+	return r.lengthHint
 }
