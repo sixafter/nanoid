@@ -381,7 +381,6 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 }
 
 // New creates a new Nano ID of the specified length.
-// New creates a new Nano ID of the specified length.
 func (g *generator) New(length int) (string, error) {
 	if length <= 0 {
 		return "", ErrInvalidLength
