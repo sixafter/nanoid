@@ -202,9 +202,9 @@ func NewGenerator(options ...Option) (Generator, error)
 ```
 
 * Parameters:
-  * `options` (`Option`): Variadic Option parameters to configure the Generator.  Options are:
-    * `WithAlphabet`: Sets a custom alphabet for the Generator, allowing the user to specify which characters will be used in the generated IDs.
-    * `WithRandReader`: Sets a custom random reader for the Generator, enabling the use of a specific source of randomness.
+  * `options` (`Option`): Variadic Option parameters to configure the `Generator`.  Options are:
+    * `WithAlphabet`: Sets a custom alphabet for the `Generator`, allowing the user to specify which characters will be used in the generated IDs.
+    * `WithRandReader`: Sets a custom random reader for the `Generator`, enabling the use of a specific source of randomness.
     * `WithLengthHint`: Sets a hint for the intended length of the generated IDs, helping to optimize internal allocations based on the expected ID size.
 * Returns:
   * `Generator`: A new Nano ID generator. 
