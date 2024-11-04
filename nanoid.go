@@ -129,6 +129,9 @@ type Config interface {
 	// RandReader returns the source of randomness used for generating IDs.
 	RandReader() io.Reader
 
+	// ByteAlphabet returns the slice of bytes for ASCII alphabets.
+	ByteAlphabet() []byte
+
 	// RuneAlphabet returns the slice of runes used for ID generation, allowing support for multibyte characters.
 	RuneAlphabet() []rune
 
@@ -149,6 +152,9 @@ type Config interface {
 
 	// IsPowerOfTwo returns true if the length of the alphabet is a power of two, optimizing random selection for efficient bit operations.
 	IsPowerOfTwo() bool
+
+	// IsASCII returns true if the alphabet consists solely of ASCII characters.
+	IsASCII() bool
 
 	// BufferMultiplier returns the multiplier used to determine how many characters the buffer should handle per read.
 	BufferMultiplier() int
@@ -247,7 +253,7 @@ func NewGenerator(options ...Option) (Generator, error) {
 	// Initialize buffer pools based on Rune handling
 	pool := &sync.Pool{
 		New: func() interface{} {
-			buf := make([]byte, runtimeConfig.bufferSize)
+			buf := make([]byte, runtimeConfig.bufferSize*runtimeConfig.bufferMultiplier)
 			return &buf
 		},
 	}
@@ -255,7 +261,7 @@ func NewGenerator(options ...Option) (Generator, error) {
 	// Initialize ID buffer pool with *([]byte)
 	idPool := &sync.Pool{
 		New: func() interface{} {
-			buf := make([]byte, 0, runtimeConfig.bufferSize)
+			buf := make([]byte, 0, runtimeConfig.bufferSize*runtimeConfig.bufferMultiplier)
 			return &buf
 		},
 	}
@@ -282,7 +288,7 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 	isASCII := true
 	byteAlphabet := make([]byte, len(alphabetRunes))
 	for i, r := range alphabetRunes {
-		if r > 0x7F {
+		if r > 0x7F { // 127: highest code point in the 7-bit ASCII character set.
 			isASCII = false
 			break
 		}
@@ -386,9 +392,6 @@ func (g *generator) New(length int) (string, error) {
 	randomBytes := *randomBytesPtr
 	bufferLen := len(randomBytes)
 	step := int(bytesNeeded)
-	if step <= 0 {
-		return "", ErrInvalidAlphabet
-	}
 
 	for cursor < length {
 		if attempts >= maxAttempts {
@@ -490,14 +493,27 @@ func (r runtimeConfig) IsPowerOfTwo() bool {
 	return r.isPowerOfTwo
 }
 
+// BufferMultiplier is the multiplier used to calculate the buffer size for reading random bytes, ensuring gradual and consistent scaling.
 func (r runtimeConfig) BufferMultiplier() int {
 	return r.bufferMultiplier
 }
 
+// BaseMultiplier is used to determine the growth rate of the buffer size, adjusted for small ID lengths to ensure balance.
 func (r runtimeConfig) BaseMultiplier() int {
 	return r.baseMultiplier
 }
 
+// ScalingFactor adjusts the balance between alphabet size and id length to achieve smoother scaling in buffer size calculations.
 func (r runtimeConfig) ScalingFactor() int {
 	return r.scalingFactor
+}
+
+// IsASCII indicates whether the alphabet consists solely of ASCII characters.
+func (r runtimeConfig) IsASCII() bool {
+	return r.isASCII
+}
+
+// ByteAlphabet returns a slice of bytes for ASCII alphabets.
+func (r runtimeConfig) ByteAlphabet() []byte {
+	return r.byteAlphabet
 }

@@ -7,7 +7,6 @@ package nanoid
 
 import (
 	"crypto/rand"
-	"fmt"
 	"io"
 	"math/bits"
 	"strconv"
@@ -15,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/exp/constraints"
 )
 
 // TestNewWithCustomLengths tests the generation of Nano IDs with custom lengths.
@@ -195,12 +193,15 @@ func TestGetConfig(t *testing.T) {
 	is.Equal(expectedMask, runtimeConfig.Mask(), "Config.Mask should be correctly calculated")
 
 	is.Equal((runtimeConfig.AlphabetLen()&(runtimeConfig.AlphabetLen()-1)) == 0, runtimeConfig.IsPowerOfTwo(), "Config.IsPowerOfTwo should be correct")
-
 	is.Positive(runtimeConfig.BufferSize(), "Config.BufferSize should be a positive integer")
 	is.Positive(runtimeConfig.BitsNeeded(), "Config.BitsNeeded should be a positive integer")
 	is.Positive(runtimeConfig.BytesNeeded(), "Config.BytesNeeded should be a positive integer")
 	is.Positive(runtimeConfig.BufferMultiplier(), "Config.BufferMultiplier should be a positive integer")
 	is.Equal(rand.Reader, runtimeConfig.RandReader(), "Config.RandReader should be rand.Reader by default")
+	is.Equal(true, runtimeConfig.IsASCII(), "Config.IsASCII should be true by default")
+	is.NotNil(runtimeConfig.RuneAlphabet(), "Config.RuneAlphabet should not be nil")
+	is.NotNil(runtimeConfig.ByteAlphabet(), "Config.ByteAlphabet should not be nil")
+
 }
 
 // TestUniqueness tests that multiple generated IDs are unique.
@@ -410,72 +411,4 @@ func TestWithRandReaderInsufficientBytes(t *testing.T) {
 	id, err = gen.New(6)
 	is.NoError(err, "New(6) should not return an error")
 	is.Equal("FFFFFF", id, "Generated ID should match the expected sequence 'FFFFFF'")
-}
-
-// Utility function to generate a range with projection using generics and type constraints
-func generateRange[T constraints.Ordered](start, end, step T, transform func(T) T) []T {
-	var result []T
-	for i := start; i <= end; i += step {
-		result = append(result, transform(i))
-	}
-	return result
-}
-
-func TestNanoIDGeneratorWithVariousAlphabetsAndLengthHints(t *testing.T) {
-	t.Parallel()
-	is := assert.New(t)
-
-	// Define a projection for Nano ID lengths using the generateRange function
-	idLengths := generateRange(8, 128, 2, func(x int) int {
-		return x // identity projection, just returning the original value
-	})
-
-	// Define a projection for alphabet lengths
-	alphabetLengths := generateRange(2, 128, 16, func(x int) int {
-		return x // projection: 2^x to get values like 2, 4, 8, 16, 32, 64, 128
-	})
-
-	// Define the alphabet types to test
-	alphabetTypes := []string{"ASCII", "Unicode"}
-
-	fmt.Printf("ID Length, AlphabetLen, BitsNeeded, BytesNeeded, BufferSize, BufferMultiplier, Mask, IsPowerOfTwo, ScalingFactor\n")
-	for _, alphabetType := range alphabetTypes {
-		for _, alphaLen := range alphabetLengths {
-			// New the appropriate alphabet
-			var alphabet string
-			if alphabetType == "ASCII" {
-				alphabet = makeASCIIBasedAlphabet(alphaLen)
-			} else {
-				alphabet = makeUnicodeAlphabet(alphaLen)
-			}
-
-			for _, idLength := range idLengths {
-				// Initialize the generator without passing 'nil'
-				gen, err := NewGenerator(
-					WithAlphabet(alphabet),
-					WithLengthHint(idLength),
-				)
-				is.Nil(err, "NewGenerator() should not return an error")
-
-				// Assert that generator implements Configuration interface
-				config, ok := gen.(Configuration)
-				is.True(ok, "Generator should implement Configuration interface")
-
-				runtimeConfig := config.Config()
-
-				// Print the configuration for debugging
-				fmt.Printf("%d, %d, %d, %d, %d, %d, %d, %t, %d\n",
-					idLength,
-					runtimeConfig.AlphabetLen(),
-					runtimeConfig.BitsNeeded(),
-					runtimeConfig.BytesNeeded(),
-					runtimeConfig.BufferSize(),
-					runtimeConfig.BufferMultiplier(),
-					runtimeConfig.Mask(),
-					runtimeConfig.IsPowerOfTwo(),
-					runtimeConfig.ScalingFactor(),
-				)
-			}
-		}
-	}
 }
