@@ -353,7 +353,7 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 
 	mask := uint((1 << bitsNeeded) - 1)
 
-	// TODO: Scale bitsNeeded based on length hint
+	// TODO: mprimeaux: Scale bitsNeeded based on length hint
 	//adjustedBitsNeeded := bitsNeeded + uint(math.Log2(float64(opts.LengthHint)))
 
 	// Ensures that any fractional number of bits rounds up to the nearest whole byte.
