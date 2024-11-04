@@ -100,7 +100,7 @@ func WithRandReader(reader io.Reader) Option {
 	}
 }
 
-// WithLengthHint sets the hint of the intended length of the IDs to be r for the Generator.
+// WithLengthHint sets the hint of the intended length of the IDs to be generated for the Generator.
 func WithLengthHint(hint int) Option {
 	return func(c *ConfigOptions) {
 		c.LengthHint = hint
