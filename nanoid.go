@@ -252,6 +252,11 @@ func NewGenerator(options ...Option) (Generator, error) {
 		opt(configOpts)
 	}
 
+	// ensure LengthHint is within bounds
+	if configOpts.LengthHint < 1 {
+		return nil, ErrInvalidLength
+	}
+
 	// Validate and construct RuntimeConfig
 	runtimeConfig, err := buildRuntimeConfig(configOpts)
 	if err != nil {
