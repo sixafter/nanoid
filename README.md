@@ -243,6 +243,7 @@ The nanoid module defines several error types to handle various failure scenario
 * `ErrNonUTF8Alphabet`: Returned when an alphabet contains invalid UTF-8 characters.
 * `ErrAlphabetTooShort`: Returned when alphabet length is less than 2 characters.
 * `ErrAlphabetTooLong`: Returned when an alphabet length exceeds 256 characters.
+* `ErrNilRandReader`: Returned when a nil random reader is provided.
 
 ## Constants
 
