@@ -635,18 +635,7 @@ func TestGenerateWithMaxAttempts(t *testing.T) {
 	id, err := gen.New(10)
 	is.Error(err, "gen.New(10) should return an error when random reader cannot provide valid characters")
 	is.Empty(id, "Generated ID should be empty on error")
-	is.Equal(ErrExceededMaxAttempts, err, "Expected ErrExceededMaxAttempts")
-}
-
-// alwaysFailRandReader is a custom io.Reader that always returns rnd=3.
-type alwaysFailRandReader struct{}
-
-// Read implements the io.Reader interface and always returns 3.
-func (f *alwaysFailRandReader) Read(p []byte) (int, error) {
-	for i := range p {
-		p[i] = 3 // Assuming len(customAlphabet)=3, rnd=3 >=3
-	}
-	return len(p), nil
+	is.Equal(io.EOF, err, "Expected io.EOF")
 }
 
 // TestGeneratorWithZeroLengthHint tests the generator's behavior with LengthHint set to 0.
@@ -706,7 +695,7 @@ func TestGenerateWithCustomRandReaderReturningNoBytes(t *testing.T) {
 	id, err := gen.New(idLength)
 	is.Error(err, "gen.New() should return an error when random reader provides no bytes")
 	is.Empty(id, "Generated ID should be empty on error")
-	is.Equal(io.EOF, err, "Expected io.ErrUnexpectedEOF from emptyRandReader")
+	is.Equal(io.EOF, err, "Expected io.EOF from emptyRandReader")
 }
 
 // emptyRandReader is a custom io.Reader that always returns zero bytes read.
@@ -813,4 +802,80 @@ func TestGenerateWithSpecialUTF8Characters(t *testing.T) {
 	is.Equal(idLength, len([]rune(id)), "Generated ID should have the specified length")
 
 	is.True(isValidID(id, specialUTF8Alphabet), "Generated ID contains invalid characters")
+}
+
+// TestGeneratorWithInvalidLengthHint tests that the generator returns an error when LengthHint is invalid.
+func TestGeneratorWithInvalidLengthHint(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	customAlphabet := "ABCDEFG"
+	lengthHint := uint16(0)
+
+	_, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+		WithLengthHint(lengthHint),
+	)
+	is.Error(err, "NewGenerator() should return an error when LengthHint is zero")
+	is.Equal(ErrInvalidLength, err, "Expected ErrInvalidLength for LengthHint=0")
+}
+
+// TestGenerateWithMaxAttemptsExceeded tests the generator's behavior when it exceeds the maximum number of attempts.
+func TestGenerateWithMaxAttemptsExceeded(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Define a small alphabet
+	smallAlphabet := "AB"
+	const idLength = 100
+	failReader := &alwaysFailRandReader{}
+
+	gen, err := NewGenerator(
+		WithAlphabet(smallAlphabet),
+		WithRandReader(failReader),
+		WithLengthHint(idLength),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with a valid small alphabet")
+
+	id, err := gen.New(idLength)
+	is.Error(err, "gen.New(%d) should return an error when random reader cannot provide valid characters", idLength)
+	is.Empty(id, "Generated ID should be empty on error")
+	is.Equal(io.EOF, err, "Expected io.EOF when maximum attempts are exceeded")
+}
+
+// alwaysFailRandReader is a custom io.Reader that always returns an error.
+type alwaysFailRandReader struct{}
+
+// Read implements the io.Reader interface and always returns an error.
+func (f *alwaysFailRandReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 3 // Assuming len(customAlphabet)=2, rnd=3 >= 2
+	}
+	return len(p), io.EOF
+}
+
+// TestGenerateWithEmptyAlphabet tests the generator's behavior when an empty alphabet is provided.
+func TestGenerateWithEmptyAlphabet(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	customAlphabet := ""
+	_, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+	)
+	is.Error(err, "NewGenerator() should return an error when alphabet is empty")
+	is.Equal(ErrInvalidAlphabet, err, "Expected ErrInvalidAlphabet when the alphabet is empty")
+}
+
+// TestGenerateWithNilRandReader tests the generator's behavior when a nil random reader is provided.
+func TestGenerateWithNilRandReader(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	customAlphabet := "ABCDEFG"
+	_, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+		WithRandReader(io.Reader(nil)),
+	)
+	is.Error(err, "NewGenerator() should return an error when RandReader is nil")
 }

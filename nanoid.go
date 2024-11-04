@@ -65,6 +65,7 @@ var (
 	ErrNonUTF8Alphabet     = errors.New("alphabet contains invalid UTF-8 characters")
 	ErrAlphabetTooShort    = errors.New("alphabet length is less than 2")
 	ErrAlphabetTooLong     = errors.New("alphabet length exceeds 256")
+	ErrNilRandReader       = errors.New("nil random reader")
 )
 
 const (
@@ -255,6 +256,11 @@ func NewGenerator(options ...Option) (Generator, error) {
 	// ensure LengthHint is within bounds
 	if configOpts.LengthHint < 1 {
 		return nil, ErrInvalidLength
+	}
+
+	// ensure reader is not nil
+	if configOpts.RandReader == nil {
+		return nil, ErrNilRandReader
 	}
 
 	// Validate and construct RuntimeConfig
