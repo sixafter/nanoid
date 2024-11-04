@@ -77,7 +77,7 @@ func TestGenerateWithCustomAlphabet(t *testing.T) {
 
 	// Include Unicode characters in the custom alphabet
 	customAlphabet := "abc😊🚀🌟"
-	const idLength = 10
+	const idLength = 8
 	gen, err := NewGenerator(
 		WithAlphabet(customAlphabet),
 		WithLengthHint(idLength),
@@ -128,7 +128,7 @@ func TestNewGeneratorWithInvalidAlphabet(t *testing.T) {
 			}
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
-				WithLengthHint(int(mean)),
+				WithLengthHint(uint16(mean)),
 			)
 
 			alphabetRunes := []rune(alphabet)
@@ -304,6 +304,16 @@ func (r *cyclicReader) Read(p []byte) (int, error) {
 	}
 
 	return n, nil
+}
+
+func TestCyclicReader(t *testing.T) {
+	expected := []byte{0, 1, 2, 3, 0, 1, 2, 3}
+	reader := &cyclicReader{data: []byte{0, 1, 2, 3}}
+	buffer := make([]byte, len(expected))
+	n, err := reader.Read(buffer)
+	assert.NoError(t, err)
+	assert.Equal(t, len(expected), n)
+	assert.Equal(t, expected, buffer)
 }
 
 // TestWithRandReader tests the WithRandReader option to ensure that the generator uses the provided random source.
