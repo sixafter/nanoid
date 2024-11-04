@@ -171,7 +171,7 @@ func BenchmarkNanoIDGeneration(b *testing.B) {
 			// Initialize the generator without passing 'nil'
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
-				WithLengthHint(int(mean)),
+				WithLengthHint(uint16(mean)),
 			)
 			if err != nil {
 				b.Fatalf("Failed to create generator with %s alphabet of length %d: %v", alphabetType, alphaLen, err)
@@ -224,7 +224,7 @@ func BenchmarkNanoIDGenerationParallel(b *testing.B) {
 			// Initialize the generator without passing 'nil'
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
-				WithLengthHint(int(mean)),
+				WithLengthHint(uint16(mean)),
 			)
 			if err != nil {
 				b.Fatalf("Failed to create generator with %s alphabet of length %d: %v", alphabetType, alphaLen, err)
@@ -279,7 +279,7 @@ func BenchmarkNanoIDWithVaryingAlphabetLengths(b *testing.B) {
 			// Initialize the generator without passing 'nil'
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
-				WithLengthHint(int(mean)),
+				WithLengthHint(uint16(mean)),
 			)
 			if err != nil {
 				b.Fatalf("Failed to create generator with %s alphabet of length %d: %v", alphabetType, alphaLen, err)

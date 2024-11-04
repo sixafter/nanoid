@@ -16,6 +16,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
+## [1.13.0] - 2024-NOV-05
+
+### Added
+- **FEATURE:** Added documentation for the configuration options: `WithAlphabet`, `WithLengthHint`, and `WithRandReader`.
+### Changed
+- **DEBT:** ⚡ Performance Enhancements:
+  - Unified `allocs/op`: Reduced allocations per operation to 1 for both ASCII and Unicode alphabets regardless of ID length, enhancing memory efficiency across all ID generations.
+  - Decreased `ns/op`: Further optimized the Nano ID generation process to lower nanoseconds per operation, resulting in faster ID creation.
+### Deprecated
+### Removed
+### Fixed
+- **DEFECT:** Fixed various documentation errors.
+### Security
+
+---
 ## [1.12.0] - 2024-NOV-04
 
 ### Added
@@ -240,8 +255,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.12.0..HEAD
-[1.11.1]: https://github.com/sixafter/nanoid/compare/v1.11.0...v1.12.0
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.13.0..HEAD
+[1.13.0]: https://github.com/sixafter/nanoid/compare/v1.12.0...v1.13.0
+[1.12.0]: https://github.com/sixafter/nanoid/compare/v1.11.1...v1.12.0
+[1.11.1]: https://github.com/sixafter/nanoid/compare/v1.11.0...v1.11.1
 [1.11.0]: https://github.com/sixafter/nanoid/compare/v1.10.2...v1.11.0
 [1.10.2]: https://github.com/sixafter/nanoid/compare/v1.10.1...v1.10.2
 [1.10.1]: https://github.com/sixafter/nanoid/compare/v1.10.0...v1.10.1

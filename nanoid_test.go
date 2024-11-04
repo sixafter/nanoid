@@ -77,7 +77,7 @@ func TestGenerateWithCustomAlphabet(t *testing.T) {
 
 	// Include Unicode characters in the custom alphabet
 	customAlphabet := "abc😊🚀🌟"
-	const idLength = 10
+	const idLength = 8
 	gen, err := NewGenerator(
 		WithAlphabet(customAlphabet),
 		WithLengthHint(idLength),
@@ -128,7 +128,7 @@ func TestNewGeneratorWithInvalidAlphabet(t *testing.T) {
 			}
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
-				WithLengthHint(int(mean)),
+				WithLengthHint(uint16(mean)),
 			)
 
 			alphabetRunes := []rune(alphabet)
@@ -306,6 +306,16 @@ func (r *cyclicReader) Read(p []byte) (int, error) {
 	return n, nil
 }
 
+func TestCyclicReader(t *testing.T) {
+	expected := []byte{0, 1, 2, 3, 0, 1, 2, 3}
+	reader := &cyclicReader{data: []byte{0, 1, 2, 3}}
+	buffer := make([]byte, len(expected))
+	n, err := reader.Read(buffer)
+	assert.NoError(t, err)
+	assert.Equal(t, len(expected), n)
+	assert.Equal(t, expected, buffer)
+}
+
 // TestWithRandReader tests the WithRandReader option to ensure that the generator uses the provided random source.
 func TestWithRandReader(t *testing.T) {
 	t.Parallel()
@@ -407,4 +417,494 @@ func TestWithRandReaderInsufficientBytes(t *testing.T) {
 	id, err = gen.New(6)
 	is.NoError(err, "New(6) should not return an error")
 	is.Equal("FFFFFF", id, "Generated ID should match the expected sequence 'FFFFFF'")
+}
+
+// TestGenerateWithNonPowerOfTwoAlphabetLength tests ID generation with an alphabet length that is not a power of two.
+func TestGenerateWithNonPowerOfTwoAlphabetLength(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Alphabet length is 10, which is not a power of two
+	customAlphabet := "ABCDEFGHIJ" // Length = 10
+	const idLength = 16
+	gen, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+		WithLengthHint(idLength),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with a valid non-power-of-two alphabet length")
+
+	id, err := gen.New(idLength)
+	is.NoError(err, "gen.New(%d) should not return an error", idLength)
+	is.Equal(idLength, len([]rune(id)), "Generated ID should have the specified length")
+
+	is.True(isValidID(id, customAlphabet), "Generated ID contains invalid characters")
+}
+
+// TestGenerateWithMinimalAlphabet tests ID generation with the minimal valid alphabet size.
+func TestGenerateWithMinimalAlphabet(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Minimal valid alphabet length is 2
+	minimalAlphabet := "01"
+	const idLength = 32
+	gen, err := NewGenerator(
+		WithAlphabet(minimalAlphabet),
+		WithLengthHint(idLength),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with the minimal alphabet length")
+
+	id, err := gen.New(idLength)
+	is.NoError(err, "gen.New(%d) should not return an error", idLength)
+	is.Equal(idLength, len([]rune(id)), "Generated ID should have the specified length")
+
+	is.True(isValidID(id, minimalAlphabet), "Generated ID contains invalid characters")
+}
+
+// TestGenerateWithMaximalAlphabet tests the generation of IDs with a large alphabet size.
+func TestGenerateWithMaximalAlphabet(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Generate a maximal alphabet of 256 unique runes that form a valid UTF-8 string
+	var maximalAlphabet string
+	for i := 0; i < MaxAlphabetLength; i++ {
+		// Ensure each rune is a valid UTF-8 character
+		// Runes from 0x0000 to 0x00FF are valid and can be represented in UTF-8
+		maximalAlphabet += string(rune(i))
+	}
+	const idLength = 128
+	gen, err := NewGenerator(
+		WithAlphabet(maximalAlphabet),
+		WithLengthHint(idLength),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with a maximal alphabet length")
+
+	id, err := gen.New(idLength)
+	is.NoError(err, "gen.New(%d) should not return an error", idLength)
+	is.Equal(idLength, len([]rune(id)), "Generated ID should have the specified length")
+
+	is.True(isValidID(id, maximalAlphabet), "Generated ID contains invalid characters")
+}
+
+// TestGenerateWithCustomRandReaderReturningError tests generator behavior when the custom random reader returns an error.
+func TestGenerateWithCustomRandReaderReturningError(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Define a custom random reader that always returns an error
+	failingReader := &failingRandReader{}
+	const idLength = 8
+
+	// Initialize the generator with a valid alphabet and the failing random reader
+	customAlphabet := "ABCDEFGH"
+	gen, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+		WithRandReader(failingReader),
+		WithLengthHint(idLength),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with a valid custom alphabet")
+
+	// Attempt to generate an ID
+	id, err := gen.New(idLength)
+	is.Error(err, "gen.New() should return an error when random reader fails")
+	is.Empty(id, "Generated ID should be empty on error")
+	is.Equal(io.ErrUnexpectedEOF, err, "Expected io.ErrUnexpectedEOF from failingRandReader")
+}
+
+// failingRandReader is a custom io.Reader that always returns an error.
+type failingRandReader struct{}
+
+// Read implements the io.Reader interface and always returns an error.
+func (f *failingRandReader) Read(_ []byte) (int, error) {
+	return 0, io.ErrUnexpectedEOF
+}
+
+// TestGenerateWithNonASCIIAlphabet tests ID generation with a Unicode alphabet when isASCII is false.
+func TestGenerateWithNonASCIIAlphabet(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Define a Unicode alphabet with emojis and special characters
+	unicodeAlphabet := "αβγδε😊🚀🌟"
+	const idLength = 10
+	gen, err := NewGenerator(
+		WithAlphabet(unicodeAlphabet),
+		WithLengthHint(idLength),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with a valid Unicode alphabet and isASCII=false")
+
+	id, err := gen.New(idLength)
+	is.NoError(err, "gen.New(%d) should not return an error", idLength)
+	is.Equal(idLength, len([]rune(id)), "Generated ID should have the specified length")
+
+	is.True(isValidID(id, unicodeAlphabet), "Generated ID contains invalid characters")
+}
+
+// TestGenerateWithSpecialCharactersInAlphabet tests ID generation with an alphabet containing special characters and emojis.
+func TestGenerateWithSpecialCharactersInAlphabet(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Alphabet with special characters and emojis
+	specialAlphabet := "!@#$%^&*()_+😊🚀"
+	const idLength = 12
+	gen, err := NewGenerator(
+		WithAlphabet(specialAlphabet),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with a special characters alphabet")
+
+	id, err := gen.New(idLength)
+	is.NoError(err, "gen.New(%d) should not return an error", idLength)
+	is.Equal(idLength, len([]rune(id)), "Generated ID should have the specified length")
+
+	is.True(isValidID(id, specialAlphabet), "Generated ID contains invalid characters")
+}
+
+// TestGenerateWithVeryLargeLength tests ID generation with a very large length.
+func TestGenerateWithVeryLargeLength(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Define a standard alphabet
+	standardAlphabet := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+	const idLength = 1000 // Very large length
+	gen, err := NewGenerator(
+		WithAlphabet(standardAlphabet),
+		WithLengthHint(idLength),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with a valid alphabet")
+
+	id, err := gen.New(idLength)
+	is.NoError(err, "gen.New(%d) should not return an error", idLength)
+	is.Equal(idLength, len([]rune(id)), "Generated ID should have the specified length")
+
+	is.True(isValidID(id, standardAlphabet), "Generated ID contains invalid characters")
+}
+
+// TestGeneratorBufferReuse tests that buffers are correctly reused from the pool without residual data.
+func TestGeneratorBufferReuse(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	customAlphabet := "XYZ123"
+	const idLength = 6
+	gen, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+		WithLengthHint(idLength),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with a valid custom alphabet")
+
+	// Generate first ID
+	id1, err := gen.New(idLength)
+	is.NoError(err, "gen.New(%d) should not return an error", idLength)
+	is.Equal(idLength, len([]rune(id1)), "Generated ID should have the specified length")
+	is.True(isValidID(id1, customAlphabet), "Generated ID contains invalid characters")
+
+	// Generate second ID
+	id2, err := gen.New(idLength)
+	is.NoError(err, "gen.New(%d) should not return an error", idLength)
+	is.Equal(idLength, len([]rune(id2)), "Generated ID should have the specified length")
+	is.True(isValidID(id2, customAlphabet), "Generated ID contains invalid characters")
+
+	// Ensure that IDs are different if possible
+	if id1 == id2 {
+		t.Errorf("Generated IDs should be different: id1=%s, id2=%s", id1, id2)
+	}
+}
+
+// TestGenerateWithMaxAttempts tests that the generator returns ErrExceededMaxAttempts when it cannot generate enough valid characters.
+func TestGenerateWithMaxAttempts(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Define a small alphabet
+	customAlphabet := "ABC" // len=3, bitsNeeded=2, mask=3
+
+	// Define a random reader that always returns rnd=3 (>= len(alphabet)=3)
+	failReader := &alwaysFailRandReader{}
+
+	gen, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+		WithRandReader(failReader),
+		WithLengthHint(10),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with a valid custom alphabet and fail reader")
+
+	// Attempt to generate an ID
+	id, err := gen.New(10)
+	is.Error(err, "gen.New(10) should return an error when random reader cannot provide valid characters")
+	is.Empty(id, "Generated ID should be empty on error")
+	is.Equal(io.EOF, err, "Expected io.EOF")
+}
+
+// TestGeneratorWithZeroLengthHint tests the generator's behavior with LengthHint set to 0.
+func TestGeneratorWithZeroLengthHint(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	customAlphabet := "ABCDEFGHijklmnopQR"
+
+	lengthHint := uint16(0)
+	_, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+		WithLengthHint(lengthHint),
+	)
+	is.Error(err, "NewGenerator() should return an error with LengthHint=0")
+}
+
+// TestNewWithZeroLengthHintAndMaxAlphabet tests the generator with LengthHint=0 and maximum alphabet size.
+func TestNewWithZeroLengthHintAndMaxAlphabet(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Define the maximum valid alphabet size
+	maxAlphabet := make([]rune, MaxAlphabetLength)
+	for i := 0; i < MaxAlphabetLength; i++ {
+		maxAlphabet[i] = rune(i)
+	}
+	lengthHint := uint16(0)
+
+	gen, err := NewGenerator(
+		WithAlphabet(string(maxAlphabet)),
+		WithLengthHint(lengthHint),
+	)
+	is.Error(err, "NewGenerator() should return an error with LengthHint=0 and maximum alphabet size")
+	is.Nil(gen, "Generator should be nil when LengthHint is zero")
+}
+
+// TestGenerateWithCustomRandReaderReturningNoBytes tests generator behavior when the custom reader returns no bytes.
+func TestGenerateWithCustomRandReaderReturningNoBytes(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Define a custom random reader that always returns zero bytes read
+	emptyReader := &emptyRandReader{}
+	const idLength = 8
+
+	// Initialize the generator with a valid alphabet and the empty random reader
+	customAlphabet := "ABCDEFGH"
+	gen, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+		WithRandReader(emptyReader),
+		WithLengthHint(idLength),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with a valid custom alphabet")
+
+	// Attempt to generate an ID
+	id, err := gen.New(idLength)
+	is.Error(err, "gen.New() should return an error when random reader provides no bytes")
+	is.Empty(id, "Generated ID should be empty on error")
+	is.Equal(io.EOF, err, "Expected io.EOF from emptyRandReader")
+}
+
+// emptyRandReader is a custom io.Reader that always returns zero bytes read.
+type emptyRandReader struct{}
+
+// Read implements the io.Reader interface and always returns 0 bytes read.
+func (f *emptyRandReader) Read(_ []byte) (int, error) {
+	return 0, io.EOF
+}
+
+// TestGeneratorConcurrencyWithCustomAlphabetLength tests that the generator can handle concurrent ID generation with custom alphabet lengths.
+func TestGeneratorConcurrencyWithCustomAlphabetLength(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	numGoroutines := 50
+	numIDsPerGoroutine := 20
+	customAlphabet := "abcdefghijklmnopqrstuvwxyz0123456789"
+	idLength := 15
+
+	gen, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+		WithLengthHint(uint16(idLength)),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with a valid custom alphabet")
+
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+
+	ids := make(chan string, numGoroutines*numIDsPerGoroutine)
+	errorsChan := make(chan error, numGoroutines*numIDsPerGoroutine)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer wg.Done()
+			for j := 0; j < numIDsPerGoroutine; j++ {
+				id, err := gen.New(idLength)
+				if err != nil {
+					errorsChan <- err
+					continue
+				}
+				ids <- id
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(ids)
+	close(errorsChan)
+
+	for err := range errorsChan {
+		is.NoError(err, "gen.New() should not return an error in concurrent execution")
+	}
+
+	idSet := make(map[string]struct{}, numGoroutines*numIDsPerGoroutine)
+	for id := range ids {
+		if _, exists := idSet[id]; exists {
+			is.Failf("Duplicate ID found in concurrency test", "Duplicate ID: %s", id)
+		}
+		idSet[id] = struct{}{}
+	}
+}
+
+// TestGenerateWithAllPrintableASCII tests the generation of IDs using all printable ASCII characters.
+func TestGenerateWithAllPrintableASCII(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Define an alphabet with all printable ASCII characters
+	var asciiAlphabet string
+	for i := 32; i <= 126; i++ {
+		asciiAlphabet += string(rune(i))
+	}
+	const idLength = 20
+	gen, err := NewGenerator(
+		WithAlphabet(asciiAlphabet),
+		WithLengthHint(idLength),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with all printable ASCII characters")
+
+	id, err := gen.New(idLength)
+	is.NoError(err, "gen.New(%d) should not return an error", idLength)
+	is.Equal(idLength, len([]rune(id)), "Generated ID should have the specified length")
+
+	is.True(isValidID(id, asciiAlphabet), "Generated ID contains invalid characters")
+}
+
+// TestGenerateWithSpecialUTF8Characters tests the generation of IDs with an alphabet containing special UTF-8 characters.
+func TestGenerateWithSpecialUTF8Characters(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Alphabet with special UTF-8 characters
+	specialUTF8Alphabet := "äöüß😊✨💖"
+	const idLength = 15
+	gen, err := NewGenerator(
+		WithAlphabet(specialUTF8Alphabet),
+		WithLengthHint(idLength),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with a special UTF-8 characters alphabet")
+
+	id, err := gen.New(idLength)
+	is.NoError(err, "gen.New(%d) should not return an error", idLength)
+	is.Equal(idLength, len([]rune(id)), "Generated ID should have the specified length")
+
+	is.True(isValidID(id, specialUTF8Alphabet), "Generated ID contains invalid characters")
+}
+
+// TestGeneratorWithInvalidLengthHint tests that the generator returns an error when LengthHint is invalid.
+func TestGeneratorWithInvalidLengthHint(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	customAlphabet := "ABCDEFG"
+	lengthHint := uint16(0)
+
+	_, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+		WithLengthHint(lengthHint),
+	)
+	is.Error(err, "NewGenerator() should return an error when LengthHint is zero")
+	is.Equal(ErrInvalidLength, err, "Expected ErrInvalidLength for LengthHint=0")
+}
+
+// TestGenerateWithMaxAttemptsExceeded tests the generator's behavior when it exceeds the maximum number of attempts.
+func TestGenerateWithMaxAttemptsExceeded(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Define a small alphabet
+	smallAlphabet := "AB"
+	const idLength = 100
+	failReader := &alwaysFailRandReader{}
+
+	gen, err := NewGenerator(
+		WithAlphabet(smallAlphabet),
+		WithRandReader(failReader),
+		WithLengthHint(idLength),
+	)
+	is.NoError(err, "NewGenerator() should not return an error with a valid small alphabet")
+
+	id, err := gen.New(idLength)
+	is.Error(err, "gen.New(%d) should return an error when random reader cannot provide valid characters", idLength)
+	is.Empty(id, "Generated ID should be empty on error")
+	is.Equal(io.EOF, err, "Expected io.EOF when maximum attempts are exceeded")
+}
+
+// alwaysFailRandReader is a custom io.Reader that always returns an error.
+type alwaysFailRandReader struct{}
+
+// Read implements the io.Reader interface and always returns an error.
+func (f *alwaysFailRandReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 3 // Assuming len(customAlphabet)=2, rnd=3 >= 2
+	}
+	return len(p), io.EOF
+}
+
+// TestGenerateWithEmptyAlphabet tests the generator's behavior when an empty alphabet is provided.
+func TestGenerateWithEmptyAlphabet(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	customAlphabet := ""
+	_, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+	)
+	is.Error(err, "NewGenerator() should return an error when alphabet is empty")
+	is.Equal(ErrInvalidAlphabet, err, "Expected ErrInvalidAlphabet when the alphabet is empty")
+}
+
+// TestGenerateWithNilRandReader tests the generator's behavior when a nil random reader is provided.
+func TestGenerateWithNilRandReader(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	customAlphabet := "ABCDEFG"
+	_, err := NewGenerator(
+		WithAlphabet(customAlphabet),
+		WithRandReader(io.Reader(nil)),
+	)
+	is.Error(err, "NewGenerator() should return an error when RandReader is nil")
+}
+
+// TestProcessRandomBytes tests the processRandomBytes function to ensure coverage for different cases.
+func TestProcessRandomBytes(t *testing.T) {
+	is := assert.New(t)
+	gen, err := NewGenerator()
+	is.NoError(err, "NewGenerator() should not return an error with default configuration")
+
+	randomBytes := []byte{0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC}
+
+	// Case 1: bytesNeeded = 1
+	gen.(*generator).config.bytesNeeded = 1
+	result := gen.(*generator).processRandomBytes(randomBytes, 0)
+	is.Equal(uint(0x12), result, "Expected result to be 0x12 for bytesNeeded=1")
+
+	// Case 2: bytesNeeded = 2
+	gen.(*generator).config.bytesNeeded = 2
+	result = gen.(*generator).processRandomBytes(randomBytes, 0)
+	is.Equal(uint(0x1234), result, "Expected result to be 0x1234 for bytesNeeded=2")
+
+	// Case 3: bytesNeeded = 4
+	gen.(*generator).config.bytesNeeded = 4
+	result = gen.(*generator).processRandomBytes(randomBytes, 0)
+	is.Equal(uint(0x12345678), result, "Expected result to be 0x12345678 for bytesNeeded=4")
+
+	// Case 4: bytesNeeded > 4 (default case)
+	gen.(*generator).config.bytesNeeded = 6
+	result = gen.(*generator).processRandomBytes(randomBytes, 0)
+	is.Equal(uint(0x123456789ABC), result, "Expected result to be 0x123456789ABC for bytesNeeded=6")
 }
