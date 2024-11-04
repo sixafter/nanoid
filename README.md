@@ -1,5 +1,6 @@
 # Nano ID
 
+[![CI](https://github.com/sixafter/nanoid/workflows/ci/badge.svg)](https://github.com/sixafter/nanoid/actions)
 [![Go](https://img.shields.io/github/go-mod/go-version/sixafter/nanoid)](https://img.shields.io/github/go-mod/go-version/sixafter/nanoid)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=six-after_nano-id&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=six-after_nano-id)
 [![GitHub issues](https://img.shields.io/github/issues/sixafter/nanoid)](https://github.com/sixafter/nanoid/issues)
@@ -20,7 +21,7 @@ A simple, fast, and efficient Go implementation of [Nano ID](https://github.com/
 - **Concurrency Safe**: Designed to be safe for use in concurrent environments.
 - **High Performance**: Optimized with buffer pooling to minimize allocations and enhance speed.
 - **Optimized for Low Allocations**: Carefully structured to minimize heap allocations, reducing memory overhead and improving cache locality. This optimization is crucial for applications where performance and resource usage are critical.
-    - 1 `alloc/op` for ASCII alphabets.
+    - 1 `allocs/op` for ASCII alphabets.
     - 2 `allocs/op` for Unicode alphabets.
 - **Zero Dependencies**: Lightweight implementation with no external dependencies beyond the standard library.
 
