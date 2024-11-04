@@ -101,7 +101,7 @@ func WithRandReader(reader io.Reader) Option {
 	}
 }
 
-// WithLengthHint sets the hint of the intended length of the IDs to be generated for the Generator.
+// WithLengthHint sets the hint of the intended length of the IDs to be generated.
 func WithLengthHint(hint uint16) Option {
 	return func(c *ConfigOptions) {
 		c.LengthHint = hint
@@ -230,10 +230,10 @@ type Generator interface {
 
 // generator implements the Generator interface.
 type generator struct {
-	config           *runtimeConfig
-	buffer           *sync.Pool
-	idBufferPool     *sync.Pool
-	idRuneBufferPool *sync.Pool
+	config          *runtimeConfig
+	randomBytesPool *sync.Pool
+	asciiIDPool     *sync.Pool
+	unicodeIDPool   *sync.Pool
 }
 
 // NewGenerator creates a new Generator with buffer pooling enabled.
@@ -259,7 +259,7 @@ func NewGenerator(options ...Option) (Generator, error) {
 	}
 
 	// Initialize buffer pools based on Rune handling
-	pool := &sync.Pool{
+	randomBytesPool := &sync.Pool{
 		New: func() interface{} {
 			buf := make([]byte, runtimeConfig.bufferSize*runtimeConfig.bufferMultiplier)
 			return &buf
@@ -267,7 +267,7 @@ func NewGenerator(options ...Option) (Generator, error) {
 	}
 
 	// Initialize ID buffer pool with *([]byte)
-	idPool := &sync.Pool{
+	asciiIDPool := &sync.Pool{
 		New: func() interface{} {
 			buf := make([]byte, 0, runtimeConfig.bufferSize*runtimeConfig.bufferMultiplier)
 			return &buf
@@ -275,7 +275,7 @@ func NewGenerator(options ...Option) (Generator, error) {
 	}
 
 	// Initialize Rune buffer pool with *[]rune
-	idRunePool := &sync.Pool{
+	unicodeIDPool := &sync.Pool{
 		New: func() interface{} {
 			buf := make([]rune, 0, runtimeConfig.bufferSize*runtimeConfig.bufferMultiplier)
 			return &buf
@@ -283,10 +283,10 @@ func NewGenerator(options ...Option) (Generator, error) {
 	}
 
 	return &generator{
-		config:           runtimeConfig,
-		buffer:           pool,
-		idBufferPool:     idPool,
-		idRuneBufferPool: idRunePool,
+		config:          runtimeConfig,
+		randomBytesPool: randomBytesPool,
+		asciiIDPool:     asciiIDPool,
+		unicodeIDPool:   unicodeIDPool,
 	}, nil
 }
 
@@ -399,7 +399,7 @@ func (g *generator) newASCII(length int) (string, error) {
 	}
 
 	// Retrieve a buffer from the pool
-	idPtr := g.idBufferPool.Get().(*[]byte)
+	idPtr := g.asciiIDPool.Get().(*[]byte)
 
 	// Ensure the buffer has enough capacity
 	var id []byte
@@ -410,7 +410,7 @@ func (g *generator) newASCII(length int) (string, error) {
 	}
 
 	// Retrieve random bytes from the buffer pool
-	randomBytesPtr := g.buffer.Get().(*[]byte)
+	randomBytesPtr := g.randomBytesPool.Get().(*[]byte)
 	randomBytes := *randomBytesPtr
 	bufferLen := len(randomBytes)
 
@@ -425,13 +425,13 @@ func (g *generator) newASCII(length int) (string, error) {
 
 	// Explicit buffer return without using defer
 	defer func() {
-		g.buffer.Put(randomBytesPtr)
+		g.randomBytesPool.Put(randomBytesPtr)
 		if success {
-			g.idBufferPool.Put(idPtr)
+			g.asciiIDPool.Put(idPtr)
 		} else {
 			// If a new buffer was created (not from the pool), do not return it
 			if cap(*idPtr) >= length {
-				g.idBufferPool.Put(idPtr)
+				g.asciiIDPool.Put(idPtr)
 			}
 		}
 	}()
@@ -489,7 +489,7 @@ func (g *generator) newUnicode(length int) (string, error) {
 	}
 
 	// Retrieve a rune buffer from the pool
-	idRunesPtr := g.idRuneBufferPool.Get().(*[]rune)
+	idRunesPtr := g.unicodeIDPool.Get().(*[]rune)
 	// Ensure the buffer has enough capacity
 	var idRunes []rune
 	if cap(*idRunesPtr) >= length {
@@ -499,7 +499,7 @@ func (g *generator) newUnicode(length int) (string, error) {
 	}
 
 	// Retrieve random bytes from the buffer pool
-	randomBytesPtr := g.buffer.Get().(*[]byte)
+	randomBytesPtr := g.randomBytesPool.Get().(*[]byte)
 	randomBytes := *randomBytesPtr
 	bufferLen := len(randomBytes)
 
@@ -514,13 +514,13 @@ func (g *generator) newUnicode(length int) (string, error) {
 
 	// Explicit buffer return without using defer
 	defer func() {
-		g.buffer.Put(randomBytesPtr)
+		g.randomBytesPool.Put(randomBytesPtr)
 		if success {
-			g.idRuneBufferPool.Put(idRunesPtr)
+			g.unicodeIDPool.Put(idRunesPtr)
 		} else {
 			// If a new buffer was created (not from the pool), do not return it
 			if cap(*idRunesPtr) >= length {
-				g.idRuneBufferPool.Put(idRunesPtr)
+				g.unicodeIDPool.Put(idRunesPtr)
 			}
 		}
 	}()
