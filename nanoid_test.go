@@ -77,15 +77,13 @@ func TestGenerateWithCustomAlphabet(t *testing.T) {
 
 	// Include Unicode characters in the custom alphabet
 	customAlphabet := "abc😊🚀🌟"
-	length := 10
 
 	gen, err := NewGenerator(
 		WithAlphabet(customAlphabet),
-		WithLengthHint(length),
 	)
 	is.NoError(err, "NewGenerator() should not return an error with a valid custom alphabet")
 
-	id, err := gen.New(length)
+	id, err := gen.New(10)
 	is.NoError(err, "New(10) should not return an error")
 	is.Equal(10, len([]rune(id)), "Generated ID should have the specified length")
 
@@ -127,7 +125,6 @@ func TestNewGeneratorWithInvalidAlphabet(t *testing.T) {
 			}
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
-				WithLengthHint(length),
 			)
 
 			alphabetRunes := []rune(alphabet)
@@ -194,7 +191,6 @@ func TestGetConfig(t *testing.T) {
 	is.Positive(runtimeConfig.BufferSize(), "Config.BufferSize should be a positive integer")
 	is.Positive(runtimeConfig.BitsNeeded(), "Config.BitsNeeded should be a positive integer")
 	is.Positive(runtimeConfig.BytesNeeded(), "Config.BytesNeeded should be a positive integer")
-	is.Positive(runtimeConfig.BufferMultiplier(), "Config.BufferMultiplier should be a positive integer")
 	is.Equal(rand.Reader, runtimeConfig.RandReader(), "Config.RandReader should be rand.Reader by default")
 	is.Equal(true, runtimeConfig.IsASCII(), "Config.IsASCII should be true by default")
 	is.NotNil(runtimeConfig.RuneAlphabet(), "Config.RuneAlphabet should not be nil")
@@ -390,18 +386,15 @@ func TestWithRandReaderInsufficientBytes(t *testing.T) {
 	customBytes := []byte{1} // Should map to 'F' repeatedly
 	customReader := &cyclicReader{data: customBytes}
 
-	length := 4
-
 	// Initialize the generator with custom alphabet and custom random reader
 	gen, err := NewGenerator(
 		WithAlphabet(customAlphabet),
 		WithRandReader(customReader),
-		WithLengthHint(length),
 	)
 	is.NoError(err, "NewGenerator() should not return an error with valid custom alphabet and random reader")
 
 	// New ID of length 4, expecting 'FFFF'
-	id, err := gen.New(length)
+	id, err := gen.New(4)
 	is.NoError(err, "New(4) should not return an error")
 	is.Equal("FFFF", id, "Generated ID should match the expected sequence 'FFFF'")
 

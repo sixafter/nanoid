@@ -20,8 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **FEATURE**: Added dynamic buffer scaling:
-- Adaptive Buffer Size Growth based on alphabet size while ensuring sufficient randomness for smaller alphabets. 
-- Lower Memory Usage when the context allows, avoiding unnecessarily large buffers when the alphabet or ID length does not demand it.
+  - Adaptive Buffer Size Growth based on alphabet size while ensuring sufficient randomness for smaller alphabets. 
+  - Lower Memory Usage when the context allows, avoiding unnecessarily large buffers when the alphabet or ID length does not demand it.
 ### Changed
 ### Deprecated
 ### Removed
