@@ -114,9 +114,10 @@ func main() {
 	// Define a custom alphabet
 	alphabet := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-	// Create a new generator with custom alphabet and default length
+	// Create a new generator with custom alphabet and length hint
 	gen, err := nanoid.NewGenerator(
 		nanoid.WithAlphabet(alphabet),
+		nanoid.WithLengthHint(10),
 	)
 	if err != nil {
 		fmt.Println("Error creating Nano ID generator:", err)
