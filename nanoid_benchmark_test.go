@@ -87,6 +87,62 @@ func mean[T Number](data []T) float64 {
 	return sum / float64(len(data))
 }
 
+const asciiAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+// BenchmarkNanoIDAllocations benchmarks the memory allocations and performance of generating a Nano ID
+// with a length of 21 and an alphabet consisting of uppercase letters, lowercase letters, and numbers.
+func BenchmarkNanoIDAllocations(b *testing.B) {
+	b.ReportAllocs() // Report memory allocations
+
+	const idLength = 21
+
+	// Initialize the generator with the specified length and alphabet
+	gen, err := NewGenerator(
+		WithAlphabet(asciiAlphabet),
+		WithLengthHint(idLength))
+	if err != nil {
+		b.Fatalf("failed to create generator: %v", err)
+	}
+
+	// Reset the timer to ignore setup time and track only the ID generation
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = gen.New(idLength)
+	}
+}
+
+// BenchmarkNanoIDAllocationsConcurrent benchmarks the memory allocations and performance of generating
+// a Nano ID concurrently with a length of 21 and an alphabet consisting of uppercase letters,
+// lowercase letters, and numbers.
+func BenchmarkNanoIDAllocationsConcurrent(b *testing.B) {
+	b.ReportAllocs() // Report memory allocations
+
+	// Alphabet and ID length for the test
+	const idLength = 21
+
+	// Initialize the generator with the specified length and alphabet
+	gen, err := NewGenerator(
+		WithAlphabet(asciiAlphabet),
+		WithLengthHint(idLength))
+	if err != nil {
+		b.Fatalf("failed to create generator: %v", err)
+	}
+
+	// Reset the timer to ignore setup time and track only the ID generation
+	b.ResetTimer()
+
+	// Run the benchmark in parallel
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_, err := gen.New(idLength)
+			if err != nil {
+				b.Errorf("failed to generate ID: %v", err)
+			}
+		}
+	})
+}
+
 // BenchmarkNanoIDGeneration benchmarks Nano ID generation for varying alphabet types, alphabet lengths, and ID lengths
 func BenchmarkNanoIDGeneration(b *testing.B) {
 	b.ReportAllocs() // Report memory allocations

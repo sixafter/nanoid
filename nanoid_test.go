@@ -174,9 +174,7 @@ func TestGetConfig(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
-	gen, err := NewGenerator(
-		WithAlphabet(DefaultAlphabet),
-	)
+	gen, err := NewGenerator()
 	is.NoError(err, "NewGenerator() should not return an error with the default alphabet")
 
 	// Assert that generator implements Configuration interface
