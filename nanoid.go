@@ -396,7 +396,23 @@ type Buffer interface {
 	~[]byte | ~[]rune
 }
 
-// processRandomBytes processes the random bytes into n rnd value.
+// processRandomBytes extracts and returns an unsigned integer from the given randomBytes slice,
+// starting at the specified index 'i'. The size of the returned value is determined by the
+// g.config.bytesNeeded field.
+//
+// Parameters:
+//   - randomBytes: A byte slice containing random data.
+//   - i: The starting index from which to extract the required bytes from the randomBytes slice.
+//
+// Returns:
+//   - uint: An unsigned integer constructed from the bytes, with a size defined by g.config.bytesNeeded.
+//
+// Behavior:
+//   - If bytesNeeded is 1, a single byte is returned as an unsigned integer.
+//   - If bytesNeeded is 2, the function returns a 16-bit unsigned integer (2 bytes) in Big Endian order.
+//   - If bytesNeeded is 4, the function returns a 32-bit unsigned integer (4 bytes) in Big Endian order.
+//   - For other values of bytesNeeded, it constructs an unsigned integer by shifting and combining each byte.
+//
 // This function is kept small to encourage inlining by the compiler.
 func (g *generator) processRandomBytes(randomBytes []byte, i int) uint {
 	switch g.config.bytesNeeded {
