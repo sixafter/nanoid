@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FEATURE:** Added documentation for the configuration options: `WithAlphabet`, `WithLengthHint`, and `WithRandReader`.
 ### Changed
 - **DEBT:** ⚡ Performance Enhancements:
-  - Unified `allocs/op`: Reduced allocations per operation to 1 for both ASCII and Unicode alphabets, enhancing memory efficiency across all ID generations.
+  - Unified `allocs/op`: Reduced allocations per operation to 1 for both ASCII and Unicode alphabets regardless of ID length, enhancing memory efficiency across all ID generations.
   - Decreased `ns/op`: Further optimized the Nano ID generation process to lower nanoseconds per operation, resulting in faster ID creation.
 ### Deprecated
 ### Removed
