@@ -247,7 +247,7 @@ func NewGenerator(options ...Option) (Generator, error) {
 	// Initialize buffer pools based on Rune handling
 	pool := &sync.Pool{
 		New: func() interface{} {
-			buf := make([]byte, runtimeConfig.bufferSize)
+			buf := make([]byte, 0, runtimeConfig.bufferSize)
 			return &buf
 		},
 	}
@@ -255,7 +255,7 @@ func NewGenerator(options ...Option) (Generator, error) {
 	// Initialize ID buffer pool with *([]byte)
 	idPool := &sync.Pool{
 		New: func() interface{} {
-			buf := make([]byte, 0, DefaultLength)
+			buf := make([]byte, 0, runtimeConfig.bufferSize)
 			return &buf
 		},
 	}
