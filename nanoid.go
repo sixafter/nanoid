@@ -76,10 +76,6 @@ const (
 	// maxAttemptsMultiplier defines the multiplier for maximum attempts based on length.
 	maxAttemptsMultiplier = 10
 
-	// bufferMultiplier defines how many characters the buffer should handle per read.
-	// Adjust this value based on performance and memory considerations.
-	//bufferMultiplier = 128
-
 	// MinAlphabetLength defines the minimum allowed length for the alphabet.
 	MinAlphabetLength = 2
 
@@ -176,7 +172,10 @@ type runtimeConfig struct {
 	// RandReader is the source of randomness used for generating IDs.
 	randReader io.Reader
 
-	// RuneAlphabet is a slice of runes, allowing support for multibyte characters in ID generation.
+	// byteAlphabet is a slice of bytes for ASCII alphabets.
+	byteAlphabet []byte
+
+	// runeAlphabet is a slice of runes, allowing support for multibyte characters in ID generation.
 	runeAlphabet []rune
 
 	// Mask is a bitmask used to obtain a random value from the character set.
@@ -188,23 +187,26 @@ type runtimeConfig struct {
 	// BytesNeeded specifies the number of bytes required from a random source to produce the ID.
 	bytesNeeded uint
 
-	// AlphabetLen is the length of the alphabet, stored as an uint16.
-	alphabetLen uint16
-
-	// IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
-	isPowerOfTwo bool
-
-	// BaseMultiplier is used to determine the growth rate of the buffer size, adjusted for small ID lengths to ensure balance.
-	baseMultiplier int
-
-	// ScalingFactor adjusts the balance between alphabet size and ID length to achieve smoother scaling in buffer size calculations.
-	scalingFactor int
+	// BufferSize is the buffer size used for random byte generation.
+	bufferSize int
 
 	// BufferMultiplier defines the multiplier used to calculate the buffer size for reading random bytes, ensuring gradual and consistent scaling.
 	bufferMultiplier int
 
-	// BufferSize is the calculated size of the buffer used for random byte generation, determined by several factors to ensure optimal memory usage.
-	bufferSize int
+	// ScalingFactor adjusts the balance between alphabet size and id length to achieve smoother scaling in buffer size calculations.
+	scalingFactor int
+
+	// BaseMultiplier is used to determine the growth rate of the buffer size, adjusted for small ID lengths to ensure balance.
+	baseMultiplier int
+
+	// AlphabetLen is the length of the alphabet, stored as an uint16.
+	alphabetLen uint16
+
+	// isASCII indicates whether the alphabet consists solely of ASCII characters.
+	isASCII bool
+
+	// IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
+	isPowerOfTwo bool
 }
 
 // Generator defines the interface for generating Nano IDs.
@@ -215,8 +217,9 @@ type Generator interface {
 
 // generator implements the Generator interface.
 type generator struct {
-	config *runtimeConfig
-	buffer *sync.Pool
+	config       *runtimeConfig
+	buffer       *sync.Pool
+	idBufferPool *sync.Pool
 }
 
 // NewGenerator creates a new Generator with buffer pooling enabled.
@@ -244,14 +247,23 @@ func NewGenerator(options ...Option) (Generator, error) {
 	// Initialize buffer pools based on Rune handling
 	pool := &sync.Pool{
 		New: func() interface{} {
-			buf := make([]byte, runtimeConfig.bufferSize*utf8.UTFMax) // Max bytes per rune
+			buf := make([]byte, runtimeConfig.bufferSize)
+			return &buf
+		},
+	}
+
+	// Initialize ID buffer pool with *([]byte)
+	idPool := &sync.Pool{
+		New: func() interface{} {
+			buf := make([]byte, 0, DefaultLength)
 			return &buf
 		},
 	}
 
 	return &generator{
-		config: runtimeConfig,
-		buffer: pool,
+		config:       runtimeConfig,
+		buffer:       pool,
+		idBufferPool: idPool,
 	}, nil
 }
 
@@ -266,8 +278,21 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 		return nil, ErrNonUTF8Alphabet
 	}
 
-	// Convert the alphabet to runes
 	alphabetRunes := []rune(opts.Alphabet)
+	isASCII := true
+	byteAlphabet := make([]byte, len(alphabetRunes))
+	for i, r := range alphabetRunes {
+		if r > 0x7F {
+			isASCII = false
+			break
+		}
+		byteAlphabet[i] = byte(r)
+	}
+
+	if !isASCII {
+		// Convert to rune alphabet if non-ASCII characters are present
+		byteAlphabet = nil // Clear byteAlphabet as it's not used
+	}
 
 	// Check for duplicate characters
 	seenRunes := make(map[rune]bool)
@@ -278,23 +303,20 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 		seenRunes[r] = true
 	}
 
-	// Calculate BitsNeeded and Mask
-	// NewGenerator check for maximum alphabet length
+	// Check alphabet length constraints
 	if len(alphabetRunes) > MaxAlphabetLength {
 		return nil, ErrAlphabetTooLong
 	}
-
 	if len(alphabetRunes) < MinAlphabetLength {
 		return nil, ErrAlphabetTooShort
 	}
 
-	// Represents how many bits are required to generate an index for selecting a character from the alphabet.
+	// Calculate BitsNeeded and Mask
 	bitsNeeded := uint(bits.Len(uint(len(alphabetRunes) - 1)))
 	if bitsNeeded == 0 {
 		return nil, ErrInvalidAlphabet
 	}
 
-	// Ensure that only the lowest bitsNeeded bits are used from the random value
 	mask := uint((1 << bitsNeeded) - 1)
 
 	// Ensures that any fractional number of bits rounds up to the nearest whole byte.
@@ -315,17 +337,19 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 	bufferSize := bufferMultiplier * int(bytesNeeded) * int(math.Max(1.5, float64(opts.LengthHint)/10.0))
 
 	return &runtimeConfig{
+		randReader:       opts.RandReader,
+		byteAlphabet:     byteAlphabet,
 		runeAlphabet:     alphabetRunes,
 		mask:             mask,
 		bitsNeeded:       bitsNeeded,
 		bytesNeeded:      bytesNeeded,
 		bufferSize:       bufferSize,
-		alphabetLen:      uint16(len(alphabetRunes)),
-		isPowerOfTwo:     isPowerOfTwo,
-		randReader:       opts.RandReader,
 		bufferMultiplier: bufferMultiplier,
 		scalingFactor:    scalingFactor,
 		baseMultiplier:   baseMultiplier,
+		alphabetLen:      uint16(len(alphabetRunes)),
+		isASCII:          isASCII,
+		isPowerOfTwo:     isPowerOfTwo,
 	}, nil
 }
 
@@ -335,7 +359,21 @@ func (g *generator) New(length int) (string, error) {
 		return "", ErrInvalidLength
 	}
 
-	id := make([]rune, length)
+	var id []byte
+	var idRunes []rune
+	if g.config.isASCII {
+		idPtr := g.idBufferPool.Get().(*[]byte) // Correct type assertion
+		id = (*idPtr)[:0]
+		if cap(*idPtr) < length {
+			// Allocate a new slice if capacity is insufficient
+			id = make([]byte, length)
+		} else {
+			id = id[:length]
+		}
+		defer g.idBufferPool.Put(idPtr)
+	} else {
+		idRunes = make([]rune, length)
+	}
 
 	cursor := 0
 	maxAttempts := length * maxAttemptsMultiplier
@@ -343,7 +381,6 @@ func (g *generator) New(length int) (string, error) {
 	mask := g.config.mask
 	bytesNeeded := g.config.bytesNeeded
 
-	// Use rune buffer pool
 	randomBytesPtr := g.buffer.Get().(*[]byte)
 	defer g.buffer.Put(randomBytesPtr)
 	randomBytes := *randomBytesPtr
@@ -353,7 +390,6 @@ func (g *generator) New(length int) (string, error) {
 		return "", ErrInvalidAlphabet
 	}
 
-	// New ID
 	for cursor < length {
 		if attempts >= maxAttempts {
 			return "", ErrExceededMaxAttempts
@@ -377,9 +413,22 @@ func (g *generator) New(length int) (string, error) {
 			}
 			rnd &= mask
 
-			if g.config.isPowerOfTwo || int(rnd) < int(g.config.alphabetLen) {
-				id[cursor] = g.config.runeAlphabet[rnd]
+			if g.config.isPowerOfTwo {
+				if g.config.isASCII {
+					id[cursor] = g.config.byteAlphabet[rnd]
+				} else {
+					idRunes[cursor] = g.config.runeAlphabet[rnd]
+				}
 				cursor++
+			} else {
+				if int(rnd) < int(g.config.alphabetLen) {
+					if g.config.isASCII {
+						id[cursor] = g.config.byteAlphabet[rnd]
+					} else {
+						idRunes[cursor] = g.config.runeAlphabet[rnd]
+					}
+					cursor++
+				}
 			}
 
 			if cursor == length {
@@ -388,7 +437,11 @@ func (g *generator) New(length int) (string, error) {
 		}
 	}
 
-	return string(id), nil
+	if g.config.isASCII {
+		return string(id), nil
+	} else {
+		return string(idRunes), nil
+	}
 }
 
 // Config returns the runtime configuration for the generator.
