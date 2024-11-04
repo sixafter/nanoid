@@ -288,6 +288,8 @@ goos: darwin
 goarch: arm64
 pkg: github.com/sixafter/nanoid
 cpu: Apple M2 Ultra
+BenchmarkNanoIDAllocations-24                            3356676               353.7 ns/op            24 B/op          1 allocs/op
+BenchmarkNanoIDAllocationsConcurrent-24                  1000000              1021 ns/op              24 B/op          1 allocs/op
 BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen8-24          10151994               115.6 ns/op             8 B/op          1 allocs/op
 BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen16-24          4163946               287.8 ns/op            16 B/op          1 allocs/op
 BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen21-24          3940454               303.9 ns/op            24 B/op          1 allocs/op
