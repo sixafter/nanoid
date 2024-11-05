@@ -501,7 +501,7 @@ func (g *generator) newASCII(length int) (string, error) {
 
 			if isPowerOfTwo || int(rnd) < int(g.config.alphabetLen) {
 				if rnd >= uint(len(g.config.byteAlphabet)) {
-					panic(fmt.Sprintf("rnd value %d exceeds byteAlphabet length %d", rnd, len(g.config.byteAlphabet)))
+					return "", fmt.Errorf("rnd value %d exceeds byteAlphabet length %d", rnd, len(g.config.byteAlphabet))
 				}
 				id[cursor] = g.config.byteAlphabet[rnd]
 				cursor++
@@ -576,7 +576,7 @@ func (g *generator) newUnicode(length int) (string, error) {
 
 			if isPowerOfTwo || int(rnd) < int(g.config.alphabetLen) {
 				if rnd >= uint(len(g.config.runeAlphabet)) {
-					panic(fmt.Sprintf("rnd value %d exceeds runeAlphabet length %d", rnd, len(g.config.runeAlphabet)))
+					return "", fmt.Errorf("rnd value %d exceeds runeAlphabet length %d", rnd, len(g.config.runeAlphabet))
 				}
 				idRunes[cursor] = g.config.runeAlphabet[rnd]
 				cursor++
