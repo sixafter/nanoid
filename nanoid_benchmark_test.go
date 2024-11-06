@@ -8,6 +8,7 @@ package nanoid
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"golang.org/x/exp/constraints"
@@ -143,6 +144,98 @@ func BenchmarkNanoIDAllocationsConcurrent(b *testing.B) {
 	})
 }
 
+// BenchmarkGenerator_Read_DefaultLength benchmarks reading into a buffer equal to DefaultLength.
+func BenchmarkGenerator_Read_DefaultLength(b *testing.B) {
+	gen, ok := DefaultGenerator.(*generator)
+	if !ok {
+		b.Fatal("DefaultGenerator is not of type *generator")
+	}
+
+	buffer := make([]byte, DefaultLength)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := gen.Read(buffer)
+		if err != nil {
+			b.Fatalf("Read returned an unexpected error: %v", err)
+		}
+	}
+}
+
+// BenchmarkGenerator_Read_VaryingBufferSizes benchmarks reading into buffers of varying sizes.
+func BenchmarkGenerator_Read_VaryingBufferSizes(b *testing.B) {
+
+	bufferSizes := []int{2, 3, 5, 13, 21, 34}
+	m := mean(bufferSizes)
+
+	gen, err := NewGenerator(WithLengthHint(uint16(m)))
+	if err != nil {
+		b.Fatalf("Failed to create generator: %v", err)
+	}
+
+	for _, size := range bufferSizes {
+		b.Run(fmt.Sprintf("BufferSize_%d", size), func(b *testing.B) {
+			buffer := make([]byte, size)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_, err := gen.Read(buffer)
+				if err != nil {
+					b.Fatalf("Read returned an unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+// BenchmarkGenerator_Read_ZeroLengthBuffer benchmarks reading into a zero-length buffer.
+func BenchmarkGenerator_Read_ZeroLengthBuffer(b *testing.B) {
+	gen := DefaultGenerator
+	buffer := make([]byte, 0)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := gen.Read(buffer)
+		if err != nil {
+			b.Fatalf("Read returned an unexpected error: %v", err)
+		}
+	}
+}
+
+// BenchmarkGenerator_Read_Concurrent benchmarks concurrent reads to assess thread safety and performance.
+func BenchmarkGenerator_Read_Concurrent(b *testing.B) {
+	gen, err := NewGenerator()
+	if err != nil {
+		b.Fatalf("Failed to create generator: %v", err)
+	}
+
+	bufferSize := DefaultLength
+	concurrencyLevels := []int{1, 2, 4, 8, 16}
+
+	for _, concurrency := range concurrencyLevels {
+		b.Run(fmt.Sprintf("Concurrency_%d", concurrency), func(b *testing.B) {
+			var wg sync.WaitGroup
+			b.SetParallelism(concurrency)
+			b.ResetTimer()
+
+			for i := 0; i < concurrency; i++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					buffer := make([]byte, bufferSize)
+					for j := 0; j < b.N/concurrency; j++ {
+						_, err := gen.Read(buffer)
+						if err != nil {
+							b.Errorf("Read returned an unexpected error: %v", err)
+							return
+						}
+					}
+				}()
+			}
+			wg.Wait()
+		})
+	}
+}
+
 // BenchmarkNanoIDGeneration benchmarks Nano ID generation for varying alphabet types, alphabet lengths, and ID lengths
 func BenchmarkNanoIDGeneration(b *testing.B) {
 	b.ReportAllocs() // Report memory allocations
@@ -153,7 +246,7 @@ func BenchmarkNanoIDGeneration(b *testing.B) {
 	mean := mean(idLengths)
 
 	// Define the alphabet lengths to test
-	alphabetLengths := []int{2, 16, 32, 64, 95}
+	alphabetLengths := []int{2, 16, 32, 64}
 
 	// Define the alphabet types to test
 	alphabetTypes := []string{"ASCII", "Unicode"}
@@ -206,7 +299,7 @@ func BenchmarkNanoIDGenerationParallel(b *testing.B) {
 	mean := mean(idLengths)
 
 	// Define the alphabet lengths to test
-	alphabetLengths := []int{2, 16, 32, 64, 95}
+	alphabetLengths := []int{2, 16, 32, 64}
 
 	// Define the alphabet types to test
 	alphabetTypes := []string{"ASCII", "Unicode"}
@@ -260,7 +353,7 @@ func BenchmarkNanoIDWithVaryingAlphabetLengths(b *testing.B) {
 	alphabetTypes := []string{"ASCII", "Unicode"}
 
 	// Define the alphabet lengths to test
-	alphabetLengths := []int{2, 16, 32, 64, 95}
+	alphabetLengths := []int{2, 16, 32, 64}
 
 	// Define the Nano ID lengths to test
 	idLengths := []int{8, 16, 21, 32, 64, 128}

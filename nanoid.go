@@ -21,6 +21,16 @@ import (
 // DefaultGenerator is a global, shared instance of a Nano ID generator. It is safe for concurrent use.
 var DefaultGenerator Generator
 
+func init() {
+	var err error
+	DefaultGenerator, err = NewGenerator(
+		WithAlphabet(DefaultAlphabet),
+	)
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize DefaultGenerator: %v", err))
+	}
+}
+
 // New returns a new Nano ID using `DefaultLength`.
 func New() (string, error) {
 	return NewWithLength(DefaultLength)
@@ -48,14 +58,39 @@ func MustWithLength(length int) string {
 	return id
 }
 
-func init() {
-	var err error
-	DefaultGenerator, err = NewGenerator(
-		WithAlphabet(DefaultAlphabet),
-	)
-	if err != nil {
-		panic(fmt.Sprintf("failed to initialize DefaultGenerator: %v", err))
-	}
+// Read reads up to len(p) bytes into p. It returns the number of bytes
+// read (0 <= n <= len(p)) and any error encountered. Even if Read
+// returns n < len(p), it may use all of p as scratch space during the call.
+// If some data is available but not len(p) bytes, Read conventionally
+// returns what is available instead of waiting for more.
+//
+// Reader is the interface that wraps the basic Read method.
+//
+// When Read encounters an error or end-of-file condition after
+// successfully reading n > 0 bytes, it returns the number of
+// bytes read. It may return the (non-nil) error from the same call
+// or return the error (and n == 0) from a subsequent call.
+// An instance of this general case is that a Reader returning
+// a non-zero number of bytes at the end of the input stream may
+// return either err == EOF or err == nil. The next Read should
+// return 0, EOF.
+//
+// Callers should always process the n > 0 bytes returned before
+// considering the error err. Doing so correctly handles I/O errors
+// that happen after reading some bytes and also both of the
+// allowed EOF behaviors.
+//
+// If len(p) == 0, Read should always return n == 0. It may return a
+// non-nil error if some error condition is known, such as EOF.
+//
+// Implementations of Read are discouraged from returning a
+// zero byte count with a nil error, except when len(p) == 0.
+// Callers should treat a return of 0 and nil as indicating that
+// nothing happened; in particular it does not indicate EOF.
+//
+// Implementations must not retain p.
+func Read(p []byte) (n int, err error) {
+	return DefaultGenerator.Read(p)
 }
 
 var (
@@ -228,6 +263,7 @@ type runtimeConfig struct {
 type Generator interface {
 	// New returns a new Nano ID of the specified length.
 	New(length int) (string, error)
+	Read(p []byte) (n int, err error)
 }
 
 // generator implements the Generator interface.
@@ -338,16 +374,18 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 		seenRunes[r] = true
 	}
 
+	alphabetLen := uint16(len(alphabetRunes))
+
 	// Check alphabet length constraints
-	if len(alphabetRunes) > MaxAlphabetLength {
+	if alphabetLen > MaxAlphabetLength {
 		return nil, ErrAlphabetTooLong
 	}
-	if len(alphabetRunes) < MinAlphabetLength {
+	if alphabetLen < MinAlphabetLength {
 		return nil, ErrAlphabetTooShort
 	}
 
 	// Calculate BitsNeeded and Mask
-	bitsNeeded := uint(bits.Len(uint(len(alphabetRunes) - 1)))
+	bitsNeeded := uint(bits.Len(uint(alphabetLen - 1)))
 	if bitsNeeded == 0 {
 		return nil, ErrInvalidAlphabet
 	}
@@ -360,13 +398,13 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 	// Ensures that any fractional number of bits rounds up to the nearest whole byte.
 	bytesNeeded := (bitsNeeded + 7) / 8
 
-	isPowerOfTwo := (len(alphabetRunes) & (len(alphabetRunes) - 1)) == 0
+	isPowerOfTwo := (alphabetLen & (alphabetLen - 1)) == 0
 
 	// Adjust the calculation for the baseMultiplier to achieve smooth growth based on id length and alphabet length
 	baseMultiplier := int(math.Ceil(math.Log2(float64(opts.LengthHint) + 2.0)))
 
 	// Modify the scaling factor to balance alphabet size and id length for smoother scaling
-	scalingFactor := int(math.Max(3.0, float64(len(alphabetRunes))/math.Pow(float64(opts.LengthHint), 0.6)))
+	scalingFactor := int(math.Max(3.0, float64(alphabetLen)/math.Pow(float64(opts.LengthHint), 0.6)))
 
 	// Refine bufferMultiplier calculation for a smooth scaling pattern
 	bufferMultiplier := baseMultiplier + int(math.Ceil(float64(scalingFactor)/1.5))
@@ -385,7 +423,7 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 		bufferMultiplier: bufferMultiplier,
 		scalingFactor:    scalingFactor,
 		baseMultiplier:   baseMultiplier,
-		alphabetLen:      uint16(len(alphabetRunes)),
+		alphabetLen:      alphabetLen,
 		isASCII:          isASCII,
 		isPowerOfTwo:     isPowerOfTwo,
 		lengthHint:       opts.LengthHint,
@@ -448,7 +486,8 @@ func (g *generator) newASCII(length int) (string, error) {
 
 	// Ensure the buffer has enough capacity
 	var id []byte
-	if cap(*idPtr) >= length {
+	capacity := cap(*idPtr)
+	if capacity >= length {
 		id = (*idPtr)[:length]
 	} else {
 		id = make([]byte, length)
@@ -475,7 +514,7 @@ func (g *generator) newASCII(length int) (string, error) {
 			g.asciiIDPool.Put(idPtr)
 		} else {
 			// If a new buffer was created (not from the pool), do not return it
-			if cap(*idPtr) >= length {
+			if capacity >= length {
 				g.asciiIDPool.Put(idPtr)
 			}
 		}
@@ -523,7 +562,8 @@ func (g *generator) newUnicode(length int) (string, error) {
 
 	// Ensure the buffer has enough capacity
 	var idRunes []rune
-	if cap(*idRunesPtr) >= length {
+	capacity := cap(*idRunesPtr)
+	if capacity >= length {
 		idRunes = (*idRunesPtr)[:length]
 	} else {
 		idRunes = make([]rune, length)
@@ -550,7 +590,7 @@ func (g *generator) newUnicode(length int) (string, error) {
 			g.unicodeIDPool.Put(idRunesPtr)
 		} else {
 			// If a new buffer was created (not from the pool), do not return it
-			if cap(*idRunesPtr) >= length {
+			if capacity >= length {
 				g.unicodeIDPool.Put(idRunesPtr)
 			}
 		}
@@ -589,6 +629,52 @@ func (g *generator) newUnicode(length int) (string, error) {
 
 	success = true
 	return string(idRunes[:cursor]), nil
+}
+
+// Reader is the interface that wraps the basic Read method.
+//
+// Read reads up to len(p) bytes into p. It returns the number of bytes
+// read (0 <= n <= len(p)) and any error encountered. Even if Read
+// returns n < len(p), it may use all of p as scratch space during the call.
+// If some data is available but not len(p) bytes, Read conventionally
+// returns what is available instead of waiting for more.
+//
+// When Read encounters an error or end-of-file condition after
+// successfully reading n > 0 bytes, it returns the number of
+// bytes read. It may return the (non-nil) error from the same call
+// or return the error (and n == 0) from a subsequent call.
+// An instance of this general case is that a Reader returning
+// a non-zero number of bytes at the end of the input stream may
+// return either err == EOF or err == nil. The next Read should
+// return 0, EOF.
+//
+// Callers should always process the n > 0 bytes returned before
+// considering the error err. Doing so correctly handles I/O errors
+// that happen after reading some bytes and also both of the
+// allowed EOF behaviors.
+//
+// If len(p) == 0, Read should always return n == 0. It may return a
+// non-nil error if some error condition is known, such as EOF.
+//
+// Implementations of Read are discouraged from returning a
+// zero byte count with a nil error, except when len(p) == 0.
+// Callers should treat a return of 0 and nil as indicating that
+// nothing happened; in particular it does not indicate EOF.
+//
+// Implementations must not retain p.
+func (g *generator) Read(p []byte) (n int, err error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	length := len(p)
+	id, err := g.New(length)
+	if err != nil {
+		return 0, err
+	}
+
+	copy(p, id)
+	return length, nil
 }
 
 // Config returns the runtime configuration for the generator.

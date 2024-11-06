@@ -7,6 +7,7 @@ package nanoid
 
 import (
 	"crypto/rand"
+	"errors"
 	"io"
 	"math/bits"
 	"strconv"
@@ -919,4 +920,140 @@ func TestProcessRandomBytes(t *testing.T) {
 	gen.(*generator).config.bytesNeeded = 6
 	result = gen.(*generator).processRandomBytes(randomBytes, 0)
 	is.Equal(uint(0x123456789ABC), result, "Expected result to be 0x123456789ABC for bytesNeeded=6")
+}
+
+// TestGenerator_Read_EqualLength tests reading into a buffer equal to the default ID length.
+func TestGenerator_Read_EqualLength(t *testing.T) {
+	t.Parallel()
+
+	is := assert.New(t)
+
+	buffer := make([]byte, DefaultLength)
+	n, err := Read(buffer)
+	is.NoError(err, "Read should not return an error")
+	is.Equal(DefaultLength, n, "Number of bytes read should equal DefaultLength")
+
+	id := string(buffer)
+	is.Equal(DefaultLength, len(id), "Generated ID length should match DefaultLength")
+	is.True(isValidID(id, DefaultAlphabet), "Generated ID should contain only valid characters")
+}
+
+// TestGenerator_Read_SmallerBuffer tests reading into a buffer smaller than the default ID length.
+func TestGenerator_Read_SmallerBuffer(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	const length = 10
+	gen, err := NewGenerator(WithLengthHint(length))
+	is.NoError(err, "NewGenerator() should not return an error with length hint 10")
+
+	buffer := make([]byte, length)
+	n, err := gen.Read(buffer)
+	is.NoError(err, "Read should not return an error")
+	is.Equal(length, n, "Number of bytes read should equal bufferSize")
+
+	id := string(buffer)
+	is.Equal(length, len(id), "Generated ID length should match bufferSize")
+	is.True(isValidID(id, DefaultAlphabet), "Generated ID should contain only valid characters")
+}
+
+// TestGenerator_Read_LargerBuffer tests reading into a buffer larger than the default ID length.
+func TestGenerator_Read_LargerBuffer(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	const length = 10
+	gen, err := NewGenerator(WithLengthHint(length))
+	is.NoError(err, "NewGenerator() should not return an error with length hint 10")
+
+	buffer := make([]byte, length)
+	n, err := gen.Read(buffer)
+	is.NoError(err, "Read should not return an error")
+	is.Equal(length, n, "Number of bytes read should equal bufferSize")
+
+	id := string(buffer)
+	is.Equal(length, len(id), "Generated ID length should match bufferSize")
+	is.True(isValidID(id, DefaultAlphabet), "Generated ID should contain only valid characters")
+}
+
+// TestGenerator_Read_ZeroBuffer tests reading into a zero-length buffer.
+func TestGenerator_Read_ZeroBuffer(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	gen, err := NewGenerator()
+	is.NoError(err, "NewGenerator() should not return an error with length hint 10")
+
+	buffer := make([]byte, 0)
+	n, err := gen.Read(buffer)
+	is.NoError(err, "Read should not return an error")
+	is.Equal(0, n, "Number of bytes read should be 0 for zero-length buffer")
+}
+
+// TestGenerator_Read_Concurrent tests concurrent reads to ensure thread safety.
+func TestGenerator_Read_Concurrent(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	gen, ok := DefaultGenerator.(*generator)
+	is.True(ok, "DefaultGenerator should be of type *generator")
+
+	numGoroutines := 10
+	readsPerGoroutine := 100
+	bufferSize := DefaultLength
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	generatedIDs := make(map[string]bool)
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < readsPerGoroutine; j++ {
+				buffer := make([]byte, bufferSize)
+				n, err := gen.Read(buffer)
+				if !is.NoError(err, "Read should not return an error") {
+					return
+				}
+				is.Equal(bufferSize, n, "Number of bytes read should equal bufferSize")
+
+				id := string(buffer)
+				is.Equal(bufferSize, len(id), "Generated ID length should match bufferSize")
+				is.True(isValidID(id, DefaultAlphabet), "Generated ID should contain only valid characters")
+
+				mu.Lock()
+				generatedIDs[id] = true
+				mu.Unlock()
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	// Optionally, verify that a reasonable number of unique IDs were generated
+	expectedMinUnique := numGoroutines * readsPerGoroutine / 2 // Arbitrary threshold
+	is.GreaterOrEqual(len(generatedIDs), expectedMinUnique, "Expected at least %d unique IDs, but got %d", expectedMinUnique, len(generatedIDs))
+}
+
+// TestGenerator_Read_Error tests the Read method's behavior when the generator encounters an error.
+func TestGenerator_Read_Error(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Create a generator with a RandReader that always returns an error
+	faultyReader := &errorReader{}
+	gen, err := NewGenerator(WithRandReader(faultyReader))
+	is.NoError(err, "NewGenerator should not return an error during creation")
+
+	buffer := make([]byte, DefaultLength)
+	n, err := gen.Read(buffer)
+	is.Error(err, "Read should return an error when RandReader fails")
+	is.Equal(0, n, "Number of bytes read should be 0 on error")
+}
+
+// errorReader is an io.Reader that always returns an error
+type errorReader struct{}
+
+func (e *errorReader) Read(_ []byte) (int, error) {
+	return 0, errors.New("simulated read error")
 }

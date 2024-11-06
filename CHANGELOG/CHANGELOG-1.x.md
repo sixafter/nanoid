@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
+## [1.14.0] - 2024-NOV-06
+
+### Added
+- **FEATURE:** Added support for `io.Reader` Interface: 
+  - The Nano ID generator now satisfies the `io.Reader` interface, allowing it to be used interchangeably with any `io.Reader` implementations.
+  - Developers can now utilize the Nano ID generator in contexts such as streaming data processing, pipelines, and other I/O-driven operations.
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.13.4] - 2024-NOV-06
 
 ### Added
@@ -307,7 +320,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.13.4..HEAD
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.14.0..HEAD
+[1.14.0]: https://github.com/sixafter/nanoid/compare/v1.13.4...v1.14.0
 [1.13.4]: https://github.com/sixafter/nanoid/compare/v1.13.3...v1.13.4
 [1.13.3]: https://github.com/sixafter/nanoid/compare/v1.13.2...v1.13.3
 [1.13.2]: https://github.com/sixafter/nanoid/compare/v1.13.1...v1.13.2
