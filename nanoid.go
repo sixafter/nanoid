@@ -391,11 +391,6 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 	}, nil
 }
 
-// Buffer is a type constraint that allows either []byte or []rune.
-type Buffer interface {
-	~[]byte | ~[]rune
-}
-
 // processRandomBytes extracts and returns an unsigned integer from the given randomBytes slice,
 // starting at the specified index 'i'. The size of the returned value is determined by the
 // g.config.bytesNeeded field.
