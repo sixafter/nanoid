@@ -23,7 +23,9 @@ A simple, fast, and efficient Go implementation of [Nano ID](https://github.com/
 - **Optimized for Low Allocations**: Carefully structured to minimize heap allocations, reducing memory overhead and improving cache locality. This optimization is crucial for applications where performance and resource usage are critical.
     - 1 `allocs/op` for ASCII and Unicode alphabets.
 - **Zero Dependencies**: Lightweight implementation with no external dependencies beyond the standard library.
-- **Supports `io.Reader` Interface**: Allows for advanced use cases by providing a reader interface for generating Nano IDs.
+- **Supports `io.Reader` Interface**: 
+  - The Nano ID generator now satisfies the `io.Reader` interface, allowing it to be used interchangeably with any `io.Reader` implementations. 
+  - Developers can now utilize the Nano ID generator in contexts such as streaming data processing, pipelines, and other I/O-driven operations.
 
 ## Installation
 
