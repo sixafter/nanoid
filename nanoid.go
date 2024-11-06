@@ -14,6 +14,7 @@ import (
 	"math"
 	"math/bits"
 	"sync"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -316,7 +317,7 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 	isASCII := true
 	byteAlphabet := make([]byte, len(alphabetRunes))
 	for i, r := range alphabetRunes {
-		if r > 0x7F { // 127: highest code point in the 7-bit ASCII character set.
+		if r > unicode.MaxASCII {
 			isASCII = false
 			break
 		}
