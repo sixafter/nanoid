@@ -16,6 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
+## [1.13.2] - 2024-NOV-06
+
+### Added
+### Changed
+### Deprecated
+### Removed
+- **DEBT:** Removed unused `Buffer` interface:
+    ```go
+    // Buffer is a type constraint that allows either []byte or []rune.
+    type Buffer interface {
+       ~[]byte | ~[]rune
+    }
+    ```
+### Fixed
+### Security
+
+---
 ## [1.13.1] - 2024-NOV-05
 
 ### Added
@@ -266,7 +283,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.13.1..HEAD
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.13.2..HEAD
+[1.13.2]: https://github.com/sixafter/nanoid/compare/v1.13.1...v1.13.2
 [1.13.1]: https://github.com/sixafter/nanoid/compare/v1.13.0...v1.13.1
 [1.13.0]: https://github.com/sixafter/nanoid/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/sixafter/nanoid/compare/v1.11.1...v1.12.0
