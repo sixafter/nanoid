@@ -263,6 +263,8 @@ type runtimeConfig struct {
 type Generator interface {
 	// New returns a new Nano ID of the specified length.
 	New(length int) (string, error)
+
+	// Read reads up to len(p) bytes into p. It returns the number of bytes read.
 	Read(p []byte) (n int, err error)
 }
 

@@ -132,7 +132,6 @@ func main() {
 Generated ID: 2mhTvy21bBZhZcd80ZydM
 ```
 
-
 ### Customizing the Alphabet and ID Length
 
 You can customize the alphabet by using the WithAlphabet option and generate an ID with a custom length.
@@ -246,6 +245,20 @@ func NewGenerator(options ...Option) (Generator, error)
   * `Generator`: A new Nano ID generator. 
   * `error`: An error if the configuration is invalid.
 
+### `Read`
+
+Generates a Nano ID with the specified length using the default generator.
+
+```go
+func Read(p []byte) (n int, err error)
+```
+
+* Parameters:
+    * `p` (`[]byte`): The byte slice to store the generated ID.
+* Returns:
+    * `n`: The actual number of bytes read.
+    * `error`: An error if the generation fails.
+
 ### `Generator` Interface
 
 Defines the method to generate Nano IDs.
@@ -255,6 +268,9 @@ Defines the method to generate Nano IDs.
 type Generator interface {
     // New returns a new Nano ID of the specified length.
 	New(length int) (string, error)
+
+    // Read reads up to len(p) bytes into p. It returns the number of bytes read.
+    Read(p []byte) (n int, err error)
 }
 ```
 
