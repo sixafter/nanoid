@@ -129,47 +129,47 @@ type ConfigOptions struct {
 // Config holds the runtime configuration for the Nano ID generator.
 // It is immutable after initialization.
 type Config interface {
-	// RandReader returns the source of randomness used for generating IDs.
-	RandReader() io.Reader
-
-	// ByteAlphabet returns the slice of bytes for ASCII alphabets.
-	ByteAlphabet() []byte
-
-	// RuneAlphabet returns the slice of runes used for ID generation, allowing support for multibyte characters.
-	RuneAlphabet() []rune
-
-	// Mask returns the bitmask used to obtain a random value from the character set.
-	Mask() uint
-
-	// BitsNeeded returns the number of bits required to generate each character in the ID.
-	BitsNeeded() uint
-
-	// BytesNeeded returns the number of bytes required from the random source to produce the entire ID.
-	BytesNeeded() uint
-
-	// BufferSize returns the calculated size of the buffer used for random byte generation.
-	BufferSize() int
-
 	// AlphabetLen returns the length of the alphabet used for ID generation.
 	AlphabetLen() uint16
-
-	// IsPowerOfTwo returns true if the length of the alphabet is a power of two, optimizing random selection for efficient bit operations.
-	IsPowerOfTwo() bool
-
-	// IsASCII returns true if the alphabet consists solely of ASCII characters.
-	IsASCII() bool
-
-	// BufferMultiplier returns the multiplier used to determine how many characters the buffer should handle per read.
-	BufferMultiplier() int
 
 	// BaseMultiplier returns the base multiplier used to determine the growth rate of buffer size, accounting for small ID lengths to achieve balance.
 	BaseMultiplier() int
 
-	// ScalingFactor returns the scaling factor used to balance the alphabet size and ID length, ensuring smoother growth in buffer size calculations.
-	ScalingFactor() int
+	// BitsNeeded returns the number of bits required to generate each character in the ID.
+	BitsNeeded() uint
+
+	// BufferMultiplier returns the multiplier used to determine how many characters the buffer should handle per read.
+	BufferMultiplier() int
+
+	// BufferSize returns the calculated size of the buffer used for random byte generation.
+	BufferSize() int
+
+	// ByteAlphabet returns the slice of bytes for ASCII alphabets.
+	ByteAlphabet() []byte
+
+	// BytesNeeded returns the number of bytes required from the random source to produce the entire ID.
+	BytesNeeded() uint
+
+	// IsASCII returns true if the alphabet consists solely of ASCII characters.
+	IsASCII() bool
+
+	// IsPowerOfTwo returns true if the length of the alphabet is a power of two, optimizing random selection for efficient bit operations.
+	IsPowerOfTwo() bool
 
 	// LengthHint returns the hint of the intended length of the IDs to be generated.
 	LengthHint() uint16
+
+	// Mask returns the bitmask used to obtain a random value from the character set.
+	Mask() uint
+
+	// RandReader returns the source of randomness used for generating IDs.
+	RandReader() io.Reader
+
+	// RuneAlphabet returns the slice of runes used for ID generation, allowing support for multibyte characters.
+	RuneAlphabet() []rune
+
+	// ScalingFactor returns the scaling factor used to balance the alphabet size and ID length, ensuring smoother growth in buffer size calculations.
+	ScalingFactor() int
 }
 
 // Configuration defines the interface for retrieving generator configuration.
@@ -214,14 +214,14 @@ type runtimeConfig struct {
 	// AlphabetLen is the length of the alphabet, stored as an uint16.
 	alphabetLen uint16
 
+	// LengthHint the hint of the intended length of the IDs to be generated.
+	lengthHint uint16
+
 	// isASCII indicates whether the alphabet consists solely of ASCII characters.
 	isASCII bool
 
 	// IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
 	isPowerOfTwo bool
-
-	// LengthHint the hint of the intended length of the IDs to be generated.
-	lengthHint uint16
 }
 
 // Generator defines the interface for generating Nano IDs.
@@ -354,7 +354,7 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 
 	mask := uint((1 << bitsNeeded) - 1)
 
-	// TODO: mprimeaux: Scale bitsNeeded based on length hint
+	// TODO: Scale bitsNeeded based on length hint (???)
 	//adjustedBitsNeeded := bitsNeeded + uint(math.Log2(float64(opts.LengthHint)))
 
 	// Ensures that any fractional number of bits rounds up to the nearest whole byte.
@@ -410,6 +410,8 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 //   - For other values of bytesNeeded, it constructs an unsigned integer by shifting and combining each byte.
 //
 // This function is kept small to encourage inlining by the compiler.
+//
+//go:inline
 func (g *generator) processRandomBytes(randomBytes []byte, i int) uint {
 	switch g.config.bytesNeeded {
 	case 1:
@@ -591,76 +593,106 @@ func (g *generator) newUnicode(length int) (string, error) {
 
 // Config returns the runtime configuration for the generator.
 // It implements the Configuration interface.
+//
+//go:inline
 func (g *generator) Config() Config {
 	return g.config
 }
 
+// AlphabetLen is the length of the alphabet, stored as an uint16.
+//
+//go:inline
+func (r runtimeConfig) AlphabetLen() uint16 {
+	return r.alphabetLen
+}
+
+// BaseMultiplier is used to determine the growth rate of the buffer size, adjusted for small ID lengths to ensure balance.
+//
+//go:inline
+func (r runtimeConfig) BaseMultiplier() int {
+	return r.baseMultiplier
+}
+
+// BitsNeeded represents the number of bits required to generate each character in the ID.
+//
+//go:inline
+func (r runtimeConfig) BitsNeeded() uint {
+	return r.bitsNeeded
+}
+
+// BufferMultiplier is the multiplier used to calculate the buffer size for reading random bytes, ensuring gradual and consistent scaling.
+//
+//go:inline
+func (r runtimeConfig) BufferMultiplier() int {
+	return r.bufferMultiplier
+}
+
+// BufferSize is the buffer size used for random byte generation.
+//
+//go:inline
+func (r runtimeConfig) BufferSize() int {
+	return r.bufferSize
+}
+
+// ByteAlphabet returns a slice of bytes for ASCII alphabets.
+//
+//go:inline
+func (r runtimeConfig) ByteAlphabet() []byte {
+	return r.byteAlphabet
+}
+
+// BytesNeeded specifies the number of bytes required from a random source to produce the ID.
+//
+//go:inline
+func (r runtimeConfig) BytesNeeded() uint {
+	return r.bytesNeeded
+}
+
+// IsASCII indicates whether the alphabet consists solely of ASCII characters.
+//
+//go:inline
+func (r runtimeConfig) IsASCII() bool {
+	return r.isASCII
+}
+
+// IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
+//
+//go:inline
+func (r runtimeConfig) IsPowerOfTwo() bool {
+	return r.isPowerOfTwo
+}
+
+// LengthHint the hint of the intended length of the IDs to be generated.
+//
+//go:inline
+func (r runtimeConfig) LengthHint() uint16 {
+	return r.lengthHint
+}
+
+// Mask is a bitmask used to obtain a random value from the character set.
+//
+//go:inline
+func (r runtimeConfig) Mask() uint {
+	return r.mask
+}
+
 // RandReader is the source of randomness used for generating IDs.
+//
+//go:inline
 func (r runtimeConfig) RandReader() io.Reader {
 	return r.randReader
 }
 
 // RuneAlphabet is a slice of runes, allowing support for multibyte characters in ID generation.
+//
+//go:inline
 func (r runtimeConfig) RuneAlphabet() []rune {
 	return r.runeAlphabet
 }
 
-// Mask is a bitmask used to obtain a random value from the character set.
-func (r runtimeConfig) Mask() uint {
-	return r.mask
-}
-
-// BitsNeeded represents the number of bits required to generate each character in the ID.
-func (r runtimeConfig) BitsNeeded() uint {
-	return r.bitsNeeded
-}
-
-// BytesNeeded specifies the number of bytes required from a random source to produce the ID.
-func (r runtimeConfig) BytesNeeded() uint {
-	return r.bytesNeeded
-}
-
-// BufferSize is the buffer size used for random byte generation.
-func (r runtimeConfig) BufferSize() int {
-	return r.bufferSize
-}
-
-// AlphabetLen is the length of the alphabet, stored as an uint16.
-func (r runtimeConfig) AlphabetLen() uint16 {
-	return r.alphabetLen
-}
-
-// IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
-func (r runtimeConfig) IsPowerOfTwo() bool {
-	return r.isPowerOfTwo
-}
-
-// BufferMultiplier is the multiplier used to calculate the buffer size for reading random bytes, ensuring gradual and consistent scaling.
-func (r runtimeConfig) BufferMultiplier() int {
-	return r.bufferMultiplier
-}
-
-// BaseMultiplier is used to determine the growth rate of the buffer size, adjusted for small ID lengths to ensure balance.
-func (r runtimeConfig) BaseMultiplier() int {
-	return r.baseMultiplier
-}
-
 // ScalingFactor adjusts the balance between alphabet size and id length to achieve smoother scaling in buffer size calculations.
+//
+//go:inline
 func (r runtimeConfig) ScalingFactor() int {
 	return r.scalingFactor
-}
-
-// IsASCII indicates whether the alphabet consists solely of ASCII characters.
-func (r runtimeConfig) IsASCII() bool {
-	return r.isASCII
-}
-
-// ByteAlphabet returns a slice of bytes for ASCII alphabets.
-func (r runtimeConfig) ByteAlphabet() []byte {
-	return r.byteAlphabet
-}
-
-// LengthHint the hint of the intended length of the IDs to be generated.
-func (r runtimeConfig) LengthHint() uint16 {
-	return r.lengthHint
 }

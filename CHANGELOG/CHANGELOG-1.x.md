@@ -16,7 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.13.3] - 2024-NOV-07
+## [1.13.4] - 2024-NOV-06
+
+### Added
+### Changed
+- **DEBT:** Added `//go:inline` directive to optimize specific functions.
+- **DEBT:** Updated benchmark tests to reflect optimizations.
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
+## [1.13.3] - 2024-NOV-0
 
 ### Added
 - **DEBT:** Added test for `panic` in `MustWithLength` function.
@@ -295,7 +307,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.13.3..HEAD
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.13.4..HEAD
+[1.13.4]: https://github.com/sixafter/nanoid/compare/v1.13.3...v1.13.4
 [1.13.3]: https://github.com/sixafter/nanoid/compare/v1.13.2...v1.13.3
 [1.13.2]: https://github.com/sixafter/nanoid/compare/v1.13.1...v1.13.2
 [1.13.1]: https://github.com/sixafter/nanoid/compare/v1.13.0...v1.13.1
