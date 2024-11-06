@@ -146,16 +146,11 @@ func BenchmarkNanoIDAllocationsConcurrent(b *testing.B) {
 
 // BenchmarkGenerator_Read_DefaultLength benchmarks reading into a buffer equal to DefaultLength.
 func BenchmarkGenerator_Read_DefaultLength(b *testing.B) {
-	gen, ok := DefaultGenerator.(*generator)
-	if !ok {
-		b.Fatal("DefaultGenerator is not of type *generator")
-	}
-
 	buffer := make([]byte, DefaultLength)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := gen.Read(buffer)
+		_, err := DefaultGenerator.Read(buffer)
 		if err != nil {
 			b.Fatalf("Read returned an unexpected error: %v", err)
 		}
@@ -164,7 +159,6 @@ func BenchmarkGenerator_Read_DefaultLength(b *testing.B) {
 
 // BenchmarkGenerator_Read_VaryingBufferSizes benchmarks reading into buffers of varying sizes.
 func BenchmarkGenerator_Read_VaryingBufferSizes(b *testing.B) {
-
 	bufferSizes := []int{2, 3, 5, 13, 21, 34}
 	m := mean(bufferSizes)
 
@@ -189,12 +183,11 @@ func BenchmarkGenerator_Read_VaryingBufferSizes(b *testing.B) {
 
 // BenchmarkGenerator_Read_ZeroLengthBuffer benchmarks reading into a zero-length buffer.
 func BenchmarkGenerator_Read_ZeroLengthBuffer(b *testing.B) {
-	gen := DefaultGenerator
 	buffer := make([]byte, 0)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := gen.Read(buffer)
+		_, err := DefaultGenerator.Read(buffer)
 		if err != nil {
 			b.Fatalf("Read returned an unexpected error: %v", err)
 		}
@@ -203,11 +196,6 @@ func BenchmarkGenerator_Read_ZeroLengthBuffer(b *testing.B) {
 
 // BenchmarkGenerator_Read_Concurrent benchmarks concurrent reads to assess thread safety and performance.
 func BenchmarkGenerator_Read_Concurrent(b *testing.B) {
-	gen, err := NewGenerator()
-	if err != nil {
-		b.Fatalf("Failed to create generator: %v", err)
-	}
-
 	bufferSize := DefaultLength
 	concurrencyLevels := []int{1, 2, 4, 8, 16}
 
@@ -223,7 +211,7 @@ func BenchmarkGenerator_Read_Concurrent(b *testing.B) {
 					defer wg.Done()
 					buffer := make([]byte, bufferSize)
 					for j := 0; j < b.N/concurrency; j++ {
-						_, err := gen.Read(buffer)
+						_, err := DefaultGenerator.Read(buffer)
 						if err != nil {
 							b.Errorf("Read returned an unexpected error: %v", err)
 							return
