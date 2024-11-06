@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.13.3] - 2024-NOV-07
 
 ### Added
+- **DEBT:** Added test for `panic` in `MustWithLength` function.
 ### Changed
 ### Deprecated
 ### Removed

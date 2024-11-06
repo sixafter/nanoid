@@ -50,6 +50,16 @@ func TestNewAndMustDefault(t *testing.T) {
 	is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
 }
 
+// TestNewAndMustWithCustomLengthPanic tests the must generation of a NanoID with an invalid length for panic.
+func TestNewAndMustWithCustomLengthPanic(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	is.Panics(func() {
+		MustWithLength(0)
+	})
+}
+
 // TestNewInvalidLength tests the generator's response to invalid lengths.
 func TestNewInvalidLength(t *testing.T) {
 	t.Parallel()
@@ -192,15 +202,17 @@ func TestGetConfig(t *testing.T) {
 	is.Equal(expectedMask, runtimeConfig.Mask(), "Config.Mask should be correctly calculated")
 
 	is.Equal((runtimeConfig.AlphabetLen()&(runtimeConfig.AlphabetLen()-1)) == 0, runtimeConfig.IsPowerOfTwo(), "Config.IsPowerOfTwo should be correct")
-	is.Positive(runtimeConfig.BufferSize(), "Config.BufferSize should be a positive integer")
+	is.Positive(runtimeConfig.BaseMultiplier(), "Config.BaseMultiplier should be a positive integer")
 	is.Positive(runtimeConfig.BitsNeeded(), "Config.BitsNeeded should be a positive integer")
-	is.Positive(runtimeConfig.BytesNeeded(), "Config.BytesNeeded should be a positive integer")
-	is.Equal(rand.Reader, runtimeConfig.RandReader(), "Config.RandReader should be rand.Reader by default")
-	is.Equal(true, runtimeConfig.IsASCII(), "Config.IsASCII should be true by default")
-	is.NotNil(runtimeConfig.RuneAlphabet(), "Config.RuneAlphabet should not be nil")
-	is.NotNil(runtimeConfig.ByteAlphabet(), "Config.ByteAlphabet should not be nil")
 	is.Positive(runtimeConfig.BufferMultiplier(), "Config.BufferMultiplier should be a positive integer")
+	is.Positive(runtimeConfig.BufferSize(), "Config.BufferSize should be a positive integer")
+	is.NotNil(runtimeConfig.ByteAlphabet(), "Config.ByteAlphabet should not be nil")
+	is.Positive(runtimeConfig.BytesNeeded(), "Config.BytesNeeded should be a positive integer")
+	is.Equal(true, runtimeConfig.IsASCII(), "Config.IsASCII should be true by default")
 	is.Positive(runtimeConfig.LengthHint(), "Config.LengthHint should be a positive integer")
+	is.Equal(rand.Reader, runtimeConfig.RandReader(), "Config.RandReader should be rand.Reader by default")
+	is.NotNil(runtimeConfig.RuneAlphabet(), "Config.RuneAlphabet should not be nil")
+	is.Positive(runtimeConfig.ScalingFactor(), "Config.ScalingFactor should be a positive integer")
 }
 
 // TestUniqueness tests that multiple generated IDs are unique.
