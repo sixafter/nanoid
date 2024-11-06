@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
+## [1.13.3] - 2024-NOV-07
+
+### Added
+### Changed
+### Deprecated
+### Removed
+- **DEFECT:** ASCII-only detection now correctly uses `unicode.MaxASCII` instead of `0x7F` to ensure compatibility with all ASCII characters.
+### Fixed
+### Security
+
+---
 ## [1.13.2] - 2024-NOV-06
 
 ### Added
@@ -283,7 +294,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.13.2..HEAD
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.13.3..HEAD
+[1.13.3]: https://github.com/sixafter/nanoid/compare/v1.13.2...v1.13.3
 [1.13.2]: https://github.com/sixafter/nanoid/compare/v1.13.1...v1.13.2
 [1.13.1]: https://github.com/sixafter/nanoid/compare/v1.13.0...v1.13.1
 [1.13.0]: https://github.com/sixafter/nanoid/compare/v1.12.0...v1.13.0
