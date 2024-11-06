@@ -344,7 +344,7 @@ goarch: arm64
 pkg: github.com/sixafter/nanoid
 cpu: Apple M2 Ultra
 BenchmarkNanoIDAllocations-24                            3712894               322.7 ns/op            24 B/op          1 allocs/op
-BenchmarkNanoIDAllocationsConcurrent-24                  1231219               982.8 ns/op            24 B/op          1 allocs/op
+BenchmarkNanoIDAllocationsConcurrent-24                  1231219               955.8 ns/op            24 B/op          1 allocs/op
 BenchmarkGenerator_Read_DefaultLength-24                 4234353               280.7 ns/op            24 B/op          1 allocs/op
 BenchmarkGenerator_Read_VaryingBufferSizes/BufferSize_2-24              12416870                93.76 ns/op            2 B/op          1 allocs/op
 BenchmarkGenerator_Read_VaryingBufferSizes/BufferSize_3-24              12173713                99.60 ns/op            3 B/op          1 allocs/op
