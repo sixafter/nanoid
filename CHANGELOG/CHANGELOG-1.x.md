@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
+## [1.15.0] - 2024-NOV-07
+
+### Added
+- **FEATURE:** Added documentation and comments.
+  - Enhanced documentation for interfaces and functions by providing comprehensive comments on each method's purpose and usage.
+  - Added detailed comments to the `buildRuntimeConfig` function variables for improved code clarity and understanding.
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.14.0] - 2024-NOV-06
 
 ### Added
@@ -320,7 +333,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.14.0..HEAD
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.15.0..HEAD
+[1.15.0]: https://github.com/sixafter/nanoid/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/sixafter/nanoid/compare/v1.13.4...v1.14.0
 [1.13.4]: https://github.com/sixafter/nanoid/compare/v1.13.3...v1.13.4
 [1.13.3]: https://github.com/sixafter/nanoid/compare/v1.13.2...v1.13.3

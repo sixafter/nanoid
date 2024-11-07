@@ -23,32 +23,69 @@ var DefaultGenerator Generator
 
 func init() {
 	var err error
-	DefaultGenerator, err = NewGenerator(
-		WithAlphabet(DefaultAlphabet),
-	)
+	DefaultGenerator, err = NewGenerator()
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize DefaultGenerator: %v", err))
 	}
 }
 
-// New returns a new Nano ID using `DefaultLength`.
+// New generates a new Nano ID using the default length specified by `DefaultLength`.
+// It returns the generated ID as a string and any error encountered during the generation.
+//
+// Usage:
+//
+//	id, err := nanoid.New()
+//	if err != nil {
+//	    // handle error
+//	}
+//	fmt.Println("Generated ID:", id)
 func New() (string, error) {
 	return NewWithLength(DefaultLength)
 }
 
-// NewWithLength returns a new Nano ID of the specified length.
+// NewWithLength generates a new Nano ID of the specified length.
+// It returns the generated ID as a string and any error encountered during the generation.
+//
+// Parameters:
+//   - length int: The number of characters for the generated ID.
+//
+// Usage:
+//
+//	id, err := nanoid.NewWithLength(21)
+//	if err != nil {
+//	    // handle error
+//	}
+//	fmt.Println("Generated ID:", id)
 func NewWithLength(length int) (string, error) {
 	return DefaultGenerator.New(length)
 }
 
-// Must returns a new Nano ID using `DefaultLength` if err is nil or panics otherwise.
-// It simplifies safe initialization of global variables holding compiled UUIDs.
+// Must generates a new Nano ID using the default length specified by `DefaultLength`.
+// It returns the generated ID as a string.
+// If an error occurs during ID generation, it panics.
+// This function simplifies safe initialization of global variables holding pre-generated Nano IDs.
+//
+// Usage:
+//
+//	id := nanoid.Must()
+//	fmt.Println("Generated ID:", id)
 func Must() string {
 	return MustWithLength(DefaultLength)
 }
 
-// MustWithLength returns a new Nano ID of the specified length if err is nil or panics otherwise.
-// It simplifies safe initialization of global variables holding compiled UUIDs.
+// MustWithLength generates a new Nano ID of the specified length.
+// It returns the generated ID as a string.
+// If an error occurs during ID generation, it panics.
+// The 'length' parameter specifies the number of characters in the generated ID.
+// This function simplifies safe initialization of global variables holding pre-generated Nano IDs.
+//
+// Parameters:
+//   - length int: The number of characters for the generated ID.
+//
+// Usage:
+//
+//	id := nanoid.MustWithLength(30)
+//	fmt.Println("Generated ID:", id)
 func MustWithLength(length int) string {
 	id, err := NewWithLength(length)
 	if err != nil {
@@ -105,26 +142,62 @@ var (
 )
 
 const (
-	// DefaultAlphabet as per Nano ID specification; A-Za-z0-9_-.
+	// DefaultAlphabet defines the standard set of characters used for Nano ID generation.
+	// It includes uppercase and lowercase English letters, digits, and the characters
+	// '_' and '-'. This selection aligns with the Nano ID specification, ensuring
+	// a URL-friendly and easily readable identifier.
+	//
+	// Example: "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	DefaultAlphabet = "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-	// DefaultLength is the default size of the generated Nano ID: 21.
+	// DefaultLength specifies the default number of characters in a generated Nano ID.
+	// A length of 21 characters provides a high level of uniqueness while maintaining
+	// brevity, making it suitable for most applications requiring unique identifiers.
 	DefaultLength = 21
 
-	// maxAttemptsMultiplier defines the multiplier for maximum attempts based on length.
+	// maxAttemptsMultiplier determines the maximum number of attempts the generator
+	// will make to produce a valid Nano ID before failing. It is calculated as a
+	// multiplier based on the desired ID length to balance between performance
+	// and the probability of successful ID generation, especially when using
+	// non-power-of-two alphabets.
 	maxAttemptsMultiplier = 10
 
-	// MinAlphabetLength defines the minimum allowed length for the alphabet.
+	// MinAlphabetLength sets the minimum permissible number of unique characters
+	// in the alphabet used for Nano ID generation. An alphabet with fewer than
+	// 2 characters would not provide sufficient variability for generating unique IDs,
+	// making this a lower bound to ensure meaningful ID generation.
+	//
+	// Example: An alphabet like "AB" is acceptable, but "A" is not.
 	MinAlphabetLength = 2
 
-	// MaxAlphabetLength defines the maximum allowed length for the alphabet.
+	// MaxAlphabetLength defines the maximum allowable number of unique characters
+	// in the alphabet for Nano ID generation. This upper limit ensures that the
+	// generator operates within reasonable memory and performance constraints,
+	// preventing excessively large alphabets that could degrade performance or
+	// complicate index calculations.
 	MaxAlphabetLength = 256
 )
 
 // Option defines a function type for configuring the Generator.
+// It allows for flexible and extensible configuration by applying
+// various settings to the ConfigOptions during Generator initialization.
 type Option func(*ConfigOptions)
 
 // WithAlphabet sets a custom alphabet for the Generator.
+// The provided alphabet string defines the set of characters that will be
+// used to generate Nano IDs. This allows users to customize the character set
+// according to their specific requirements, such as using only alphanumeric
+// characters, including symbols, or supporting non-ASCII characters.
+//
+// Parameters:
+//   - alphabet string: A string representing the desired set of characters for ID generation.
+//
+// Returns:
+//   - Option: A configuration option that applies the custom alphabet to ConfigOptions.
+//
+// Usage:
+//
+//	generator, err := nanoid.NewGenerator(nanoid.WithAlphabet("abcdef123456"))
 func WithAlphabet(alphabet string) Option {
 	return func(c *ConfigOptions) {
 		c.Alphabet = alphabet
@@ -132,6 +205,22 @@ func WithAlphabet(alphabet string) Option {
 }
 
 // WithRandReader sets a custom random reader for the Generator.
+// By default, the Generator uses a cryptographically secure random number
+// generator (e.g., crypto/rand.Reader). However, in some cases, users might
+// want to provide their own source of randomness, such as for testing purposes
+// or to integrate with a different entropy source.
+//
+// Parameters:
+//   - reader io.Reader: An implementation of io.Reader that supplies random data.
+//
+// Returns:
+//   - Option: A configuration option that applies the custom random reader to ConfigOptions.
+//
+// Usage Example:
+//
+//	 customReader := myCustomRandomReader()
+//	 generator, err := nanoid.NewGenerator(
+//		nanoid.WithRandReader(customReader))
 func WithRandReader(reader io.Reader) Option {
 	return func(c *ConfigOptions) {
 		c.RandReader = reader
@@ -139,6 +228,20 @@ func WithRandReader(reader io.Reader) Option {
 }
 
 // WithLengthHint sets the hint of the intended length of the IDs to be generated.
+// Providing a length hint allows the Generator to optimize internal configurations,
+// such as buffer sizes and scaling factors, based on the expected ID length. This
+// can enhance performance and efficiency, especially when generating a large number
+// of IDs with similar lengths.
+//
+// Parameters:
+//   - hint uint16: A non-zero unsigned integer representing the anticipated length of the Nano IDs.
+//
+// Returns:
+//   - Option: A configuration option that applies the length hint to ConfigOptions.
+//
+// Usage Example:
+//
+//	generator, err := nanoid.NewGenerator(nanoid.WithLengthHint(21))
 func WithLengthHint(hint uint16) Option {
 	return func(c *ConfigOptions) {
 		c.LengthHint = hint
@@ -162,48 +265,87 @@ type ConfigOptions struct {
 }
 
 // Config holds the runtime configuration for the Nano ID generator.
-// It is immutable after initialization.
+//
+// It is immutable after initialization and provides all the necessary
+// parameters for generating unique IDs efficiently and securely.
 type Config interface {
-	// AlphabetLen returns the length of the alphabet used for ID generation.
+	// AlphabetLen returns the number of unique characters in the provided alphabet.
+	//
+	// This length determines the range of indices for selecting characters during ID generation.
+	// Using uint16 allows for alphabets up to 65,535 characters.
 	AlphabetLen() uint16
 
-	// BaseMultiplier returns the base multiplier used to determine the growth rate of buffer size, accounting for small ID lengths to achieve balance.
+	// BaseMultiplier returns the foundational multiplier used in buffer size calculations.
+	//
+	// It is based on the logarithm of the intended ID length (LengthHint) plus 2.
+	// This helps scale the buffer size appropriately with different ID lengths.
 	BaseMultiplier() int
 
-	// BitsNeeded returns the number of bits required to generate each character in the ID.
+	// BitsNeeded returns the minimum number of bits required to represent all possible indices of the alphabet.
+	//
+	// This value is crucial for generating random numbers that map uniformly to the alphabet indices without bias.
 	BitsNeeded() uint
 
-	// BufferMultiplier returns the multiplier used to determine how many characters the buffer should handle per read.
+	// BufferMultiplier returns the combined multiplier used in the buffer size calculation.
+	//
+	// It adds a fraction of the scaling factor to the base multiplier to fine-tune the buffer size,
+	// considering both the ID length and the alphabet size.
 	BufferMultiplier() int
 
-	// BufferSize returns the calculated size of the buffer used for random byte generation.
+	// BufferSize returns the total size of the buffer (in bytes) used for generating random data.
+	//
+	// The buffer size is calculated to balance efficiency and performance,
+	// minimizing calls to the random number generator by reading larger chunks of random data at once.
 	BufferSize() int
 
-	// ByteAlphabet returns the slice of bytes for ASCII alphabets.
+	// ByteAlphabet returns the slice of bytes representing the alphabet,
+	// used when the alphabet consists solely of ASCII characters.
+	//
+	// For non-ASCII alphabets, this returns nil, and RuneAlphabet is used instead.
 	ByteAlphabet() []byte
 
-	// BytesNeeded returns the number of bytes required from the random source to produce the entire ID.
+	// BytesNeeded returns the number of bytes required to store the BitsNeeded for each character in the ID.
+	//
+	// It rounds up BitsNeeded to the nearest byte, ensuring sufficient space for random data generation.
 	BytesNeeded() uint
 
 	// IsASCII returns true if the alphabet consists solely of ASCII characters.
+	//
+	// This allows for optimization in processing, using bytes instead of runes for ID generation.
 	IsASCII() bool
 
-	// IsPowerOfTwo returns true if the length of the alphabet is a power of two, optimizing random selection for efficient bit operations.
+	// IsPowerOfTwo returns true if the length of the alphabet is a power of two.
+	//
+	// When true, random index selection can be optimized using bitwise operations,
+	// such as bitwise AND with the mask, improving performance.
 	IsPowerOfTwo() bool
 
-	// LengthHint returns the hint of the intended length of the IDs to be generated.
+	// LengthHint returns the intended length of the IDs to be generated.
+	//
+	// This hint is used in calculations to adjust buffer sizes and scaling factors accordingly.
 	LengthHint() uint16
 
-	// Mask returns the bitmask used to obtain a random value from the character set.
+	// Mask returns the bitmask used to extract the necessary bits from randomly generated bytes.
+	//
+	// The mask is essential for efficiently mapping random values to valid alphabet indices,
+	// ensuring uniform distribution and preventing bias.
 	Mask() uint
 
 	// RandReader returns the source of randomness used for generating IDs.
+	//
+	// It is typically a cryptographically secure random number generator (e.g., crypto/rand.Reader).
 	RandReader() io.Reader
 
-	// RuneAlphabet returns the slice of runes used for ID generation, allowing support for multibyte characters.
+	// RuneAlphabet returns the slice of runes representing the alphabet.
+	//
+	// This is used for ID generation when the alphabet includes non-ASCII (multibyte) characters,
+	// allowing support for a wider range of characters.
 	RuneAlphabet() []rune
 
-	// ScalingFactor returns the scaling factor used to balance the alphabet size and ID length, ensuring smoother growth in buffer size calculations.
+	// ScalingFactor returns the scaling factor used to adjust the buffer size.
+	//
+	// It balances the influence of the alphabet size and the intended ID length,
+	// ensuring efficient random data generation without excessive memory usage.
 	ScalingFactor() int
 }
 
@@ -217,58 +359,54 @@ type Configuration interface {
 // It is immutable after initialization.
 type runtimeConfig struct {
 	// RandReader is the source of randomness used for generating IDs.
-	randReader io.Reader
-
-	// byteAlphabet is a slice of bytes for ASCII alphabets.
-	byteAlphabet []byte
-
-	// runeAlphabet is a slice of runes, allowing support for multibyte characters in ID generation.
-	runeAlphabet []rune
-
-	// Mask is a bitmask used to obtain a random value from the character set.
-	mask uint
-
-	// BitsNeeded represents the number of bits required to generate each character in the ID.
-	bitsNeeded uint
-
-	// BytesNeeded specifies the number of bytes required from a random source to produce the ID.
-	bytesNeeded uint
-
-	// BufferSize is the buffer size used for random byte generation.
-	bufferSize int
-
-	// BufferMultiplier defines the multiplier used to calculate the buffer size for reading random bytes, ensuring gradual and consistent scaling.
+	randReader       io.Reader
+	byteAlphabet     []byte
+	runeAlphabet     []rune
+	mask             uint
+	bitsNeeded       uint
+	bytesNeeded      uint
+	bufferSize       int
 	bufferMultiplier int
-
-	// ScalingFactor adjusts the balance between alphabet size and id length to achieve smoother scaling in buffer size calculations.
-	scalingFactor int
-
-	// BaseMultiplier is used to determine the growth rate of the buffer size, adjusted for small ID lengths to ensure balance.
-	baseMultiplier int
-
-	// AlphabetLen is the length of the alphabet, stored as an uint16.
-	alphabetLen uint16
-
-	// LengthHint the hint of the intended length of the IDs to be generated.
-	lengthHint uint16
-
-	// isASCII indicates whether the alphabet consists solely of ASCII characters.
-	isASCII bool
-
-	// IsPowerOfTwo indicates whether the length of the alphabet is a power of two, optimizing random selection.
-	isPowerOfTwo bool
+	scalingFactor    int
+	baseMultiplier   int
+	alphabetLen      uint16
+	lengthHint       uint16
+	isASCII          bool
+	isPowerOfTwo     bool
 }
 
 // Generator defines the interface for generating Nano IDs.
+// Implementations of this interface provide methods to create new IDs
+// and to read random data, supporting both ID generation and direct random byte access.
 type Generator interface {
-	// New returns a new Nano ID of the specified length.
+	// New generates and returns a new Nano ID as a string with the specified length.
+	// The 'length' parameter determines the number of characters in the generated ID.
+	// Returns an error if the ID generation fails due to issues like insufficient randomness.
+	//
+	// Usage:
+	//   id, err := generator.New(21)
+	//   if err != nil {
+	//       // handle error
+	//   }
+	//   fmt.Println("Generated ID:", id)
 	New(length int) (string, error)
 
-	// Read reads up to len(p) bytes into p. It returns the number of bytes read.
+	// Read fills the provided byte slice 'p' with random data, reading up to len(p) bytes.
+	// Returns the number of bytes read and any error encountered during the read operation.
+	//
+	// Implements the io.Reader interface, allowing the Generator to be used wherever an io.Reader is accepted.
+	// This can be useful for directly obtaining random bytes or integrating with other components that consume random data.
+	//
+	// Usage:
+	//   buffer := make([]byte, 21)
+	//   n, err := generator.Read(buffer)
+	//   if err != nil {
+	//       // handle error
+	//   }
+	//   fmt.Printf("Read %d random bytes\n", n)
 	Read(p []byte) (n int, err error)
 }
 
-// generator implements the Generator interface.
 type generator struct {
 	config          *runtimeConfig
 	randomBytesPool *sync.Pool
@@ -277,38 +415,62 @@ type generator struct {
 }
 
 // NewGenerator creates a new Generator with buffer pooling enabled.
-// It accepts variadic Option parameters to configure the Generator.
-// It returns an error if the alphabet is invalid or contains invalid UTF-8 characters.
+// It accepts variadic Option parameters to configure the Generator's behavior.
+// The function initializes the configuration with default values, applies any provided options,
+// validates the configuration, constructs the runtime configuration, initializes buffer pools,
+// and returns a configured Generator or an error if the configuration is invalid.
+//
+// Parameters:
+//   - options ...Option: A variadic list of Option functions to customize the Generator's configuration.
+//
+// Returns:
+//   - Generator: An instance of the Generator interface configured with the specified options.
+//   - error: An error object if the Generator could not be created due to invalid configuration.
+//
+// Error Conditions:
+//   - ErrInvalidLength: Returned if the provided LengthHint is less than 1.
+//   - ErrNilRandReader: Returned if the provided RandReader is nil.
+//   - ErrInvalidAlphabet: Returned if the alphabet is invalid or contains invalid UTF-8 characters.
+//   - ErrNonUTF8Alphabet: Returned if the alphabet contains non-UTF-8 characters.
+//   - ErrDuplicateCharacters: Returned if the alphabet contains duplicate characters.
 func NewGenerator(options ...Option) (Generator, error) {
-	// Initialize ConfigOptions with default values
+	// Initialize ConfigOptions with default values.
+	// These defaults include the default alphabet, the default random reader,
+	// and the default length hint for ID generation.
 	configOpts := &ConfigOptions{
 		Alphabet:   DefaultAlphabet,
-		RandReader: rand.Reader,
+		RandReader: rand.Reader, // Typically crypto/rand.Reader for secure randomness
 		LengthHint: DefaultLength,
 	}
 
-	// Apply provided options
+	// Apply provided options to customize the configuration.
+	// Each Option function modifies the ConfigOptions accordingly.
 	for _, opt := range options {
 		opt(configOpts)
 	}
 
-	// ensure LengthHint is within bounds
+	// Ensure LengthHint is within valid bounds.
+	// LengthHint must be at least 1 to generate meaningful IDs.
 	if configOpts.LengthHint < 1 {
 		return nil, ErrInvalidLength
 	}
 
-	// ensure reader is not nil
+	// Ensure RandReader is not nil.
+	// A valid randomness source is essential for generating secure IDs.
 	if configOpts.RandReader == nil {
 		return nil, ErrNilRandReader
 	}
 
-	// Validate and construct RuntimeConfig
+	// Validate and construct RuntimeConfig based on the current ConfigOptions.
+	// buildRuntimeConfig performs validation on the alphabet and computes necessary
+	// parameters for efficient ID generation.
 	runtimeConfig, err := buildRuntimeConfig(configOpts)
 	if err != nil {
 		return nil, err
 	}
 
-	// Initialize buffer pools based on Rune handling
+	// Initialize a pool of byte slices for random data generation.
+	// The pool helps in reusing memory buffers, reducing garbage collection overhead.
 	randomBytesPool := &sync.Pool{
 		New: func() interface{} {
 			buf := make([]byte, runtimeConfig.bufferSize*runtimeConfig.bufferMultiplier)
@@ -316,7 +478,9 @@ func NewGenerator(options ...Option) (Generator, error) {
 		},
 	}
 
-	// Initialize ID buffer pool with *([]byte)
+	// Initialize a pool for ASCII ID buffers.
+	// This pool is used when the alphabet consists solely of ASCII characters,
+	// allowing for efficient byte-based ID construction.
 	asciiIDPool := &sync.Pool{
 		New: func() interface{} {
 			buf := make([]byte, 0, runtimeConfig.bufferSize*runtimeConfig.bufferMultiplier)
@@ -324,7 +488,9 @@ func NewGenerator(options ...Option) (Generator, error) {
 		},
 	}
 
-	// Initialize Rune buffer pool with *[]rune
+	// Initialize a pool for Unicode ID buffers.
+	// This pool is utilized when the alphabet includes non-ASCII characters,
+	// enabling rune-based ID construction to support multibyte characters.
 	unicodeIDPool := &sync.Pool{
 		New: func() interface{} {
 			buf := make([]rune, 0, runtimeConfig.bufferSize*runtimeConfig.bufferMultiplier)
@@ -332,6 +498,9 @@ func NewGenerator(options ...Option) (Generator, error) {
 		},
 	}
 
+	// Return the configured Generator instance.
+	// The generator holds references to the runtime configuration and buffer pools,
+	// facilitating efficient and thread-safe ID generation.
 	return &generator{
 		config:          runtimeConfig,
 		randomBytesPool: randomBytesPool,
@@ -340,7 +509,6 @@ func NewGenerator(options ...Option) (Generator, error) {
 	}, nil
 }
 
-// buildRuntimeConfig constructs the RuntimeConfig from ConfigOptions.
 func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 	if len(opts.Alphabet) == 0 {
 		return nil, ErrInvalidAlphabet
@@ -376,9 +544,10 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 		seenRunes[r] = true
 	}
 
+	// The length of the alphabet, representing the number of unique characters available for ID generation.
 	alphabetLen := uint16(len(alphabetRunes))
 
-	// Check alphabet length constraints
+	// Ensure the alphabet length adheres to predefined constraints.
 	if alphabetLen > MaxAlphabetLength {
 		return nil, ErrAlphabetTooLong
 	}
@@ -386,32 +555,46 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 		return nil, ErrAlphabetTooShort
 	}
 
-	// Calculate BitsNeeded and Mask
+	// Calculate the minimum number of bits needed to represent all indices of the alphabet.
+	// This is essential for generating random numbers that map uniformly to the alphabet indices.
+	// The calculation uses bits.Len to find the position of the highest set bit in alphabetLen - 1.
 	bitsNeeded := uint(bits.Len(uint(alphabetLen - 1)))
 	if bitsNeeded == 0 {
 		return nil, ErrInvalidAlphabet
 	}
 
+	// Create a bitmask that isolates the bits needed to represent the alphabet indices.
+	// The mask is used to efficiently extract valid bits from randomly generated bytes.
 	mask := uint((1 << bitsNeeded) - 1)
 
 	// TODO: Scale bitsNeeded based on length hint (???)
 	//adjustedBitsNeeded := bitsNeeded + uint(math.Log2(float64(opts.LengthHint)))
 
-	// Ensures that any fractional number of bits rounds up to the nearest whole byte.
+	// Determine the number of bytes required to store 'bitsNeeded' bits, rounding up to the nearest byte.
 	bytesNeeded := (bitsNeeded + 7) / 8
 
+	// Check if the alphabet length is a power of two, allowing optimization of modulus operations using bitwise AND.
+	// This optimization improves performance during random index generation.
 	isPowerOfTwo := (alphabetLen & (alphabetLen - 1)) == 0
 
-	// Adjust the calculation for the baseMultiplier to achieve smooth growth based on id length and alphabet length
+	// Calculate a base multiplier for buffer size based on the length hint.
+	// The length hint indicates the desired length of the generated IDs.
+	// Using logarithm ensures the buffer scales appropriately with the ID length.
 	baseMultiplier := int(math.Ceil(math.Log2(float64(opts.LengthHint) + 2.0)))
 
-	// Modify the scaling factor to balance alphabet size and id length for smoother scaling
+	// Determine a scaling factor to adjust the buffer size.
+	// This factor ensures the buffer is sufficiently large to accommodate the randomness needed,
+	// balancing between performance (less frequent random reads) and memory usage.
 	scalingFactor := int(math.Max(3.0, float64(alphabetLen)/math.Pow(float64(opts.LengthHint), 0.6)))
 
-	// Refine bufferMultiplier calculation for a smooth scaling pattern
+	// Compute the buffer multiplier by adding the base multiplier and a fraction of the scaling factor.
+	// This combination fine-tunes the buffer size, considering both the ID length and the alphabet size.
 	bufferMultiplier := baseMultiplier + int(math.Ceil(float64(scalingFactor)/1.5))
 
-	// Recalculate bufferSize to ensure consistent and smooth scaling
+	// Calculate the total buffer size in bytes for generating random data.
+	// The buffer size is influenced by the buffer multiplier, bytes needed per character,
+	// and a factor that scales with the length hint.
+	// A larger buffer reduces the number of calls to the random number generator, improving efficiency.
 	bufferSize := bufferMultiplier * int(bytesNeeded) * int(math.Max(1.5, float64(opts.LengthHint)/10.0))
 
 	return &runtimeConfig{
@@ -469,7 +652,30 @@ func (g *generator) processRandomBytes(randomBytes []byte, i int) uint {
 	}
 }
 
-// New creates a new Nano ID of the specified length.
+// New generates a new Nano ID string of the specified length.
+//
+// It validates the provided length to ensure it is a positive integer.
+// Depending on the generator's configuration, it generates the ID using the appropriate method.
+//
+// Parameters:
+//   - length int: The desired number of characters in the generated Nano ID.
+//
+// Returns:
+//   - string: The generated Nano ID.
+//   - error: An error object if the generation fails due to invalid input.
+//
+// Error Conditions:
+//   - ErrInvalidLength: Returned if the provided length is less than or equal to zero.
+//
+// Usage Example:
+//
+//	id, err := DefaultGenerator.New(21)
+//	if err != nil {
+//	    // handle error
+//	}
+//	fmt.Println("Generated ID:", id)
+//
+//go:inline
 func (g *generator) New(length int) (string, error) {
 	if length <= 0 {
 		return "", ErrInvalidLength
@@ -481,7 +687,6 @@ func (g *generator) New(length int) (string, error) {
 	return g.newUnicode(length)
 }
 
-// newASCII generates a new Nano ID using the ASCII alphabet.
 func (g *generator) newASCII(length int) (string, error) {
 	// Retrieve a buffer from the pool
 	idPtr := g.asciiIDPool.Get().(*[]byte)
@@ -664,6 +869,8 @@ func (g *generator) newUnicode(length int) (string, error) {
 // nothing happened; in particular it does not indicate EOF.
 //
 // Implementations must not retain p.
+//
+//go:inline
 func (g *generator) Read(p []byte) (n int, err error) {
 	if len(p) == 0 {
 		return 0, nil
