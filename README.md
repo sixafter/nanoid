@@ -10,6 +10,8 @@
 
 A simple, fast, and efficient Go implementation of [Nano ID](https://github.com/ai/nanoid), a tiny, secure, URL-friendly, unique string ID generator.
 
+---
+
 ## Features
 
 - **Short & Unique IDs**: Generates compact and collision-resistant identifiers.
@@ -27,6 +29,8 @@ A simple, fast, and efficient Go implementation of [Nano ID](https://github.com/
   - The Nano ID generator now satisfies the `io.Reader` interface, allowing it to be used interchangeably with any `io.Reader` implementations. 
   - Developers can now utilize the Nano ID generator in contexts such as streaming data processing, pipelines, and other I/O-driven operations.
 
+---
+
 ## Installation
 
 To install the package, use:
@@ -35,13 +39,13 @@ To install the package, use:
 go get -u github.com/sixafter/nanoid
 ```
 
-## Importing the Package
-
 To use the NanoID package in your Go project, import it as follows:
 
 ```go
 import "github.com/sixafter/nanoid"
 ```
+
+---
 
 ## Usage
 
@@ -168,144 +172,17 @@ func main() {
 		return
 	}
 
-	fmt.Println("Custom Nano ID:", id)
+	fmt.Println("Generated ID:", id)
 }
 ```
 
 **Output**"
 
 ```bash
-Custom Nano ID: G5J8K2M0QZ
+Generated ID: G5J8K2M0QZ
 ```
 
-## Functions
-
-### `New`
-
-Generates a Nano ID with the specified length using the default generator.
-
-```go
-func New() (string, error)
-```
-
-* Returns:
-    * `string`: The generated Nano ID.
-    * `error`: An error if the generation fails.
-
-### `NewWithLength`
-
-Generates a Nano ID with the specified length using the default generator.
-
-```go
-func NewWithLength(length int) (string, error)
-```
-
-* Parameters:
-    * `length` (`int`): The desired length of the Nano ID. Must be a positive integer.
-* Returns:
-    * `string`: The generated Nano ID.
-    * `error`: An error if the generation fails.
-
-### `Must`
-
-Generates a Nano ID with the specified length using the default generator.
-
-```go
-func Must() string
-```
-
-* Returns:
-    * `string`: The generated Nano ID.
-
-### `MustWithLength`
-
-Generates a Nano ID with the specified length using the default generator.
-
-```go
-func NewWithLength(length int) string
-```
-
-* Parameters:
-    * `length` (`int`): The desired length of the Nano ID. Must be a positive integer.
-* Returns:
-    * `string`: The generated Nano ID.
-
-### `NewGenerator`
-
-Creates a new Nano ID generator with a custom alphabet and random source.
-
-```go
-func NewGenerator(options ...Option) (Generator, error)
-```
-
-* Parameters:
-  * `options` (`Option`): Variadic Option parameters to configure the `Generator`.  Options are:
-    * `WithAlphabet`: Sets a custom alphabet for the `Generator`, allowing the user to specify which characters will be used in the generated IDs.
-    * `WithRandReader`: Sets a custom random reader for the `Generator`, enabling the use of a specific source of randomness.
-    * `WithLengthHint`: Sets a hint for the intended length of the generated IDs, helping to optimize internal allocations based on the expected ID size.
-* Returns:
-  * `Generator`: A new Nano ID generator. 
-  * `error`: An error if the configuration is invalid.
-
-### `Read`
-
-Generates a Nano ID with the specified length using the default generator.
-
-```go
-func Read(p []byte) (n int, err error)
-```
-
-* Parameters:
-    * `p` (`[]byte`): The byte slice to store the generated ID.
-* Returns:
-    * `n`: The actual number of bytes read.
-    * `error`: An error if the generation fails.
-
-### `Generator` Interface
-
-Defines the method to generate Nano IDs.
-
-```go
-// Generator defines the interface for generating Nano IDs.
-type Generator interface {
-    // New returns a new Nano ID of the specified length.
-	New(length int) (string, error)
-
-    // Read reads up to len(p) bytes into p. It returns the number of bytes read.
-    Read(p []byte) (n int, err error)
-}
-```
-
-### `Configuration` Interface
-
-Provides access to the generator's configuration.
-
-```go
-// Configuration defines the interface for retrieving generator configuration.
-type Configuration interface {
-    // Config returns the configuration of the generator.
-	Config() Config
-}
-```
-
-## Error Handling
-
-The nanoid module defines several error types to handle various failure scenarios:
-* `ErrDuplicateCharacters`: Returned when the alphabet contains duplicate characters.
-* `ErrExceededMaxAttempts`: Returned when the generation process exceeds the maximum number of attempts.
-* `ErrInvalidLength`: Returned when a non-positive Nano ID length is specified. 
-* `ErrInvalidAlphabet`: Returned when an alphabet is invalid; e.g. due to length constraints.
-* `ErrNonUTF8Alphabet`: Returned when an alphabet contains invalid UTF-8 characters.
-* `ErrAlphabetTooShort`: Returned when alphabet length is less than 2 characters.
-* `ErrAlphabetTooLong`: Returned when an alphabet length exceeds 256 characters.
-* `ErrNilRandReader`: Returned when a nil random reader is provided.
-
-## Constants
-
-* `DefaultAlphabet`: The default alphabet used for ID generation: `_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`
-* `DefaultLength`: The default length of the generated ID: `21`
-* `MinAlphabetLength`: The minimum allowed length for the alphabet: `2`
-* `MaxAlphabetLength`: The maximum allowed length for the alphabet: `256`
+---
 
 ## Performance Optimizations
 
@@ -511,13 +388,17 @@ ok      github.com/sixafter/nanoid      260.726s
 * `B/op`: Bytes allocated per operation. Lower values indicate more memory-efficient code.
 * `allocs/op`: Number of memory allocations per operation. Fewer allocations generally lead to better performance.
 
-## Nano ID Generation
+---
+
+## ID Generation
 
 Nano ID generates unique identifiers based on the following:
 
 1. **Random Byte Generation**: Nano ID generates a sequence of random bytes using a secure random source (e.g., `crypto/rand.Reader`). 
 2. **Mapping to Alphabet**: Each random byte is mapped to a character in a predefined alphabet to form the final ID. 
 3. **Uniform Distribution**: To ensure that each character in the alphabet has an equal probability of being selected, Nano ID employs techniques to avoid bias, especially when the alphabet size isn't a power of two.
+
+---
 
 ## Custom Alphabet Constraints
 
@@ -527,22 +408,21 @@ Nano ID generates unique identifiers based on the following:
 2. Uniqueness of Characters:
    * All Characters Must Be Unique. Duplicate characters in the alphabet can introduce biases in ID generation and compromise the randomness and uniqueness of the IDs. The generator enforces uniqueness by checking for duplicates during initialization. If duplicates are detected, it will return an `ErrDuplicateCharacters` error. 
 3. Character Encoding:
-   * Support for Unicode: The generator accepts alphabets containing Unicode characters, allowing you to include a wide range of symbols, emojis, or characters from various languages.
-4. Power-of-Two Considerations:
-   * Mask Calculation: The generator calculates a mask based on the number of bits required to represent the alphabet length minus one.
-    ```go
-    k := bits.Len(uint(alphabetLen - 1))
-    mask := byte((1 << k) - 1)
-    ```
-   * Implications: While the alphabet length doesn't need to be a power of two, the mask is used to efficiently reduce bias in random number generation. The implementation ensures that each character in the alphabet has an equal probability of being selected by using this mask.
+   * Support for ASCII and Unicode: The generator accepts alphabets containing Unicode characters, allowing you to include a wide range of symbols, emojis, or characters from various languages.
+
+---
 
 ## Determining Collisions
 
 To determine the practical length for a NanoID for your use cases, see the collision time calculator [here](https://sixafter.github.io/nanoid/).
 
+---
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING](CONTRIBUTING.md)
+
+---
 
 ## License
 
