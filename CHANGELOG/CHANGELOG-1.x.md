@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
-- **DEFECT:** Removed unnecessary `//go:inline` directives that we left in inadvertently.
+- **DEFECT:** Removed unnecessary `//go:inline` directives that were left in inadvertently.
 ### Security
 
 ---
