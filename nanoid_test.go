@@ -214,6 +214,7 @@ func TestGetConfig(t *testing.T) {
 	is.Equal(rand.Reader, runtimeConfig.RandReader(), "Config.RandReader should be rand.Reader by default")
 	is.NotNil(runtimeConfig.RuneAlphabet(), "Config.RuneAlphabet should not be nil")
 	is.Positive(runtimeConfig.ScalingFactor(), "Config.ScalingFactor should be a positive integer")
+	is.Positive(runtimeConfig.MaxBytesPerRune(), "Config.MaxBytesPerRune should be a positive integer")
 }
 
 // TestUniqueness tests that multiple generated IDs are unique.
