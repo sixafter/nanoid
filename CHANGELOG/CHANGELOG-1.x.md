@@ -16,6 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
+## [1.16.0] - 2024-NOV-09
+
+### Added
+### Changed
+- **FEATURE:** Unicode Alphabet Optimization:
+  - Reduced bytes per operation (`B/op`) by up to 33% for Unicode-based ID generation by introducing dynamic buffer sizing.
+  - Reduced Execution Time (`ns/op`): Achieved up to 12.2% speed improvement in specific Unicode benchmark scenarios.
+- **DEBT:** ASCII Alphabet Optimization:
+  - Ensured consistent bytes per operation (`B/op`) aligned with ID lengths for ASCII alphabets, preserving memory efficiency without increasing allocations.
+  - Reduced Execution Time (`ns/op`): Achieved up to 8.5% speed improvement in specific ASCII benchmark scenarios.
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.15.0] - 2024-NOV-07
 
 ### Added
@@ -333,7 +349,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.15.0..HEAD
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.16.0..HEAD
+[1.16.0]: https://github.com/sixafter/nanoid/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/sixafter/nanoid/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/sixafter/nanoid/compare/v1.13.4...v1.14.0
 [1.13.4]: https://github.com/sixafter/nanoid/compare/v1.13.3...v1.13.4
