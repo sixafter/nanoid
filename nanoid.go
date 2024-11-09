@@ -700,8 +700,6 @@ func (g *generator) processRandomBytes(randomBytes []byte, i int) uint {
 //	    // handle error
 //	}
 //	fmt.Println("Generated ID:", id)
-//
-//go:inline
 func (g *generator) New(length int) (string, error) {
 	if length <= 0 {
 		return "", ErrInvalidLength
@@ -850,8 +848,6 @@ func (g *generator) newUnicode(length int) (string, error) {
 // nothing happened; in particular it does not indicate EOF.
 //
 // Implementations must not retain p.
-//
-//go:inline
 func (g *generator) Read(p []byte) (n int, err error) {
 	if len(p) == 0 {
 		return 0, nil
@@ -871,8 +867,6 @@ func (g *generator) Read(p []byte) (n int, err error) {
 //
 // It is immutable after initialization and provides all the necessary
 // parameters for generating unique IDs efficiently and securely.
-//
-//go:inline
 func (g *generator) Config() Config {
 	return g.config
 }
@@ -881,8 +875,6 @@ func (g *generator) Config() Config {
 //
 // This length determines the range of indices for selecting characters during ID generation.
 // Using uint16 allows for alphabets up to 65,535 characters.
-//
-//go:inline
 func (r runtimeConfig) AlphabetLen() uint16 {
 	return r.alphabetLen
 }
@@ -891,8 +883,6 @@ func (r runtimeConfig) AlphabetLen() uint16 {
 //
 // It is based on the logarithm of the intended ID length (LengthHint) plus 2.
 // This helps scale the buffer size appropriately with different ID lengths.
-//
-//go:inline
 func (r runtimeConfig) BaseMultiplier() int {
 	return r.baseMultiplier
 }
@@ -900,8 +890,6 @@ func (r runtimeConfig) BaseMultiplier() int {
 // BitsNeeded returns the minimum number of bits required to represent all possible indices of the alphabet.
 //
 // This value is crucial for generating random numbers that map uniformly to the alphabet indices without bias.
-//
-//go:inline
 func (r runtimeConfig) BitsNeeded() uint {
 	return r.bitsNeeded
 }
@@ -910,8 +898,6 @@ func (r runtimeConfig) BitsNeeded() uint {
 //
 // It adds a fraction of the scaling factor to the base multiplier to fine-tune the buffer size,
 // considering both the ID length and the alphabet size.
-//
-//go:inline
 func (r runtimeConfig) BufferMultiplier() int {
 	return r.bufferMultiplier
 }
@@ -920,8 +906,6 @@ func (r runtimeConfig) BufferMultiplier() int {
 //
 // The buffer size is calculated to balance efficiency and performance,
 // minimizing calls to the random number generator by reading larger chunks of random data at once.
-//
-//go:inline
 func (r runtimeConfig) BufferSize() int {
 	return r.bufferSize
 }
@@ -930,8 +914,6 @@ func (r runtimeConfig) BufferSize() int {
 // used when the alphabet consists solely of ASCII characters.
 //
 // For non-ASCII alphabets, this returns nil, and RuneAlphabet is used instead.
-//
-//go:inline
 func (r runtimeConfig) ByteAlphabet() []byte {
 	return r.byteAlphabet
 }
@@ -939,8 +921,6 @@ func (r runtimeConfig) ByteAlphabet() []byte {
 // BytesNeeded returns the number of bytes required to store the BitsNeeded for each character in the ID.
 //
 // It rounds up BitsNeeded to the nearest byte, ensuring sufficient space for random data generation.
-//
-//go:inline
 func (r runtimeConfig) BytesNeeded() uint {
 	return r.bytesNeeded
 }
@@ -948,8 +928,6 @@ func (r runtimeConfig) BytesNeeded() uint {
 // IsASCII returns true if the alphabet consists solely of ASCII characters.
 //
 // This allows for optimization in processing, using bytes instead of runes for ID generation.
-//
-//go:inline
 func (r runtimeConfig) IsASCII() bool {
 	return r.isASCII
 }
@@ -958,8 +936,6 @@ func (r runtimeConfig) IsASCII() bool {
 //
 // When true, random index selection can be optimized using bitwise operations,
 // such as bitwise AND with the mask, improving performance.
-//
-//go:inline
 func (r runtimeConfig) IsPowerOfTwo() bool {
 	return r.isPowerOfTwo
 }
@@ -967,8 +943,6 @@ func (r runtimeConfig) IsPowerOfTwo() bool {
 // LengthHint returns the intended length of the IDs to be generated.
 //
 // This hint is used in calculations to adjust buffer sizes and scaling factors accordingly.
-//
-//go:inline
 func (r runtimeConfig) LengthHint() uint16 {
 	return r.lengthHint
 }
@@ -977,8 +951,6 @@ func (r runtimeConfig) LengthHint() uint16 {
 //
 // The mask is essential for efficiently mapping random values to valid alphabet indices,
 // ensuring uniform distribution and preventing bias.
-//
-//go:inline
 func (r runtimeConfig) Mask() uint {
 	return r.mask
 }
@@ -986,8 +958,6 @@ func (r runtimeConfig) Mask() uint {
 // RandReader returns the source of randomness used for generating IDs.
 //
 // It is typically a cryptographically secure random number generator (e.g., crypto/rand.Reader).
-//
-//go:inline
 func (r runtimeConfig) RandReader() io.Reader {
 	return r.randReader
 }
@@ -996,8 +966,6 @@ func (r runtimeConfig) RandReader() io.Reader {
 //
 // This is used for ID generation when the alphabet includes non-ASCII (multibyte) characters,
 // allowing support for a wider range of characters.
-//
-//go:inline
 func (r runtimeConfig) RuneAlphabet() []rune {
 	return r.runeAlphabet
 }
@@ -1006,16 +974,12 @@ func (r runtimeConfig) RuneAlphabet() []rune {
 //
 // It balances the influence of the alphabet size and the intended ID length,
 // ensuring efficient random data generation without excessive memory usage.
-//
-//go:inline
 func (r runtimeConfig) ScalingFactor() int {
 	return r.scalingFactor
 }
 
 // MaxBytesPerRune represents the maximum number of bytes required to encode
 // any rune in the alphabet using UTF-8 encoding.
-//
-//go:inline
 func (r runtimeConfig) MaxBytesPerRune() int {
 	return r.maxBytesPerRune
 }

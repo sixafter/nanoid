@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
+## [1.16.1] - 2024-NOV-09
+
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+- **DEFECT:** Removed unnecessary `//go:inline` directives that were left in inadvertently.
+### Security
+
+---
 ## [1.16.0] - 2024-NOV-09
 
 ### Added
@@ -349,7 +360,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.16.0..HEAD
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.16.1..HEAD
+[1.16.1]: https://github.com/sixafter/nanoid/compare/v1.16.0...v1.16.1
 [1.16.0]: https://github.com/sixafter/nanoid/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/sixafter/nanoid/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/sixafter/nanoid/compare/v1.13.4...v1.14.0
