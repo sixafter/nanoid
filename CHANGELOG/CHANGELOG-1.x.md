@@ -16,6 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
+## [1.17.0] - 2024-NOV-11
+
+### Added
+## [Unreleased]
+-- **FEATURE:** Introduced new Psudo Random Number Generator (PRNG) Reader based on the `ChaCha20` stream cypher to enhance random data generation capabilities.
+  - The `crypto/rand.Reader` generates the key and nonce for each instance.
+  - Reduced `ns/op` by approximately **93%** (e.g.,  ~323 `ns/op` to ~23 `ns/op` for a default ID of length 21).
+  - Allocations per operation remain consistent at **1 allocs/op**. The new `io.Reader` maintains zero `allocs/op`.
+
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.16.1] - 2024-NOV-09
 
 ### Added
@@ -360,7 +376,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.16.1..HEAD
+[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.17.0..HEAD
+[1.17.0]: https://github.com/sixafter/nanoid/compare/v1.16.1...v1.17.0
 [1.16.1]: https://github.com/sixafter/nanoid/compare/v1.16.0...v1.16.1
 [1.16.0]: https://github.com/sixafter/nanoid/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/sixafter/nanoid/compare/v1.14.0...v1.15.0

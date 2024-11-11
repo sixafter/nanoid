@@ -8,6 +8,7 @@
 // use in generating random bytes for Nano IDs.
 //
 // This package is part of the experimental "x" modules for nanoid and may be subject to change.
+
 package prng
 
 import (

@@ -17,7 +17,7 @@ Please see the [godoc](https://pkg.go.dev/github.com/sixafter/nanoid) for detail
 ## Features
 
 - **Short & Unique IDs**: Generates compact and collision-resistant identifiers.
-- **Cryptographically Secure**: Utilizes Go's `crypto/rand` package for generating cryptographically secure random numbers. This guarantees that the generated IDs are both unpredictable and suitable for security-sensitive applications.
+- **Cryptographically Secure**: Utilizes Go's `crypto/rand` and `x/crypto/chacha20` stream cypher package for generating cryptographically secure random numbers. This guarantees that the generated IDs are both unpredictable and suitable for security-sensitive applications.
 - **Customizable**: 
   - Define your own set of characters for ID generation with a minimum length of 2 characters and maximum length of 256 characters.
   - Define your own random number generator.
