@@ -184,6 +184,47 @@ func main() {
 Generated ID: G5J8K2M0QZ
 ```
 
+### Customizing the Random Number Generator
+
+You can customize the random number generator by using the WithRandReader option and generate an ID.
+
+```go
+package main
+
+import (
+	"crypto/rand"
+	"fmt"
+
+	"github.com/sixafter/nanoid"
+)
+
+func main() {
+	// Create a new generator with custom random number generator
+	gen, err := nanoid.NewGenerator(
+		nanoid.WithRandReader(rand.Reader),
+	)
+	if err != nil {
+		fmt.Println("Error creating Nano ID generator:", err)
+		return
+	}
+
+	// Generate a Nano ID using the custom generator
+	id, err := gen.New(21)
+	if err != nil {
+		fmt.Println("Error generating Nano ID:", err)
+		return
+	}
+
+	fmt.Println("Generated ID:", id)
+}
+```
+
+**Output**"
+
+```bash
+Generated ID: A8I8K3J0QY
+```
+
 ---
 
 ## Performance Optimizations
