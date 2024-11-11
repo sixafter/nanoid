@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 ## [Unreleased]
--- **FEATURE:** Introduced new Psudo Random Number Generator (PRNG) Reader based on the `ChaCha20` stream cypher to enhance random data generation capabilities.
+-- **FEATURE:** Introduced new Psudo-Random Number Generator (PRNG) Reader based on the `ChaCha20` stream cypher to enhance random data generation capabilities.
   - The `crypto/rand.Reader` generates the key and nonce for each instance.
   - Reduced `ns/op` by approximately **93%** (e.g., ~323 `ns/op` to ~23 `ns/op` for a default ID of length 21).
   - Allocations per operation remain consistent at **1 allocs/op**. The new `io.Reader` maintains zero `allocs/op`.
