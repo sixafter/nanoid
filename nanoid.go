@@ -6,7 +6,6 @@
 package nanoid
 
 import (
-	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -17,6 +16,8 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/sixafter/nanoid/x/crypto/prng"
 )
 
 // DefaultGenerator is a global, shared instance of a Nano ID generator. It is safe for concurrent use.
@@ -28,7 +29,6 @@ func init() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize DefaultGenerator: %v", err))
 	}
-
 }
 
 // ConfigOptions holds the configurable options for the Generator.
@@ -457,7 +457,7 @@ func NewGenerator(options ...Option) (Generator, error) {
 	// and the default length hint for ID generation.
 	configOpts := &ConfigOptions{
 		Alphabet:   DefaultAlphabet,
-		RandReader: rand.Reader, // Typically crypto/rand.Reader for secure randomness
+		RandReader: prng.Reader,
 		LengthHint: DefaultLength,
 	}
 
