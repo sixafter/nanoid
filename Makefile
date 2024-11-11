@@ -27,7 +27,7 @@ deps: ## Get the dependencies and vendor
 
 .PHONY: test
 test: ## Execute unit tests
-	$(GO_TEST) -v
+	$(GO_TEST) -v ./...
 
 .PHONY: bench
 bench: ## Execute benchmark tests
