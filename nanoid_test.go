@@ -6,7 +6,6 @@
 package nanoid
 
 import (
-	"crypto/rand"
 	"errors"
 	"io"
 	"math/bits"
@@ -14,6 +13,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/sixafter/nanoid/x/crypto/prng"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -211,7 +211,7 @@ func TestGetConfig(t *testing.T) {
 	is.Positive(runtimeConfig.BytesNeeded(), "Config.BytesNeeded should be a positive integer")
 	is.Equal(true, runtimeConfig.IsASCII(), "Config.IsASCII should be true by default")
 	is.Positive(runtimeConfig.LengthHint(), "Config.LengthHint should be a positive integer")
-	is.Equal(rand.Reader, runtimeConfig.RandReader(), "Config.RandReader should be rand.Reader by default")
+	is.Equal(prng.Reader, runtimeConfig.RandReader(), "Config.RandReader should be rand.Reader by default")
 	is.NotNil(runtimeConfig.RuneAlphabet(), "Config.RuneAlphabet should not be nil")
 	is.Positive(runtimeConfig.ScalingFactor(), "Config.ScalingFactor should be a positive integer")
 	is.Positive(runtimeConfig.MaxBytesPerRune(), "Config.MaxBytesPerRune should be a positive integer")
