@@ -208,8 +208,6 @@ type runtimeConfig struct {
 type generator struct {
 	config          *runtimeConfig
 	randomBytesPool *sync.Pool
-	//asciiIDPool     *sync.Pool
-	//unicodeIDPool   *sync.Pool
 	idPool *sync.Pool
 }
 
