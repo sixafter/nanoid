@@ -279,7 +279,7 @@ BenchmarkGenerator_Read_Concurrent/Concurrency_8-16                	71823493	   
 BenchmarkGenerator_Read_Concurrent/Concurrency_16-16               	74829878	        14.44 ns/op	      24 B/op	       1 allocs/op
 BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen8-16             	26380341	        45.18 ns/op	       8 B/op	       1 allocs/op
 BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen16-16            	19585760	        62.57 ns/op	      16 B/op	       1 allocs/op
-BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen21-16            	^[16327316	        71.70 ns/op	      24 B/op	       1 allocs/op
+BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen21-16            	16327316	        71.70 ns/op	      24 B/op	       1 allocs/op
 BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen32-16            	12858915	        92.76 ns/op	      32 B/op	       1 allocs/op
 BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen64-16            	 7864554	       152.7 ns/op	      64 B/op	       1 allocs/op
 BenchmarkNanoIDGeneration/ASCII_AlphabetLen2/IDLen128-16           	 4521963	       263.0 ns/op	     128 B/op	       1 allocs/op
