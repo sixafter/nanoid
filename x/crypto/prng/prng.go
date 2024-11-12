@@ -5,9 +5,9 @@
 
 // Package prng provides a cryptographically secure pseudo-random number generator (PRNG)
 // that implements the io.Reader interface. It is designed for high-performance, concurrent
-// use in generating random bytes for Nano IDs.
+// use in generating random bytes.
 //
-// This package is part of the experimental "x" modules for nanoid and may be subject to change.
+// This package is part of the experimental "x" modules and may be subject to change.
 
 package prng
 
