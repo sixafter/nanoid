@@ -366,20 +366,3 @@ func TestPRNG_ReadConsistency(t *testing.T) {
 		}
 	}
 }
-
-// TestPRNG_ReadErrorScenario simulates a read error by configuring the Reader to use a pool
-// that always returns an errorPRNG instance. This ensures that the application correctly
-// handles read failures.
-func TestPRNG_ReadErrorScenario(t *testing.T) {
-	t.Parallel() // Enable parallel execution of this test
-
-	// Since newPoolReader has been removed, we cannot inject a custom pool.
-	// Instead, we can temporarily modify the Reader's behavior if possible.
-	// If Reader is a global variable, this approach might not be safe.
-	// Alternatively, consider refactoring the Reader to allow dependency injection for better testability.
-
-	// Placeholder for error scenario testing.
-	// Implementing this requires modifications to the prng package to support injecting
-	// a mock or error-producing Reader. Without such modifications, it's not feasible.
-	t.Skip("ReadErrorScenario test is skipped because dependency injection is not supported.")
-}
