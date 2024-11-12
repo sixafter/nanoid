@@ -209,7 +209,7 @@ func main() {
 	}
 
 	// Generate a Nano ID using the custom generator
-	id, err := gen.New(21)
+	id, err := gen.New(nanoid.DefaultLength)
 	if err != nil {
 		fmt.Println("Error generating Nano ID:", err)
 		return
@@ -469,4 +469,3 @@ Contributions are welcome. See [CONTRIBUTING](CONTRIBUTING.md)
 ## License
 
 This project is licensed under the [Apache 2.0 License](https://choosealicense.com/licenses/apache-2.0/). See [LICENSE](LICENSE) file.
-
