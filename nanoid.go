@@ -206,9 +206,9 @@ type runtimeConfig struct {
 }
 
 type generator struct {
-	config          *runtimeConfig
-	randomBytesPool *sync.Pool
-	idPool *sync.Pool
+	config      *runtimeConfig
+	entropyPool *sync.Pool
+	idPool      *sync.Pool
 }
 
 // New generates a new Nano ID using the default length specified by `DefaultLength`.
@@ -487,7 +487,7 @@ func NewGenerator(options ...Option) (Generator, error) {
 
 	// Initialize a pool of byte slices for random data generation.
 	// The pool helps in reusing memory buffers, reducing garbage collection overhead.
-	randomBytesPool := &sync.Pool{
+	entropyPool := &sync.Pool{
 		New: func() interface{} {
 			buf := make([]byte, config.bufferSize*config.bufferMultiplier)
 			return &buf
@@ -515,9 +515,9 @@ func NewGenerator(options ...Option) (Generator, error) {
 	// The generator holds references to the runtime configuration and buffer pools,
 	// facilitating efficient and thread-safe ID generation.
 	return &generator{
-		config:          config,
-		randomBytesPool: randomBytesPool,
-		idPool:          idPool,
+		config:      config,
+		entropyPool: entropyPool,
+		idPool:      idPool,
 	}, nil
 }
 
@@ -711,7 +711,7 @@ func (g *generator) New(length int) (string, error) {
 
 // newASCII generates a new Nano ID using the ASCII alphabet.
 func (g *generator) newASCII(length int) (string, error) {
-	randomBytesPtr := g.randomBytesPool.Get().(*[]byte)
+	randomBytesPtr := g.entropyPool.Get().(*[]byte)
 	randomBytes := *randomBytesPtr
 	bufferLen := len(randomBytes)
 
@@ -727,7 +727,7 @@ func (g *generator) newASCII(length int) (string, error) {
 
 	// Defer returning the randomBytes buffer to the pool
 	defer func() {
-		g.randomBytesPool.Put(randomBytesPtr)
+		g.entropyPool.Put(randomBytesPtr)
 	}()
 
 	for attempts := 0; cursor < length && attempts < maxAttempts; attempts++ {
@@ -764,7 +764,7 @@ func (g *generator) newASCII(length int) (string, error) {
 // newUnicode generates a new Nano ID using the Unicode alphabet.
 func (g *generator) newUnicode(length int) (string, error) {
 	// Retrieve random bytes from the pool
-	randomBytesPtr := g.randomBytesPool.Get().(*[]byte)
+	randomBytesPtr := g.entropyPool.Get().(*[]byte)
 	randomBytes := *randomBytesPtr
 	bufferLen := len(randomBytes)
 
@@ -781,7 +781,7 @@ func (g *generator) newUnicode(length int) (string, error) {
 
 	// Defer returning the randomBytes buffer to the pool
 	defer func() {
-		g.randomBytesPool.Put(randomBytesPtr)
+		g.entropyPool.Put(randomBytesPtr)
 	}()
 
 	for attempts := 0; cursor < length && attempts < maxAttempts; attempts++ {
