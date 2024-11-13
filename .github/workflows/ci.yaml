@@ -51,6 +51,7 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Ref: https://github.com/golangci/golangci-lint-action
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:

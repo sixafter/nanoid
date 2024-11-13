@@ -398,7 +398,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/scriptures-social/platform/compare/v1.17.2..HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.17.2..HEAD
 [1.17.2]: https://github.com/sixafter/nanoid/compare/v1.17.1...v1.17.2
 [1.17.1]: https://github.com/sixafter/nanoid/compare/v1.17.0...v1.17.1
 [1.17.0]: https://github.com/sixafter/nanoid/compare/v1.16.1...v1.17.0
