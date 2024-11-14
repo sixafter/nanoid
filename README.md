@@ -31,11 +31,15 @@ Please see the [godoc](https://pkg.go.dev/github.com/sixafter/nanoid) for detail
   - The Nano ID generator now satisfies the `io.Reader` interface, allowing it to be used interchangeably with any `io.Reader` implementations. 
   - Developers can now utilize the Nano ID generator in contexts such as streaming data processing, pipelines, and other I/O-driven operations.
 
+Please see the [Nano ID CLI](https://github.com/sixafter/nanoid-cli) for a command-line interface (CLI) that uses this package to generate Nano IDs.
+
 ---
 
 ## Installation
 
-To install the package, use:
+### Using `go get`
+
+To install the Nano ID package, run the following command:
 
 ```sh
 go get -u github.com/sixafter/nanoid

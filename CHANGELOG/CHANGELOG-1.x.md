@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
+## [1.17.3] - 2024-NOV-14
+
+### Added
+### Changed
+- **DEBT:** Refactored documentation to improve readability and clarity.
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.17.2] - 2024-NOV-12
 
 ### Added
@@ -398,7 +409,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.17.2..HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.17.3..HEAD
+[1.17.3]: https://github.com/sixafter/nanoid/compare/v1.17.2...v1.17.3
 [1.17.2]: https://github.com/sixafter/nanoid/compare/v1.17.1...v1.17.2
 [1.17.1]: https://github.com/sixafter/nanoid/compare/v1.17.0...v1.17.1
 [1.17.0]: https://github.com/sixafter/nanoid/compare/v1.16.1...v1.17.0
