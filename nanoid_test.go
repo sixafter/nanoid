@@ -21,19 +21,19 @@ import (
 
 var (
 	// Ensure ID implements the fmt.Stringer interface
-	_ = fmt.Stringer(Empty)
+	_ = fmt.Stringer(EmptyID)
 
 	// Ensure ID implements the encoding.BinaryMarshaler interface
-	_ = encoding.BinaryMarshaler(Empty)
+	_ = encoding.BinaryMarshaler(EmptyID)
 
 	// Ensure ID implements the encoding.BinaryUnmarshaler interface
-	_ = encoding.BinaryUnmarshaler(&Empty)
+	_ = encoding.BinaryUnmarshaler(&EmptyID)
 
 	// Ensure ID implements the encoding.TextMarshaler interface
-	_ = encoding.TextMarshaler(Empty)
+	_ = encoding.TextMarshaler(EmptyID)
 
 	// Ensure ID implements the encoding.TextUnmarshaler interface
-	_ = encoding.TextUnmarshaler(&Empty)
+	_ = encoding.TextUnmarshaler(&EmptyID)
 )
 
 // TestNewWithCustomLengths tests the generation of Nano IDs with custom lengths.
@@ -1208,7 +1208,7 @@ func TestID_IsEmpty(t *testing.T) {
 
 	// Initialize two IDs using Must()
 	id1 := Must()
-	id2 := Empty
+	id2 := EmptyID
 
 	// Case 1: id1 is not empty
 	is.False(id1.IsEmpty(), "id1 should not be empty")

@@ -7,7 +7,6 @@ package nanoid
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -95,8 +94,8 @@ const (
 // ID represents a Nano ID as a string.
 type ID string
 
-// Empty represents an empty Nano ID.
-var Empty = ID("")
+// EmptyID represents an empty Nano ID.
+var EmptyID = ID("")
 
 func init() {
 	var err error
@@ -727,7 +726,7 @@ func (g *generator) processRandomBytes(randomBytes []byte, i int) uint {
 //	fmt.Println("Generated ID:", id)
 func (g *generator) New(length int) (ID, error) {
 	if length <= 0 {
-		return Empty, ErrInvalidLength
+		return EmptyID, ErrInvalidLength
 	}
 
 	if g.config.isASCII {
@@ -765,7 +764,7 @@ func (g *generator) newASCII(length int) (ID, error) {
 
 		// Fill the random bytes buffer
 		if _, err := g.config.randReader.Read(randomBytes[:neededBytes]); err != nil {
-			return Empty, err
+			return EmptyID, err
 		}
 
 		// Process each segment of random bytes
@@ -782,7 +781,7 @@ func (g *generator) newASCII(length int) (ID, error) {
 
 	// Check for max attempts
 	if cursor < length {
-		return Empty, ErrExceededMaxAttempts
+		return EmptyID, ErrExceededMaxAttempts
 	}
 
 	return ID(sb.String()), nil
@@ -819,7 +818,7 @@ func (g *generator) newUnicode(length int) (ID, error) {
 
 		// Fill the random bytes buffer
 		if _, err := g.config.randReader.Read(randomBytes[:neededBytes]); err != nil {
-			return Empty, err
+			return EmptyID, err
 		}
 
 		// Process each segment of random bytes
@@ -836,7 +835,7 @@ func (g *generator) newUnicode(length int) (ID, error) {
 
 	// Check for max attempts
 	if cursor < length {
-		return Empty, ErrExceededMaxAttempts
+		return EmptyID, ErrExceededMaxAttempts
 	}
 
 	return ID(sb.String()), nil
@@ -888,9 +887,9 @@ func (g *generator) Read(p []byte) (n int, err error) {
 	return length, nil
 }
 
-// IsEmpty returns true if the ID is an empty ID (Empty)
+// IsEmpty returns true if the ID is an empty ID (EmptyID)
 func (id ID) IsEmpty() bool {
-	return id.Compare(Empty) == 0
+	return id.Compare(EmptyID) == 0
 }
 
 // Compare compares two IDs lexicographically and returns an integer.
@@ -1008,26 +1007,6 @@ func (id ID) MarshalBinary() ([]byte, error) {
 func (id *ID) UnmarshalBinary(data []byte) error {
 	*id = ID(data)
 	return nil
-}
-
-// MarshalJSON marshals the ID as a JSON string.
-// It implements the json.Marshaler interface, allowing the ID to be
-// serialized into JSON format.
-//
-// Returns:
-//   - A byte slice containing the JSON-encoded ID.
-//   - An error if the marshaling fails.
-//
-// Example:
-//
-//	id := Must()
-//	jsonData, err := json.Marshal(id)
-//	if err != nil {
-//	    log.Fatal(err)
-//	}
-//	fmt.Println(string(jsonData)) // Output: "V1StGXR8_Z5jdHi6B-myT"
-func (id ID) MarshalJSON() ([]byte, error) {
-	return json.Marshal(string(id))
 }
 
 // Config holds the runtime configuration for the Nano ID generator.
