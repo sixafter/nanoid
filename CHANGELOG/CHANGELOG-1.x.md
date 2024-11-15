@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Date format: `YYYY-MM-DD`
+
 ---
 ## [Unreleased]
 
@@ -16,7 +18,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.18.0] - 2024-NOV-15
+## [1.18.1] - 2024-11-15
+
+### Added
+### Changed
+- **DEBT:** Added missing license header to the CodeQL analysis configuration file.
+- **DEBT:** Refactored CHANGELOG date format to `YYYY-MM-DD`.
+
+### Deprecated
+### Removed
+### Fixed
+
+---
+## [1.18.0] - 2024-11-15
 
 ### Added
 - **FEATURE**: Added support for `fmt.Stringer`: Provides a string representation of the ID type.
@@ -37,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.17.3] - 2024-NOV-14
+## [1.17.3] - 2024-11-14
 
 ### Added
 ### Changed
@@ -48,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.17.2] - 2024-NOV-12
+## [1.17.2] - 2024-11-12
 
 ### Added
 ### Changed
@@ -60,7 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.17.1] - 2024-NOV-12
+## [1.17.1] - 2024-11-12
 
 ### Added
 ### Changed
@@ -71,7 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.17.0] - 2024-NOV-11
+## [1.17.0] - 2024-11-11
 
 ### Added
 - **FEATURE:** Introduced new cryptographically secure Pseudo-Random Number Generator (PRNG) Reader based on the `ChaCha20` stream cypher to enhance random data generation capabilities.
@@ -86,7 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.16.1] - 2024-NOV-09
+## [1.16.1] - 2024-11-09
 
 ### Added
 ### Changed
@@ -97,7 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.16.0] - 2024-NOV-09
+## [1.16.0] - 2024-11-09
 
 ### Added
 ### Changed
@@ -113,7 +127,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.15.0] - 2024-NOV-07
+## [1.15.0] - 2024-11-07
 
 ### Added
 - **FEATURE:** Added documentation and comments.
@@ -126,7 +140,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.14.0] - 2024-NOV-06
+## [1.14.0] - 2024-11-06
 
 ### Added
 - **FEATURE:** Added support for `io.Reader` Interface: 
@@ -139,7 +153,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.13.4] - 2024-NOV-06
+## [1.13.4] - 2024-11-06
 
 ### Added
 ### Changed
@@ -151,7 +165,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.13.3] - 2024-NOV-0
+## [1.13.3] - 2024-11-0
 
 ### Added
 - **DEBT:** Added test for `panic` in `MustWithLength` function.
@@ -163,7 +177,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.13.2] - 2024-NOV-06
+## [1.13.2] - 2024-11-06
 
 ### Added
 ### Changed
@@ -180,7 +194,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.13.1] - 2024-NOV-05
+## [1.13.1] - 2024-11-05
 
 ### Added
 ### Changed
@@ -191,7 +205,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.13.0] - 2024-NOV-05
+## [1.13.0] - 2024-11-05
 
 ### Added
 - **FEATURE:** Added documentation for the configuration options: `WithAlphabet`, `WithLengthHint`, and `WithRandReader`.
@@ -206,7 +220,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.12.0] - 2024-NOV-04
+## [1.12.0] - 2024-11-04
 
 ### Added
 - **FEATURE**: Added dynamic buffer scaling:
@@ -219,7 +233,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.11.0] - 2024-NOV-02
+## [1.11.0] - 2024-11-02
 
 ### Added
 ### Changed
@@ -230,7 +244,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.10.2] - 2024-NOV-02
+## [1.10.2] - 2024-11-02
 
 ### Added
 - **DEBT:** Added test for invalid UTF8 alphabet checks.
@@ -242,7 +256,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.10.1] - 2024-NOV-02
+## [1.10.1] - 2024-11-02
 
 ### Added
 ### Changed
@@ -253,7 +267,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.10.0] - 2024-NOV-01
+## [1.10.0] - 2024-11-01
 
 ### Added
 - **FEATURE:** Added new `Must` function to simplify safe initialization of global variables.
@@ -265,7 +279,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.9.0] - 2024-NOV-01
+## [1.9.0] - 2024-11-01
 
 ### Added
 - **FEATURE:** Added new `MustGenerate` and `MustGenerateSize` functions to simplifies safe initialization of global variables.
@@ -277,7 +291,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.8.2] - 2024-OCT-31
+## [1.8.2] - 2024-10-31
 
 ### Added
 ### Changed
@@ -288,7 +302,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.8.1] - 2024-OCT-31
+## [1.8.1] - 2024-10-31
 
 ### Added
 ### Changed
@@ -299,7 +313,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.8.0] - 2024-OCT-31
+## [1.8.0] - 2024-10-31
 
 ### Added
 - **FEATURE:** Added support for Unicode alphabets. 
@@ -317,7 +331,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.7.1] - 2024-OCT-30
+## [1.7.1] - 2024-10-30
 
 ### Added
 ### Changed
@@ -337,7 +351,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.7.0] - 2024-OCT-30
+## [1.7.0] - 2024-10-30
 
 ### Added
 ### Changed
@@ -355,7 +369,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.6.0] - 2024-OCT-29
+## [1.6.0] - 2024-10-29
 
 ### Added
 - **FEATURE:** Added [Nano ID collision calculator](../docs/nanoid-collision-calculator.html).
@@ -367,7 +381,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.5.0] - 2024-OCT-28
+## [1.5.0] - 2024-10-28
 
 ### Added
 - **FEATURE**: Added Code of Conduct
@@ -380,7 +394,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.4.0] - 2024-OCT-26
+## [1.4.0] - 2024-10-26
 
 ### Added
 - **FEATURE:**: Added concurrent benchmark tests.
@@ -396,7 +410,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.3.0] - 2024-OCT-26
+## [1.3.0] - 2024-10-26
 
 ### Added
 - **FEATURE:** Added Unicode support for custom dictionaries.
@@ -408,7 +422,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.2.0] - 2024-OCT-25
+## [1.2.0] - 2024-10-25
 
 ### Added
 ### Changed
@@ -420,7 +434,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
-## [1.0.0] - 2024-OCT-24
+## [1.0.0] - 2024-10-24
 
 ### Added
 - **FEATURE:** Initial commit.
@@ -430,7 +444,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.18.0..HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.18.1..HEAD
+[1.18.1]: https://github.com/sixafter/nanoid/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/sixafter/nanoid/compare/v1.17.3...v1.18.0
 [1.17.3]: https://github.com/sixafter/nanoid/compare/v1.17.2...v1.17.3
 [1.17.2]: https://github.com/sixafter/nanoid/compare/v1.17.1...v1.17.2
