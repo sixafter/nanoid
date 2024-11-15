@@ -84,7 +84,7 @@ sboms:
 release:
   name_template: 'v{{ .Version }}'
   footer: |
-    **Full Changelog**: [https://github.com/sixafter/nanoid/tree/main/CHANGELOG/CHANGELOG-1.x](https://github.com/sixafter/nanoid/tree/main/CHANGELOG/CHANGELOG-1.x.md)
+    **Full Changelog**: [CHANGELOG](https://github.com/sixafter/nanoid/tree/main/CHANGELOG/CHANGELOG-1.x.md)
         
     ## Where to go next?
     
