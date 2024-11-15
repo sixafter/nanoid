@@ -7,6 +7,7 @@ package nanoid
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -23,6 +24,12 @@ import (
 // DefaultGenerator is a global, shared instance of a Nano ID generator. It is safe for concurrent use.
 var DefaultGenerator Generator
 
+// ID represents a Nano ID as a string.
+type ID string
+
+// Empty represents an empty Nano ID.
+var Empty = ID("")
+
 func init() {
 	var err error
 	DefaultGenerator, err = NewGenerator()
@@ -35,7 +42,7 @@ func init() {
 // It is used with the Function Options pattern.
 type ConfigOptions struct {
 	// RandReader is the source of randomness used for generating IDs.
-	// By default, it uses crypto/rand.Reader, which provides cryptographically secure random bytes.
+	// By default, it uses x/crypto/prng/Reader, which provides cryptographically secure random bytes.
 	RandReader io.Reader
 
 	// Alphabet is the set of characters used to generate the Nano ID.
@@ -166,7 +173,7 @@ type Generator interface {
 	//       // handle error
 	//   }
 	//   fmt.Println("Generated ID:", id)
-	New(length int) (string, error)
+	New(length int) (ID, error)
 
 	// Read fills the provided byte slice 'p' with random data, reading up to len(p) bytes.
 	// Returns the number of bytes read and any error encountered during the read operation.
@@ -221,7 +228,7 @@ type generator struct {
 //	    // handle error
 //	}
 //	fmt.Println("Generated ID:", id)
-func New() (string, error) {
+func New() (ID, error) {
 	return NewWithLength(DefaultLength)
 }
 
@@ -238,7 +245,7 @@ func New() (string, error) {
 //	    // handle error
 //	}
 //	fmt.Println("Generated ID:", id)
-func NewWithLength(length int) (string, error) {
+func NewWithLength(length int) (ID, error) {
 	return DefaultGenerator.New(length)
 }
 
@@ -251,7 +258,7 @@ func NewWithLength(length int) (string, error) {
 //
 //	id := nanoid.Must()
 //	fmt.Println("Generated ID:", id)
-func Must() string {
+func Must() ID {
 	return MustWithLength(DefaultLength)
 }
 
@@ -268,7 +275,7 @@ func Must() string {
 //
 //	id := nanoid.MustWithLength(30)
 //	fmt.Println("Generated ID:", id)
-func MustWithLength(length int) string {
+func MustWithLength(length int) ID {
 	id, err := NewWithLength(length)
 	if err != nil {
 		panic(err)
@@ -313,14 +320,31 @@ func Read(p []byte) (n int, err error) {
 }
 
 var (
+	// ErrDuplicateCharacters is returned when the provided alphabet contains duplicate characters.
 	ErrDuplicateCharacters = errors.New("duplicate characters in alphabet")
+
+	// ErrExceededMaxAttempts is returned when the maximum number of attempts to perform
+	// an operation, such as generating a unique ID, has been exceeded.
 	ErrExceededMaxAttempts = errors.New("exceeded maximum attempts")
-	ErrInvalidLength       = errors.New("invalid length")
-	ErrInvalidAlphabet     = errors.New("invalid alphabet")
-	ErrNonUTF8Alphabet     = errors.New("alphabet contains invalid UTF-8 characters")
-	ErrAlphabetTooShort    = errors.New("alphabet length is less than 2")
-	ErrAlphabetTooLong     = errors.New("alphabet length exceeds 256")
-	ErrNilRandReader       = errors.New("nil random reader")
+
+	// ErrInvalidLength is returned when a specified length value for an operation is invalid.
+	ErrInvalidLength = errors.New("invalid length")
+
+	// ErrInvalidAlphabet is returned when the provided alphabet for generating IDs is invalid.
+	ErrInvalidAlphabet = errors.New("invalid alphabet")
+
+	// ErrNonUTF8Alphabet is returned when the provided alphabet contains non-UTF-8 characters.
+	ErrNonUTF8Alphabet = errors.New("alphabet contains invalid UTF-8 characters")
+
+	// ErrAlphabetTooShort is returned when the provided alphabet has fewer than 2 characters.
+	ErrAlphabetTooShort = errors.New("alphabet length is less than 2")
+
+	// ErrAlphabetTooLong is returned when the provided alphabet exceeds 256 characters.
+	ErrAlphabetTooLong = errors.New("alphabet length exceeds 256")
+
+	// ErrNilRandReader is returned when the random number generator (rand.Reader) is nil,
+	// preventing the generation of random values.
+	ErrNilRandReader = errors.New("nil random reader")
 )
 
 const (
@@ -698,9 +722,9 @@ func (g *generator) processRandomBytes(randomBytes []byte, i int) uint {
 //	    // handle error
 //	}
 //	fmt.Println("Generated ID:", id)
-func (g *generator) New(length int) (string, error) {
+func (g *generator) New(length int) (ID, error) {
 	if length <= 0 {
-		return "", ErrInvalidLength
+		return Empty, ErrInvalidLength
 	}
 
 	if g.config.isASCII {
@@ -710,7 +734,7 @@ func (g *generator) New(length int) (string, error) {
 }
 
 // newASCII generates a new Nano ID using the ASCII alphabet.
-func (g *generator) newASCII(length int) (string, error) {
+func (g *generator) newASCII(length int) (ID, error) {
 	randomBytesPtr := g.entropyPool.Get().(*[]byte)
 	randomBytes := *randomBytesPtr
 	bufferLen := len(randomBytes)
@@ -738,7 +762,7 @@ func (g *generator) newASCII(length int) (string, error) {
 
 		// Fill the random bytes buffer
 		if _, err := g.config.randReader.Read(randomBytes[:neededBytes]); err != nil {
-			return "", err
+			return Empty, err
 		}
 
 		// Process each segment of random bytes
@@ -755,14 +779,14 @@ func (g *generator) newASCII(length int) (string, error) {
 
 	// Check for max attempts
 	if cursor < length {
-		return "", ErrExceededMaxAttempts
+		return Empty, ErrExceededMaxAttempts
 	}
 
-	return sb.String(), nil
+	return ID(sb.String()), nil
 }
 
 // newUnicode generates a new Nano ID using the Unicode alphabet.
-func (g *generator) newUnicode(length int) (string, error) {
+func (g *generator) newUnicode(length int) (ID, error) {
 	// Retrieve random bytes from the pool
 	randomBytesPtr := g.entropyPool.Get().(*[]byte)
 	randomBytes := *randomBytesPtr
@@ -792,7 +816,7 @@ func (g *generator) newUnicode(length int) (string, error) {
 
 		// Fill the random bytes buffer
 		if _, err := g.config.randReader.Read(randomBytes[:neededBytes]); err != nil {
-			return "", err
+			return Empty, err
 		}
 
 		// Process each segment of random bytes
@@ -809,10 +833,10 @@ func (g *generator) newUnicode(length int) (string, error) {
 
 	// Check for max attempts
 	if cursor < length {
-		return "", ErrExceededMaxAttempts
+		return Empty, ErrExceededMaxAttempts
 	}
 
-	return sb.String(), nil
+	return ID(sb.String()), nil
 }
 
 // Reader is the interface that wraps the basic Read method.
@@ -859,6 +883,148 @@ func (g *generator) Read(p []byte) (n int, err error) {
 
 	copy(p, id)
 	return length, nil
+}
+
+// IsEmpty returns true if the ID is an empty ID (Empty)
+func (id ID) IsEmpty() bool {
+	return id.Compare(Empty) == 0
+}
+
+// Compare compares two IDs lexicographically and returns an integer.
+// The result will be 0 if id==other, -1 if id < other, and +1 if id > other.
+//
+// Parameters:
+//   - other ID: The ID to compare against.
+//
+// Returns:
+//   - int: An integer indicating the comparison result.
+//
+// Usage:
+//
+//	id1 := ID("V1StGXR8_Z5jdHi6B-myT")
+//	id2 := ID("V1StGXR8_Z5jdHi6B-myT")
+//	result := id1.Compare(id2)
+//	fmt.Println(result) // Output: 0
+func (id ID) Compare(other ID) int {
+	return strings.Compare(string(id), string(other))
+}
+
+// String returns the string representation of the ID.
+// It implements the fmt.Stringer interface, allowing the ID to be
+// used seamlessly with fmt package functions like fmt.Println and fmt.Printf.
+//
+// Example:
+//
+//	id := Must()
+//	fmt.Println(id) // Output: V1StGXR8_Z5jdHi6B-myT
+func (id ID) String() string {
+	return string(id)
+}
+
+// MarshalText converts the ID to a byte slice.
+// It implements the encoding.TextMarshaler interface, enabling the ID
+// to be marshaled into text-based formats such as XML and YAML.
+//
+// Returns:
+//   - A byte slice containing the ID.
+//   - An error if the marshaling fails.
+//
+// Example:
+//
+//	id := Must()
+//	text, err := id.MarshalText()
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Println(string(text)) // Output: V1StGXR8_Z5jdHi6B-myT
+func (id ID) MarshalText() ([]byte, error) {
+	return []byte(id), nil
+}
+
+// UnmarshalText parses a byte slice and assigns the result to the ID.
+// It implements the encoding.TextUnmarshaler interface, allowing the ID
+// to be unmarshaled from text-based formats.
+//
+// Parameters:
+//   - text: A byte slice containing the ID data.
+//
+// Returns:
+//   - An error if the unmarshaling fails.
+//
+// Example:
+//
+//	var id ID
+//	err := id.UnmarshalText([]byte("new-id"))
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Println(id) // Output: new-id
+func (id *ID) UnmarshalText(text []byte) error {
+	*id = ID(text)
+	return nil
+}
+
+// MarshalBinary converts the ID to a byte slice.
+// It implements the encoding.BinaryMarshaler interface, enabling the ID
+// to be marshaled into binary formats for efficient storage or transmission.
+//
+// Returns:
+//   - A byte slice containing the ID.
+//   - An error if the marshaling fails.
+//
+// Example:
+//
+//	id := Must()
+//	binaryData, err := id.MarshalBinary()
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Println(binaryData) // Output: [86 49 83 116 71 88 82 56 95 90 ...]
+func (id ID) MarshalBinary() ([]byte, error) {
+	return []byte(id), nil
+}
+
+// UnmarshalBinary parses a byte slice and assigns the result to the ID.
+// It implements the encoding.BinaryUnmarshaler interface, allowing the ID
+// to be unmarshaled from binary formats.
+//
+// Parameters:
+//   - data: A byte slice containing the binary ID data.
+//
+// Returns:
+//   - An error if the unmarshaling fails.
+//
+// Example:
+//
+//	var id ID
+//	err := id.UnmarshalBinary([]byte{86, 49, 83, 116, 71, 88, 82, 56, 95, 90}) // "V1StGXR8_Z5jdHi6B-myT"
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Println(id) // Output: V1StGXR8_Z5jdHi6B-myT
+func (id *ID) UnmarshalBinary(data []byte) error {
+	*id = ID(data)
+	return nil
+}
+
+// MarshalJSON marshals the ID as a JSON string.
+// It implements the json.Marshaler interface, allowing the ID to be
+// serialized into JSON format.
+//
+// Returns:
+//   - A byte slice containing the JSON-encoded ID.
+//   - An error if the marshaling fails.
+//
+// Example:
+//
+//	id := Must()
+//	jsonData, err := json.Marshal(id)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Println(string(jsonData)) // Output: "V1StGXR8_Z5jdHi6B-myT"
+func (id ID) MarshalJSON() ([]byte, error) {
+	return json.Marshal(string(id))
 }
 
 // Config holds the runtime configuration for the Nano ID generator.

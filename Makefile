@@ -36,7 +36,7 @@ bench: ## Execute benchmark tests
 
 .PHONY: clean
 clean: ## Remove previous build
-	$(GO_CLEAN)
+	$(GO_CLEAN) ./...
 
 .PHONY: cover
 cover: ## Generate global code coverage report

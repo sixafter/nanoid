@@ -16,6 +16,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ---
+## [1.18.0] - 2024-NOV-15
+
+### Added
+- **FEATURE**: Added support for `fmt.Stringer`: Provides a string representation of the ID type.
+- **FEATURE**: Added support for `encoding.TextMarshaler`: Supports marshaling ID into a text-based representation.
+- **FEATURE**: Added support for `encoding.TextUnmarshaler`: Supports unmarshaling ID from a text-based representation.
+- **FEATURE**: Added support for `encoding.BinaryMarshaler`: Supports marshaling ID into a binary representation.
+- **FEATURE**: Added support for `encoding.BinaryUnmarshaler`: Supports unmarshaling ID from a binary representation.
+
+### Changed
+### Deprecated
+### Removed
+### Fixed
+- **DEFECT:** Addressed various documentation issues.
+- 
+### Security
+
+---
 ## [1.17.3] - 2024-NOV-14
 
 ### Added
@@ -409,7 +427,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.17.3..HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.18.0..HEAD
+[1.18.0]: https://github.com/sixafter/nanoid/compare/v1.17.3...v1.18.0
 [1.17.3]: https://github.com/sixafter/nanoid/compare/v1.17.2...v1.17.3
 [1.17.2]: https://github.com/sixafter/nanoid/compare/v1.17.1...v1.17.2
 [1.17.1]: https://github.com/sixafter/nanoid/compare/v1.17.0...v1.17.1
