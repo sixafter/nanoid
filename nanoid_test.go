@@ -6,7 +6,9 @@
 package nanoid
 
 import (
+	"encoding"
 	"errors"
+	"fmt"
 	"io"
 	"math/bits"
 	"strconv"
@@ -15,6 +17,23 @@ import (
 
 	"github.com/sixafter/nanoid/x/crypto/prng"
 	"github.com/stretchr/testify/assert"
+)
+
+var (
+	// Ensure ID implements the fmt.Stringer interface
+	_ = fmt.Stringer(EmptyID)
+
+	// Ensure ID implements the encoding.BinaryMarshaler interface
+	_ = encoding.BinaryMarshaler(EmptyID)
+
+	// Ensure ID implements the encoding.BinaryUnmarshaler interface
+	_ = encoding.BinaryUnmarshaler(&EmptyID)
+
+	// Ensure ID implements the encoding.TextMarshaler interface
+	_ = encoding.TextMarshaler(EmptyID)
+
+	// Ensure ID implements the encoding.TextUnmarshaler interface
+	_ = encoding.TextUnmarshaler(&EmptyID)
 )
 
 // TestNewWithCustomLengths tests the generation of Nano IDs with custom lengths.
@@ -223,7 +242,7 @@ func TestUniqueness(t *testing.T) {
 	is := assert.New(t)
 
 	numIDs := 1000
-	ids := make(map[string]struct{}, numIDs)
+	ids := make(map[ID]struct{}, numIDs)
 
 	for i := 0; i < numIDs; i++ {
 		id, err := New()
@@ -244,7 +263,7 @@ func TestConcurrency(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(numGoroutines)
 
-	ids := make(chan string, numGoroutines*numIDsPerGoroutine)
+	ids := make(chan ID, numGoroutines*numIDsPerGoroutine)
 	errorsChan := make(chan error, numGoroutines*numIDsPerGoroutine)
 
 	for i := 0; i < numGoroutines; i++ {
@@ -269,7 +288,7 @@ func TestConcurrency(t *testing.T) {
 		is.NoError(err, "New() should not return an error in concurrent execution")
 	}
 
-	idSet := make(map[string]struct{}, numGoroutines*numIDsPerGoroutine)
+	idSet := make(map[ID]struct{}, numGoroutines*numIDsPerGoroutine)
 	for id := range ids {
 		if _, exists := idSet[id]; exists {
 			is.Failf("Duplicate ID found in concurrency test", "Duplicate ID: %s", id)
@@ -279,7 +298,7 @@ func TestConcurrency(t *testing.T) {
 }
 
 // isValidID checks if all characters in the ID are within the specified alphabet.
-func isValidID(id string, alphabet string) bool {
+func isValidID(id ID, alphabet string) bool {
 	alphabetSet := make(map[rune]struct{}, len([]rune(alphabet)))
 	for _, char := range alphabet {
 		alphabetSet[char] = struct{}{}
@@ -353,17 +372,17 @@ func TestWithRandReader(t *testing.T) {
 	// New ID of length 4
 	id, err := gen.New(4)
 	is.NoError(err, "New(4) should not return an error")
-	is.Equal("ABCD", id, "Generated ID should match the expected sequence 'ABCD'")
+	is.Equal("ABCD", string(id), "Generated ID should match the expected sequence 'ABCD'")
 
 	// New another ID of length 4, should cycle through customBytes again
 	id, err = gen.New(4)
 	is.NoError(err, "New(4) should not return an error on subsequent generation")
-	is.Equal("ABCD", id, "Generated ID should match the expected sequence 'ABCD' on subsequent generation")
+	is.Equal("ABCD", string(id), "Generated ID should match the expected sequence 'ABCD' on subsequent generation")
 
 	// New ID of length 8, should cycle through customBytes twice
 	id, err = gen.New(8)
 	is.NoError(err, "New(8) should not return an error")
-	is.Equal("ABCDABCD", id, "Generated ID should match the expected sequence 'ABCDABCD' for length 8")
+	is.Equal("ABCDABCD", string(id), "Generated ID should match the expected sequence 'ABCDABCD' for length 8")
 }
 
 // TestWithRandReaderDifferentSequence tests the WithRandReader option with a different byte sequence and alphabet.
@@ -389,17 +408,17 @@ func TestWithRandReaderDifferentSequence(t *testing.T) {
 	// New ID of length 4
 	id, err := gen.New(4)
 	is.NoError(err, "New(4) should not return an error")
-	is.Equal("ZYXW", id, "Generated ID should match the expected sequence 'ZYXW'")
+	is.Equal("ZYXW", string(id), "Generated ID should match the expected sequence 'ZYXW'")
 
 	// New another ID of length 4, should cycle through customBytes again
 	id, err = gen.New(4)
 	is.NoError(err, "New(4) should not return an error on subsequent generation")
-	is.Equal("ZYXW", id, "Generated ID should match the expected sequence 'ZYXW' on subsequent generation")
+	is.Equal("ZYXW", string(id), "Generated ID should match the expected sequence 'ZYXW' on subsequent generation")
 
 	// New ID of length 8, should cycle through customBytes twice
 	id, err = gen.New(8)
 	is.NoError(err, "New(8) should not return an error")
-	is.Equal("ZYXWZYXW", id, "Generated ID should match the expected sequence 'ZYXWZYXW' for length 8")
+	is.Equal("ZYXWZYXW", string(id), "Generated ID should match the expected sequence 'ZYXWZYXW' for length 8")
 }
 
 // TestWithRandReaderInsufficientBytes tests the generator's behavior when the custom reader provides insufficient bytes.
@@ -425,12 +444,12 @@ func TestWithRandReaderInsufficientBytes(t *testing.T) {
 	// New ID of length 4, expecting 'FFFF'
 	id, err := gen.New(4)
 	is.NoError(err, "New(4) should not return an error")
-	is.Equal("FFFF", id, "Generated ID should match the expected sequence 'FFFF'")
+	is.Equal("FFFF", string(id), "Generated ID should match the expected sequence 'FFFF'")
 
 	// New ID of length 6, expecting 'FFFFFF'
 	id, err = gen.New(6)
 	is.NoError(err, "New(6) should not return an error")
-	is.Equal("FFFFFF", id, "Generated ID should match the expected sequence 'FFFFFF'")
+	is.Equal("FFFFFF", string(id), "Generated ID should match the expected sequence 'FFFFFF'")
 }
 
 // TestGenerateWithNonPowerOfTwoAlphabetLength tests ID generation with an alphabet length that is not a power of two.
@@ -612,13 +631,13 @@ func TestGeneratorBufferReuse(t *testing.T) {
 	// Generate first ID
 	id1, err := gen.New(idLength)
 	is.NoError(err, "gen.New(%d) should not return an error", idLength)
-	is.Equal(idLength, len([]rune(id1)), "Generated ID should have the specified length")
+	is.Equal(idLength, len([]rune(id1.String())), "Generated ID should have the specified length")
 	is.True(isValidID(id1, customAlphabet), "Generated ID contains invalid characters")
 
 	// Generate second ID
 	id2, err := gen.New(idLength)
 	is.NoError(err, "gen.New(%d) should not return an error", idLength)
-	is.Equal(idLength, len([]rune(id2)), "Generated ID should have the specified length")
+	is.Equal(idLength, len([]rune(id2.String())), "Generated ID should have the specified length")
 	is.True(isValidID(id2, customAlphabet), "Generated ID contains invalid characters")
 
 	// Ensure that IDs are different if possible
@@ -739,7 +758,7 @@ func TestGeneratorConcurrencyWithCustomAlphabetLength(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(numGoroutines)
 
-	ids := make(chan string, numGoroutines*numIDsPerGoroutine)
+	ids := make(chan ID, numGoroutines*numIDsPerGoroutine)
 	errorsChan := make(chan error, numGoroutines*numIDsPerGoroutine)
 
 	for i := 0; i < numGoroutines; i++ {
@@ -764,7 +783,7 @@ func TestGeneratorConcurrencyWithCustomAlphabetLength(t *testing.T) {
 		is.NoError(err, "gen.New() should not return an error in concurrent execution")
 	}
 
-	idSet := make(map[string]struct{}, numGoroutines*numIDsPerGoroutine)
+	idSet := make(map[ID]struct{}, numGoroutines*numIDsPerGoroutine)
 	for id := range ids {
 		if _, exists := idSet[id]; exists {
 			is.Failf("Duplicate ID found in concurrency test", "Duplicate ID: %s", id)
@@ -934,7 +953,7 @@ func TestGenerator_Read_EqualLength(t *testing.T) {
 	is.NoError(err, "Read should not return an error")
 	is.Equal(DefaultLength, n, "Number of bytes read should equal DefaultLength")
 
-	id := string(buffer)
+	id := ID(buffer)
 	is.Equal(DefaultLength, len(id), "Generated ID length should match DefaultLength")
 	is.True(isValidID(id, DefaultAlphabet), "Generated ID should contain only valid characters")
 }
@@ -953,7 +972,7 @@ func TestGenerator_Read_SmallerBuffer(t *testing.T) {
 	is.NoError(err, "Read should not return an error")
 	is.Equal(length, n, "Number of bytes read should equal bufferSize")
 
-	id := string(buffer)
+	id := ID(buffer)
 	is.Equal(length, len(id), "Generated ID length should match bufferSize")
 	is.True(isValidID(id, DefaultAlphabet), "Generated ID should contain only valid characters")
 }
@@ -972,7 +991,7 @@ func TestGenerator_Read_LargerBuffer(t *testing.T) {
 	is.NoError(err, "Read should not return an error")
 	is.Equal(length, n, "Number of bytes read should equal bufferSize")
 
-	id := string(buffer)
+	id := ID(buffer)
 	is.Equal(length, len(id), "Generated ID length should match bufferSize")
 	is.True(isValidID(id, DefaultAlphabet), "Generated ID should contain only valid characters")
 }
@@ -1004,7 +1023,7 @@ func TestGenerator_Read_Concurrent(t *testing.T) {
 	bufferSize := DefaultLength
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	generatedIDs := make(map[string]bool)
+	generatedIDs := make(map[ID]bool)
 
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
@@ -1018,7 +1037,7 @@ func TestGenerator_Read_Concurrent(t *testing.T) {
 				}
 				is.Equal(bufferSize, n, "Number of bytes read should equal bufferSize")
 
-				id := string(buffer)
+				id := ID(buffer)
 				is.Equal(bufferSize, len(id), "Generated ID length should match bufferSize")
 				is.True(isValidID(id, DefaultAlphabet), "Generated ID should contain only valid characters")
 
@@ -1057,4 +1076,143 @@ type errorReader struct{}
 
 func (e *errorReader) Read(_ []byte) (int, error) {
 	return 0, errors.New("simulated read error")
+}
+
+// TestID_String tests the String() method of the ID type.
+// It verifies that the String() method returns the underlying string value.
+func TestID_String(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Initialize expected using Must()
+	expectedID := Must()
+	expected := expectedID.String()
+
+	// Actual is obtained by calling String() on the ID
+	actual := expectedID.String()
+
+	// Assert that actual equals expected
+	is.Equal(expected, actual, "ID.String() should return the underlying string")
+}
+
+// TestID_MarshalText tests the MarshalText() method of the ID type.
+// It verifies that MarshalText() returns the correct byte slice representation of the ID.
+func TestID_MarshalText(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Initialize expected using Must()
+	expectedID := Must()
+	expectedBytes := []byte(expectedID.String())
+
+	// Actual is obtained by calling MarshalText()
+	actualBytes, err := expectedID.MarshalText()
+
+	// Assert no error occurred
+	is.NoError(err, "MarshalText() should not return an error")
+
+	// Assert that actual bytes match expected bytes
+	is.Equal(expectedBytes, actualBytes, "MarshalText() should return the correct byte slice")
+}
+
+// TestID_UnmarshalText tests the UnmarshalText() method of the ID type.
+// It verifies that UnmarshalText() correctly parses the byte slice and assigns the value to the ID.
+func TestID_UnmarshalText(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Initialize expected using Must()
+	expectedID := Must()
+	inputBytes := []byte(expectedID.String())
+
+	// Initialize a zero-valued ID
+	var actualID ID
+
+	// Call UnmarshalText with inputBytes
+	err := actualID.UnmarshalText(inputBytes)
+
+	// Assert no error occurred
+	is.NoError(err, "UnmarshalText() should not return an error")
+
+	// Assert that actualID matches expectedID
+	is.Equal(expectedID, actualID, "UnmarshalText() should correctly assign the input value to ID")
+}
+
+// TestID_MarshalBinary tests the MarshalBinary() method of the ID type.
+// It verifies that MarshalBinary() returns the correct byte slice representation of the ID.
+func TestID_MarshalBinary(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Initialize expected using Must()
+	expectedID := Must()
+	expectedBytes := []byte(expectedID.String())
+
+	// Actual is obtained by calling MarshalBinary()
+	actualBytes, err := expectedID.MarshalBinary()
+
+	// Assert no error occurred
+	is.NoError(err, "MarshalBinary() should not return an error")
+
+	// Assert that actual bytes match expected bytes
+	is.Equal(expectedBytes, actualBytes, "MarshalBinary() should return the correct byte slice")
+}
+
+// TestID_UnmarshalBinary tests the UnmarshalBinary() method of the ID type.
+// It verifies that UnmarshalBinary() correctly parses the byte slice and assigns the value to the ID.
+func TestID_UnmarshalBinary(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Initialize expected using Must()
+	expectedID := Must()
+	inputBytes := []byte(expectedID.String())
+
+	// Initialize a zero-valued ID
+	var actualID ID
+
+	// Call UnmarshalBinary with inputBytes
+	err := actualID.UnmarshalBinary(inputBytes)
+
+	// Assert no error occurred
+	is.NoError(err, "UnmarshalBinary() should not return an error")
+
+	// Assert that actualID matches expectedID
+	is.Equal(expectedID, actualID, "UnmarshalBinary() should correctly assign the input value to ID")
+}
+
+// TestID_Compare tests the Compare() method of the ID type.
+// It verifies that Compare() correctly compares two IDs and returns the expected result.
+func TestID_Compare(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	id1 := ID("FgEVN8QMTrnKGvBxFjtjw")
+	id2 := ID("zTxG5Nl21ZAoM8Fabqk3H")
+
+	// Case 1: id1 < id2
+	is.Equal(-1, id1.Compare(id2), "id1 should be less than id2")
+
+	// Case 2: id1 = id2
+	is.Equal(0, id1.Compare(id1), "id1 should be equal to id1")
+
+	// Case 3: id1 > id2
+	is.Equal(1, id2.Compare(id1), "id2 should be greater than id1")
+}
+
+// TestID_IsEmpty tests the IsEmpty() method of the ID type.
+// It verifies that IsEmpty() correctly returns true for an empty ID and false for a non-empty ID.
+func TestID_IsEmpty(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Initialize two IDs using Must()
+	id1 := Must()
+	id2 := EmptyID
+
+	// Case 1: id1 is not empty
+	is.False(id1.IsEmpty(), "id1 should not be empty")
+
+	// Case 2: id2 is empty
+	is.True(id2.IsEmpty(), "id2 should be empty")
 }
