@@ -26,13 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FEATURE**: Added support for `encoding.BinaryUnmarshaler`: Supports unmarshaling ID from a binary representation.
 - **FEATURE**: Added `DefaultRandReader` to provide a default random reader for generating IDs.
 - **FEATURE**: Added `EmptyID` to provide an empty ID constant.
+- **RISK**: Added support for CodeQL analysis when pushing to the `main` branch.
 
 ### Changed
 ### Deprecated
 ### Removed
 ### Fixed
 - **DEFECT:** Addressed various documentation issues.
-- 
+
 ### Security
 
 ---

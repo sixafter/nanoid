@@ -1,0 +1,81 @@
+# Ref: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+name: "CodeQL Analysis"
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+
+    paths-ignore:
+      - 'CHANGELOG/**'
+      - 'CODEOWNERS'
+      - 'docs/**'
+      - 'LICENSE'
+      - '**/*.md'
+
+  schedule:
+    # * * * * * <command to execute>
+    # | | | | |
+    # | | | | day of the week (0–6) (Sunday to Saturday;
+    # | | | month (1–12)             7 is also Sunday on some systems)
+    # | | day of the month (1–31)
+    # | hour (0–23)
+    # minute (0–59)
+    - cron: '0 0 * * 3'
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - language: go
+
+    permissions:
+      security-events: write
+
+    steps:
+      - name: Preamble
+        run: |
+          whoami
+          echo github ref $GITHUB_REF
+          echo workflow $GITHUB_WORKFLOW
+          echo home $HOME
+          echo event name $GITHUB_EVENT_NAME
+          echo workspace $GITHUB_WORKSPACE
+
+          df -h
+
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common ca-certificates gnupg-agent curl build-essential make
+
+      # Ref: https://github.com/actions/checkout
+      - name: Checkout Source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Ref: https://github.com/actions/setup-go
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Ref: https://github.com/github/codeql-action
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
