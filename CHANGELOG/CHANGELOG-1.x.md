@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FEATURE**: Added support for `encoding.TextUnmarshaler`: Supports unmarshaling ID from a text-based representation.
 - **FEATURE**: Added support for `encoding.BinaryMarshaler`: Supports marshaling ID into a binary representation.
 - **FEATURE**: Added support for `encoding.BinaryUnmarshaler`: Supports unmarshaling ID from a binary representation.
+- **FEATURE**: Added `DefaultRandReader` to provide a default random reader for generating IDs.
+- **FEATURE**: Added `EmptyID` to provide an empty ID constant.
 
 ### Changed
 ### Deprecated

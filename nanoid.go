@@ -21,8 +21,76 @@ import (
 	"github.com/sixafter/nanoid/x/crypto/prng"
 )
 
-// DefaultGenerator is a global, shared instance of a Nano ID generator. It is safe for concurrent use.
-var DefaultGenerator Generator
+var (
+	// DefaultGenerator is a global, shared instance of a Nano ID generator. It is safe for concurrent use.
+	DefaultGenerator Generator
+
+	// DefaultRandReader is the default random number generator used for generating IDs.
+	DefaultRandReader = prng.Reader
+
+	// ErrDuplicateCharacters is returned when the provided alphabet contains duplicate characters.
+	ErrDuplicateCharacters = errors.New("duplicate characters in alphabet")
+
+	// ErrExceededMaxAttempts is returned when the maximum number of attempts to perform
+	// an operation, such as generating a unique ID, has been exceeded.
+	ErrExceededMaxAttempts = errors.New("exceeded maximum attempts")
+
+	// ErrInvalidLength is returned when a specified length value for an operation is invalid.
+	ErrInvalidLength = errors.New("invalid length")
+
+	// ErrInvalidAlphabet is returned when the provided alphabet for generating IDs is invalid.
+	ErrInvalidAlphabet = errors.New("invalid alphabet")
+
+	// ErrNonUTF8Alphabet is returned when the provided alphabet contains non-UTF-8 characters.
+	ErrNonUTF8Alphabet = errors.New("alphabet contains invalid UTF-8 characters")
+
+	// ErrAlphabetTooShort is returned when the provided alphabet has fewer than 2 characters.
+	ErrAlphabetTooShort = errors.New("alphabet length is less than 2")
+
+	// ErrAlphabetTooLong is returned when the provided alphabet exceeds 256 characters.
+	ErrAlphabetTooLong = errors.New("alphabet length exceeds 256")
+
+	// ErrNilRandReader is returned when the random number generator (rand.Reader) is nil,
+	// preventing the generation of random values.
+	ErrNilRandReader = errors.New("nil random reader")
+)
+
+const (
+	// DefaultAlphabet defines the standard set of characters used for Nano ID generation.
+	// It includes uppercase and lowercase English letters, digits, and the characters
+	// '_' and '-'. This selection aligns with the Nano ID specification, ensuring
+	// a URL-friendly and easily readable identifier.
+	//
+	// Example: "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	DefaultAlphabet = "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+	// DefaultLength specifies the default number of characters in a generated Nano ID.
+	// A length of 21 characters provides a high level of uniqueness while maintaining
+	// brevity, making it suitable for most applications requiring unique identifiers.
+	DefaultLength = 21
+
+	// maxAttemptsMultiplier determines the maximum number of attempts the generator
+	// will make to produce a valid Nano ID before failing. It is calculated as a
+	// multiplier based on the desired ID length to balance between performance
+	// and the probability of successful ID generation, especially when using
+	// non-power-of-two alphabets.
+	maxAttemptsMultiplier = 10
+
+	// MinAlphabetLength sets the minimum permissible number of unique characters
+	// in the alphabet used for Nano ID generation. An alphabet with fewer than
+	// 2 characters would not provide sufficient variability for generating unique IDs,
+	// making this a lower bound to ensure meaningful ID generation.
+	//
+	// Example: An alphabet like "AB" is acceptable, but "A" is not.
+	MinAlphabetLength = 2
+
+	// MaxAlphabetLength defines the maximum allowable number of unique characters
+	// in the alphabet for Nano ID generation. This upper limit ensures that the
+	// generator operates within reasonable memory and performance constraints,
+	// preventing excessively large alphabets that could degrade performance or
+	// complicate index calculations.
+	MaxAlphabetLength = 256
+)
 
 // ID represents a Nano ID as a string.
 type ID string
@@ -319,71 +387,6 @@ func Read(p []byte) (n int, err error) {
 	return DefaultGenerator.Read(p)
 }
 
-var (
-	// ErrDuplicateCharacters is returned when the provided alphabet contains duplicate characters.
-	ErrDuplicateCharacters = errors.New("duplicate characters in alphabet")
-
-	// ErrExceededMaxAttempts is returned when the maximum number of attempts to perform
-	// an operation, such as generating a unique ID, has been exceeded.
-	ErrExceededMaxAttempts = errors.New("exceeded maximum attempts")
-
-	// ErrInvalidLength is returned when a specified length value for an operation is invalid.
-	ErrInvalidLength = errors.New("invalid length")
-
-	// ErrInvalidAlphabet is returned when the provided alphabet for generating IDs is invalid.
-	ErrInvalidAlphabet = errors.New("invalid alphabet")
-
-	// ErrNonUTF8Alphabet is returned when the provided alphabet contains non-UTF-8 characters.
-	ErrNonUTF8Alphabet = errors.New("alphabet contains invalid UTF-8 characters")
-
-	// ErrAlphabetTooShort is returned when the provided alphabet has fewer than 2 characters.
-	ErrAlphabetTooShort = errors.New("alphabet length is less than 2")
-
-	// ErrAlphabetTooLong is returned when the provided alphabet exceeds 256 characters.
-	ErrAlphabetTooLong = errors.New("alphabet length exceeds 256")
-
-	// ErrNilRandReader is returned when the random number generator (rand.Reader) is nil,
-	// preventing the generation of random values.
-	ErrNilRandReader = errors.New("nil random reader")
-)
-
-const (
-	// DefaultAlphabet defines the standard set of characters used for Nano ID generation.
-	// It includes uppercase and lowercase English letters, digits, and the characters
-	// '_' and '-'. This selection aligns with the Nano ID specification, ensuring
-	// a URL-friendly and easily readable identifier.
-	//
-	// Example: "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	DefaultAlphabet = "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-	// DefaultLength specifies the default number of characters in a generated Nano ID.
-	// A length of 21 characters provides a high level of uniqueness while maintaining
-	// brevity, making it suitable for most applications requiring unique identifiers.
-	DefaultLength = 21
-
-	// maxAttemptsMultiplier determines the maximum number of attempts the generator
-	// will make to produce a valid Nano ID before failing. It is calculated as a
-	// multiplier based on the desired ID length to balance between performance
-	// and the probability of successful ID generation, especially when using
-	// non-power-of-two alphabets.
-	maxAttemptsMultiplier = 10
-
-	// MinAlphabetLength sets the minimum permissible number of unique characters
-	// in the alphabet used for Nano ID generation. An alphabet with fewer than
-	// 2 characters would not provide sufficient variability for generating unique IDs,
-	// making this a lower bound to ensure meaningful ID generation.
-	//
-	// Example: An alphabet like "AB" is acceptable, but "A" is not.
-	MinAlphabetLength = 2
-
-	// MaxAlphabetLength defines the maximum allowable number of unique characters
-	// in the alphabet for Nano ID generation. This upper limit ensures that the
-	// generator operates within reasonable memory and performance constraints,
-	// preventing excessively large alphabets that could degrade performance or
-	// complicate index calculations.
-	MaxAlphabetLength = 256
-)
-
 // Option defines a function type for configuring the Generator.
 // It allows for flexible and extensible configuration by applying
 // various settings to the ConfigOptions during Generator initialization.
@@ -479,7 +482,7 @@ func NewGenerator(options ...Option) (Generator, error) {
 	// and the default length hint for ID generation.
 	configOpts := &ConfigOptions{
 		Alphabet:   DefaultAlphabet,
-		RandReader: prng.Reader,
+		RandReader: DefaultRandReader,
 		LengthHint: DefaultLength,
 	}
 
