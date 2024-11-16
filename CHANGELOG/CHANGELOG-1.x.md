@@ -25,10 +25,13 @@ Date format: `YYYY-MM-DD`
 
 ### Changed
 - **DEBT:** Updated [PRNG](../x/crypto/prng) benchmark tests to test the standard size of 21 characters for Nano ID generation.
+- **DEBT:** The runtime configuration (`Config`) now uses pointer receivers for all methods to ensure consistent behavior and interface compliance.
 
 ### Deprecated
 ### Removed
 ### Fixed
+- **DEFECT:** Fixed receiver types by updating all `ID` methods to use pointer receivers consistently, ensuring proper functionality and interface compliance.
+### Security
 
 ---
 ## [1.18.1] - 2024-11-15

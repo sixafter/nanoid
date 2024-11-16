@@ -52,6 +52,9 @@ var (
 	// ErrNilRandReader is returned when the random number generator (rand.Reader) is nil,
 	// preventing the generation of random values.
 	ErrNilRandReader = errors.New("nil random reader")
+
+	// ErrNilPointer is returned when a nil pointer is passed to a function that does not accept nil pointers.
+	ErrNilPointer = errors.New("nil pointer")
 )
 
 const (
@@ -261,22 +264,21 @@ type Generator interface {
 // runtimeConfig holds the runtime configuration for the Nano ID generator.
 // It is immutable after initialization.
 type runtimeConfig struct {
-	// RandReader is the source of randomness used for generating IDs.
-	randReader       io.Reader
-	byteAlphabet     []byte
-	runeAlphabet     []rune
-	mask             uint
-	bitsNeeded       uint
-	bytesNeeded      uint
-	bufferSize       int
-	bufferMultiplier int
-	scalingFactor    int
-	baseMultiplier   int
-	maxBytesPerRune  int
-	alphabetLen      uint16
-	lengthHint       uint16
-	isASCII          bool
-	isPowerOfTwo     bool
+	randReader       io.Reader // 16 bytes
+	byteAlphabet     []byte    // 24 bytes
+	runeAlphabet     []rune    // 24 bytes
+	mask             uint      // 8 bytes
+	bitsNeeded       uint      // 8 bytes
+	bytesNeeded      uint      // 8 bytes
+	bufferSize       int       // 8 bytes
+	bufferMultiplier int       // 8 bytes
+	scalingFactor    int       // 8 bytes
+	baseMultiplier   int       // 8 bytes
+	maxBytesPerRune  int       // 8 bytes
+	alphabetLen      uint16    // 2 bytes
+	lengthHint       uint16    // 2 bytes
+	isASCII          bool      // 1 byte
+	isPowerOfTwo     bool      // 1 byte
 }
 
 type generator struct {
@@ -888,7 +890,7 @@ func (g *generator) Read(p []byte) (n int, err error) {
 }
 
 // IsEmpty returns true if the ID is an empty ID (EmptyID)
-func (id ID) IsEmpty() bool {
+func (id *ID) IsEmpty() bool {
 	return id.Compare(EmptyID) == 0
 }
 
@@ -907,8 +909,8 @@ func (id ID) IsEmpty() bool {
 //	id2 := ID("V1StGXR8_Z5jdHi6B-myT")
 //	result := id1.Compare(id2)
 //	fmt.Println(result) // Output: 0
-func (id ID) Compare(other ID) int {
-	return strings.Compare(string(id), string(other))
+func (id *ID) Compare(other ID) int {
+	return strings.Compare(string(*id), string(other))
 }
 
 // String returns the string representation of the ID.
@@ -919,8 +921,8 @@ func (id ID) Compare(other ID) int {
 //
 //	id := Must()
 //	fmt.Println(id) // Output: V1StGXR8_Z5jdHi6B-myT
-func (id ID) String() string {
-	return string(id)
+func (id *ID) String() string {
+	return string(*id)
 }
 
 // MarshalText converts the ID to a byte slice.
@@ -939,8 +941,12 @@ func (id ID) String() string {
 //	    log.Fatal(err)
 //	}
 //	fmt.Println(string(text)) // Output: V1StGXR8_Z5jdHi6B-myT
-func (id ID) MarshalText() ([]byte, error) {
-	return []byte(id), nil
+func (id *ID) MarshalText() ([]byte, error) {
+	if id == nil {
+		return nil, ErrNilPointer
+	}
+
+	return []byte(*id), nil
 }
 
 // UnmarshalText parses a byte slice and assigns the result to the ID.
@@ -962,6 +968,10 @@ func (id ID) MarshalText() ([]byte, error) {
 //	}
 //	fmt.Println(id) // Output: new-id
 func (id *ID) UnmarshalText(text []byte) error {
+	if id == nil {
+		return ErrNilPointer
+	}
+
 	*id = ID(text)
 	return nil
 }
@@ -982,8 +992,12 @@ func (id *ID) UnmarshalText(text []byte) error {
 //	    log.Fatal(err)
 //	}
 //	fmt.Println(binaryData) // Output: [86 49 83 116 71 88 82 56 95 90 ...]
-func (id ID) MarshalBinary() ([]byte, error) {
-	return []byte(id), nil
+func (id *ID) MarshalBinary() ([]byte, error) {
+	if id == nil {
+		return nil, ErrNilPointer
+	}
+
+	return []byte(*id), nil
 }
 
 // UnmarshalBinary parses a byte slice and assigns the result to the ID.
@@ -1021,7 +1035,7 @@ func (g *generator) Config() Config {
 //
 // This length determines the range of indices for selecting characters during ID generation.
 // Using uint16 allows for alphabets up to 65,535 characters.
-func (r runtimeConfig) AlphabetLen() uint16 {
+func (r *runtimeConfig) AlphabetLen() uint16 {
 	return r.alphabetLen
 }
 
@@ -1029,14 +1043,14 @@ func (r runtimeConfig) AlphabetLen() uint16 {
 //
 // It is based on the logarithm of the intended ID length (LengthHint) plus 2.
 // This helps scale the buffer size appropriately with different ID lengths.
-func (r runtimeConfig) BaseMultiplier() int {
+func (r *runtimeConfig) BaseMultiplier() int {
 	return r.baseMultiplier
 }
 
 // BitsNeeded returns the minimum number of bits required to represent all possible indices of the alphabet.
 //
 // This value is crucial for generating random numbers that map uniformly to the alphabet indices without bias.
-func (r runtimeConfig) BitsNeeded() uint {
+func (r *runtimeConfig) BitsNeeded() uint {
 	return r.bitsNeeded
 }
 
@@ -1044,7 +1058,7 @@ func (r runtimeConfig) BitsNeeded() uint {
 //
 // It adds a fraction of the scaling factor to the base multiplier to fine-tune the buffer size,
 // considering both the ID length and the alphabet size.
-func (r runtimeConfig) BufferMultiplier() int {
+func (r *runtimeConfig) BufferMultiplier() int {
 	return r.bufferMultiplier
 }
 
@@ -1052,7 +1066,7 @@ func (r runtimeConfig) BufferMultiplier() int {
 //
 // The buffer size is calculated to balance efficiency and performance,
 // minimizing calls to the random number generator by reading larger chunks of random data at once.
-func (r runtimeConfig) BufferSize() int {
+func (r *runtimeConfig) BufferSize() int {
 	return r.bufferSize
 }
 
@@ -1060,21 +1074,21 @@ func (r runtimeConfig) BufferSize() int {
 // used when the alphabet consists solely of ASCII characters.
 //
 // For non-ASCII alphabets, this returns nil, and RuneAlphabet is used instead.
-func (r runtimeConfig) ByteAlphabet() []byte {
+func (r *runtimeConfig) ByteAlphabet() []byte {
 	return r.byteAlphabet
 }
 
 // BytesNeeded returns the number of bytes required to store the BitsNeeded for each character in the ID.
 //
 // It rounds up BitsNeeded to the nearest byte, ensuring sufficient space for random data generation.
-func (r runtimeConfig) BytesNeeded() uint {
+func (r *runtimeConfig) BytesNeeded() uint {
 	return r.bytesNeeded
 }
 
 // IsASCII returns true if the alphabet consists solely of ASCII characters.
 //
 // This allows for optimization in processing, using bytes instead of runes for ID generation.
-func (r runtimeConfig) IsASCII() bool {
+func (r *runtimeConfig) IsASCII() bool {
 	return r.isASCII
 }
 
@@ -1082,14 +1096,14 @@ func (r runtimeConfig) IsASCII() bool {
 //
 // When true, random index selection can be optimized using bitwise operations,
 // such as bitwise AND with the mask, improving performance.
-func (r runtimeConfig) IsPowerOfTwo() bool {
+func (r *runtimeConfig) IsPowerOfTwo() bool {
 	return r.isPowerOfTwo
 }
 
 // LengthHint returns the intended length of the IDs to be generated.
 //
 // This hint is used in calculations to adjust buffer sizes and scaling factors accordingly.
-func (r runtimeConfig) LengthHint() uint16 {
+func (r *runtimeConfig) LengthHint() uint16 {
 	return r.lengthHint
 }
 
@@ -1097,14 +1111,14 @@ func (r runtimeConfig) LengthHint() uint16 {
 //
 // The mask is essential for efficiently mapping random values to valid alphabet indices,
 // ensuring uniform distribution and preventing bias.
-func (r runtimeConfig) Mask() uint {
+func (r *runtimeConfig) Mask() uint {
 	return r.mask
 }
 
 // RandReader returns the source of randomness used for generating IDs.
 //
 // It is typically a cryptographically secure random number generator (e.g., crypto/rand.Reader).
-func (r runtimeConfig) RandReader() io.Reader {
+func (r *runtimeConfig) RandReader() io.Reader {
 	return r.randReader
 }
 
@@ -1112,7 +1126,7 @@ func (r runtimeConfig) RandReader() io.Reader {
 //
 // This is used for ID generation when the alphabet includes non-ASCII (multibyte) characters,
 // allowing support for a wider range of characters.
-func (r runtimeConfig) RuneAlphabet() []rune {
+func (r *runtimeConfig) RuneAlphabet() []rune {
 	return r.runeAlphabet
 }
 
@@ -1120,12 +1134,12 @@ func (r runtimeConfig) RuneAlphabet() []rune {
 //
 // It balances the influence of the alphabet size and the intended ID length,
 // ensuring efficient random data generation without excessive memory usage.
-func (r runtimeConfig) ScalingFactor() int {
+func (r *runtimeConfig) ScalingFactor() int {
 	return r.scalingFactor
 }
 
 // MaxBytesPerRune represents the maximum number of bytes required to encode
 // any rune in the alphabet using UTF-8 encoding.
-func (r runtimeConfig) MaxBytesPerRune() int {
+func (r *runtimeConfig) MaxBytesPerRune() int {
 	return r.maxBytesPerRune
 }
