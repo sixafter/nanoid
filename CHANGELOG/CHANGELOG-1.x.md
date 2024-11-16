@@ -18,6 +18,19 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.19.0] - 2024-11-16
+
+### Added
+- **FEATURE:** Added [README.md](../x/crypto/prng/README.md) to provide detailed information about the PRNG implementation.
+
+### Changed
+- **DEBT:** Updated [PRNG](../x/crypto/prng) benchmark tests to test the standard size of 21 characters for Nano ID generation.
+
+### Deprecated
+### Removed
+### Fixed
+
+---
 ## [1.18.1] - 2024-11-15
 
 ### Added
@@ -444,7 +457,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.18.1..HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.19.0..HEAD
+[1.19.0]: https://github.com/sixafter/nanoid/compare/v1.18.1...v1.19.0
 [1.18.1]: https://github.com/sixafter/nanoid/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/sixafter/nanoid/compare/v1.17.3...v1.18.0
 [1.17.3]: https://github.com/sixafter/nanoid/compare/v1.17.2...v1.17.3
