@@ -8,7 +8,6 @@ package nanoid
 import (
 	"encoding/binary"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/sixafter/nanoid/x/crypto/prng"
@@ -274,14 +273,14 @@ func NewGenerator(options ...Option) (Generator, error) {
 	if config.isASCII {
 		idPool = &sync.Pool{
 			New: func() interface{} {
-				buf := make([]byte, 0, config.bufferSize*config.bufferMultiplier)
+				buf := make([]byte, config.bufferSize*config.bufferMultiplier)
 				return &buf
 			},
 		}
 	} else {
 		idPool = &sync.Pool{
 			New: func() interface{} {
-				buf := make([]rune, 0, config.bufferSize*config.bufferMultiplier)
+				buf := make([]rune, config.bufferSize*config.bufferMultiplier)
 				return &buf
 			},
 		}
@@ -344,6 +343,11 @@ func (g *generator) newASCII(length int) (ID, error) {
 	randomBytes := *randomBytesPtr
 	bufferLen := len(randomBytes)
 
+	// Defer returning the randomBytes buffer to the pool
+	defer func() {
+		g.entropyPool.Put(randomBytesPtr)
+	}()
+
 	cursor := 0
 	maxAttempts := length * maxAttemptsMultiplier
 	mask := g.config.mask
@@ -351,12 +355,15 @@ func (g *generator) newASCII(length int) (ID, error) {
 	isPowerOfTwo := g.config.isPowerOfTwo
 
 	// Use strings.Builder to build the ID efficiently
-	var sb strings.Builder
-	sb.Grow(length) // Preallocate capacity to minimize allocations
+	//var sb strings.Builder
+	//sb.Grow(length) // Preallocate capacity to minimize allocations
 
-	// Defer returning the randomBytes buffer to the pool
+	// Retrieve the idBuffer from the pool
+	idBufferPtr := g.idPool.Get().(*[]byte)
+	idBuffer := (*idBufferPtr)[:length] // Ensure it has the correct length
+
 	defer func() {
-		g.entropyPool.Put(randomBytesPtr)
+		g.idPool.Put(idBufferPtr)
 	}()
 
 	for attempts := 0; cursor < length && attempts < maxAttempts; attempts++ {
@@ -376,7 +383,7 @@ func (g *generator) newASCII(length int) (ID, error) {
 			rnd &= mask
 
 			if isPowerOfTwo || int(rnd) < int(g.config.alphabetLen) {
-				sb.WriteByte(g.config.byteAlphabet[rnd])
+				idBuffer[cursor] = g.config.byteAlphabet[rnd]
 				cursor++
 			}
 		}
@@ -387,7 +394,7 @@ func (g *generator) newASCII(length int) (ID, error) {
 		return EmptyID, ErrExceededMaxAttempts
 	}
 
-	return ID(sb.String()), nil
+	return ID(idBuffer), nil
 }
 
 // newUnicode generates a new Nano ID using the Unicode alphabet.
@@ -397,22 +404,24 @@ func (g *generator) newUnicode(length int) (ID, error) {
 	randomBytes := *randomBytesPtr
 	bufferLen := len(randomBytes)
 
+	// Defer returning the randomBytes buffer to the pool
+	defer func() {
+		g.entropyPool.Put(randomBytesPtr)
+	}()
+
 	cursor := 0
 	maxAttempts := length * maxAttemptsMultiplier
 	mask := g.config.mask
 	bytesNeeded := g.config.bytesNeeded
 	isPowerOfTwo := g.config.isPowerOfTwo
 
-	var sb strings.Builder
+	// Retrieve the idBuffer from the pool
+	idBufferPtr := g.idPool.Get().(*[]rune)
+	idBuffer := (*idBufferPtr)[:length] // Ensure it has the correct length
 
-	// Use the precomputed maximum bytes per rune to estimate buffer size
-	sb.Grow(length * g.config.maxBytesPerRune)
-
-	// Defer returning the randomBytes buffer to the pool
 	defer func() {
-		g.entropyPool.Put(randomBytesPtr)
+		g.idPool.Put(idBufferPtr)
 	}()
-
 	for attempts := 0; cursor < length && attempts < maxAttempts; attempts++ {
 		neededBytes := (length - cursor) * int(bytesNeeded)
 		if neededBytes > bufferLen {
@@ -430,7 +439,7 @@ func (g *generator) newUnicode(length int) (ID, error) {
 			rnd &= mask
 
 			if isPowerOfTwo || int(rnd) < int(g.config.alphabetLen) {
-				sb.WriteRune(g.config.runeAlphabet[rnd])
+				idBuffer[cursor] = g.config.runeAlphabet[rnd]
 				cursor++
 			}
 		}
@@ -441,7 +450,7 @@ func (g *generator) newUnicode(length int) (ID, error) {
 		return EmptyID, ErrExceededMaxAttempts
 	}
 
-	return ID(sb.String()), nil
+	return ID(idBuffer), nil
 }
 
 // Reader is the interface that wraps the basic Read method.
