@@ -21,16 +21,16 @@ import (
 
 var (
 	// Ensure ID implements the fmt.Stringer interface
-	_ = fmt.Stringer(EmptyID)
+	_ = fmt.Stringer(&EmptyID)
 
 	// Ensure ID implements the encoding.BinaryMarshaler interface
-	_ = encoding.BinaryMarshaler(EmptyID)
+	_ = encoding.BinaryMarshaler(&EmptyID)
 
 	// Ensure ID implements the encoding.BinaryUnmarshaler interface
 	_ = encoding.BinaryUnmarshaler(&EmptyID)
 
 	// Ensure ID implements the encoding.TextMarshaler interface
-	_ = encoding.TextMarshaler(EmptyID)
+	_ = encoding.TextMarshaler(&EmptyID)
 
 	// Ensure ID implements the encoding.TextUnmarshaler interface
 	_ = encoding.TextUnmarshaler(&EmptyID)
