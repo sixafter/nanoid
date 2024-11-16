@@ -13,7 +13,7 @@ import (
 // BenchmarkPRNG_ReadSerial benchmarks the Read method of prng.Reader with various buffer sizes in serial.
 func BenchmarkPRNG_ReadSerial(b *testing.B) {
 	// Define the buffer sizes to benchmark.
-	bufferSizes := []int{8, 16, 32, 64, 100, 256, 512, 1000, 4096, 16384}
+	bufferSizes := []int{8, 16, 21, 32, 64, 100, 256, 512, 1000, 4096, 16384}
 
 	for _, size := range bufferSizes {
 		size := size // Capture range variable
@@ -38,7 +38,7 @@ func BenchmarkPRNG_ReadSerial(b *testing.B) {
 // BenchmarkPRNG_ReadConcurrent benchmarks the Read method of prng.Reader under concurrent access with varying buffer sizes and goroutine counts.
 func BenchmarkPRNG_ReadConcurrent(b *testing.B) {
 	// Define the buffer sizes and goroutine counts to benchmark concurrently.
-	bufferSizes := []int{16, 32, 64, 100, 256, 512, 1000, 4096, 16384}
+	bufferSizes := []int{16, 21, 32, 64, 100, 256, 512, 1000, 4096, 16384}
 	goroutineCounts := []int{10, 100, 1000} // Varying goroutine counts
 
 	for _, size := range bufferSizes {
@@ -119,7 +119,7 @@ func BenchmarkPRNG_ReadConcurrentLargeSizes(b *testing.B) {
 // BenchmarkPRNG_ReadVariableSizes benchmarks the Read method with variable buffer sizes in serial.
 func BenchmarkPRNG_ReadVariableSizes(b *testing.B) {
 	// Define a range of buffer sizes to benchmark in serial.
-	variableBufferSizes := []int{8, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096}
+	variableBufferSizes := []int{8, 16, 21, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096}
 
 	for _, size := range variableBufferSizes {
 		size := size // Capture range variable
@@ -144,7 +144,7 @@ func BenchmarkPRNG_ReadVariableSizes(b *testing.B) {
 // BenchmarkPRNG_ReadConcurrentVariableSizes benchmarks the Read method with variable buffer sizes under concurrent access.
 func BenchmarkPRNG_ReadConcurrentVariableSizes(b *testing.B) {
 	// Define a range of buffer sizes and goroutine counts to benchmark concurrently.
-	variableBufferSizes := []int{8, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096}
+	variableBufferSizes := []int{8, 16, 21, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096}
 	goroutineCounts := []int{10, 100, 1000}
 
 	for _, size := range variableBufferSizes {
