@@ -354,10 +354,6 @@ func (g *generator) newASCII(length int) (ID, error) {
 	bytesNeeded := g.config.bytesNeeded
 	isPowerOfTwo := g.config.isPowerOfTwo
 
-	// Use strings.Builder to build the ID efficiently
-	//var sb strings.Builder
-	//sb.Grow(length) // Preallocate capacity to minimize allocations
-
 	// Retrieve the idBuffer from the pool
 	idBufferPtr := g.idPool.Get().(*[]byte)
 	idBuffer := (*idBufferPtr)[:length] // Ensure it has the correct length
@@ -422,6 +418,7 @@ func (g *generator) newUnicode(length int) (ID, error) {
 	defer func() {
 		g.idPool.Put(idBufferPtr)
 	}()
+
 	for attempts := 0; cursor < length && attempts < maxAttempts; attempts++ {
 		neededBytes := (length - cursor) * int(bytesNeeded)
 		if neededBytes > bufferLen {
