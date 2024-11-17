@@ -18,6 +18,20 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.20.0] - 2024-11-16
+
+### Added
+### Changed
+- **FEATURE:** Updated the [PRNG](../x/crypto/prng) reader to allow for each reader instance to have its own `sync.Pool` for buffer reuse.
+- **DEBT:** Refactored to not use `strings.Builder` for ID generation in favor of `sync.Pool` for buffer reuse.
+- **DEBT:** Modified [README.md](README.md) to include detailed information about `sync.Pool` usage for buffer reuse for both ASCII and Unicode ID generation.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.19.0] - 2024-11-16
 
 ### Added
@@ -27,7 +41,7 @@ Date format: `YYYY-MM-DD`
 - **DEBT:** Updated [PRNG](../x/crypto/prng) benchmark tests to test the standard size of 21 characters for Nano ID generation.
 - **DEBT:** The runtime configuration (`Config`) now uses pointer receivers for all methods to ensure consistent behavior and interface compliance.
 - **DEBT:** Refactored Codebase: Split the `nanoid.go` file into multiple modular files within the `nanoid` package to enhance code organization, readability, and maintainability
-- 
+
 ### Deprecated
 ### Removed
 ### Fixed
@@ -462,7 +476,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.19.0..HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.20.0..HEAD
+[1.20.0]: https://github.com/sixafter/nanoid/compare/v1.19.0...v1.20.0
 [1.19.0]: https://github.com/sixafter/nanoid/compare/v1.18.1...v1.19.0
 [1.18.1]: https://github.com/sixafter/nanoid/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/sixafter/nanoid/compare/v1.17.3...v1.18.0
