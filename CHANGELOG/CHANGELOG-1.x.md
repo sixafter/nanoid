@@ -24,6 +24,7 @@ Date format: `YYYY-MM-DD`
 ### Changed
 - **FEATURE:** Updated the [PRNG](../x/crypto/prng) reader to allow for each reader instance to have its own `sync.Pool` for buffer reuse.
 - **DEBT:** Refactored to not use `strings.Builder` for ID generation in favor of `sync.Pool` for buffer reuse.
+- **DEBT:** Modified [README.md](README.md) to include detailed information about `sync.Pool` usage for buffer reuse for both ASCII and Unicode ID generation.
 
 ### Deprecated
 ### Removed
