@@ -26,11 +26,11 @@ Please see the [godoc](https://pkg.go.dev/github.com/sixafter/nanoid) for detail
 - **Concurrency Safe**: Designed to be safe for use in concurrent environments.
 - **High Performance**: Optimized with buffer pooling to minimize allocations and enhance speed.
 - **Optimized for Low Allocations**: Carefully structured to minimize heap allocations, reducing memory overhead and improving cache locality. This optimization is crucial for applications where performance and resource usage are critical.
-    - 1 `allocs/op` for ASCII and Unicode alphabets.
+    - 1 `allocs/op` for ASCII and Unicode alphabets regardless of alphabet size or generated ID length.
 - **Zero Dependencies**: Lightweight implementation with no external dependencies beyond the standard library.
 - **Supports `io.Reader` Interface**: 
-  - The Nano ID generator now satisfies the `io.Reader` interface, allowing it to be used interchangeably with any `io.Reader` implementations. 
-  - Developers can now utilize the Nano ID generator in contexts such as streaming data processing, pipelines, and other I/O-driven operations.
+  - The Nano ID generator satisfies the `io.Reader` interface, allowing it to be used interchangeably with any `io.Reader` implementations. 
+  - Developers can utilize the Nano ID generator in contexts such as streaming data processing, pipelines, and other I/O-driven operations.
 
 Please see the [Nano ID CLI](https://github.com/sixafter/nanoid-cli) for a command-line interface (CLI) that uses this package to generate Nano IDs.
 
