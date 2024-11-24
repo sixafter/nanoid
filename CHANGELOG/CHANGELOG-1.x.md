@@ -18,6 +18,18 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.20.1] - 2024-11-24
+
+### Added
+### Changed
+- **debt**: Upgraded all Go dependencies to the latest versions.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.20.0] - 2024-11-16
 
 ### Added
@@ -476,7 +488,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.20.0..HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.20.1...HEAD
+[1.20.1]: https://github.com/sixafter/nanoid/compare/v1.20.0...v1.20.1
 [1.20.0]: https://github.com/sixafter/nanoid/compare/v1.19.0...v1.20.0
 [1.19.0]: https://github.com/sixafter/nanoid/compare/v1.18.1...v1.19.0
 [1.18.1]: https://github.com/sixafter/nanoid/compare/v1.18.0...v1.18.1
