@@ -150,7 +150,7 @@ func BenchmarkGenerator_Read_DefaultLength(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := DefaultGenerator.Read(buffer)
+		_, err := Generator.Read(buffer)
 		if err != nil {
 			b.Fatalf("Read returned an unexpected error: %v", err)
 		}
@@ -187,7 +187,7 @@ func BenchmarkGenerator_Read_ZeroLengthBuffer(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := DefaultGenerator.Read(buffer)
+		_, err := Generator.Read(buffer)
 		if err != nil {
 			b.Fatalf("Read returned an unexpected error: %v", err)
 		}
@@ -211,7 +211,7 @@ func BenchmarkGenerator_Read_Concurrent(b *testing.B) {
 					defer wg.Done()
 					buffer := make([]byte, bufferSize)
 					for j := 0; j < b.N/concurrency; j++ {
-						_, err := DefaultGenerator.Read(buffer)
+						_, err := Generator.Read(buffer)
 						if err != nil {
 							b.Errorf("Read returned an unexpected error: %v", err)
 							return

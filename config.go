@@ -13,7 +13,7 @@ import (
 	"unicode/utf8"
 )
 
-// ConfigOptions holds the configurable options for the Generator.
+// ConfigOptions holds the configurable options for the Interface.
 // It is used with the Function Options pattern.
 type ConfigOptions struct {
 	// RandReader is the source of randomness used for generating IDs.
@@ -134,12 +134,12 @@ type Configuration interface {
 	Config() Config
 }
 
-// Option defines a function type for configuring the Generator.
+// Option defines a function type for configuring the Interface.
 // It allows for flexible and extensible configuration by applying
-// various settings to the ConfigOptions during Generator initialization.
+// various settings to the ConfigOptions during Interface initialization.
 type Option func(*ConfigOptions)
 
-// WithAlphabet sets a custom alphabet for the Generator.
+// WithAlphabet sets a custom alphabet for the Interface.
 // The provided alphabet string defines the set of characters that will be
 // used to generate Nano IDs. This allows users to customize the character set
 // according to their specific requirements, such as using only alphanumeric
@@ -160,8 +160,8 @@ func WithAlphabet(alphabet string) Option {
 	}
 }
 
-// WithRandReader sets a custom random reader for the Generator.
-// By default, the Generator uses a cryptographically secure random number
+// WithRandReader sets a custom random reader for the Interface.
+// By default, the Interface uses a cryptographically secure random number
 // generator (e.g., crypto/rand.Reader). However, in some cases, users might
 // want to provide their own source of randomness, such as for testing purposes
 // or to integrate with a different entropy source.
@@ -184,7 +184,7 @@ func WithRandReader(reader io.Reader) Option {
 }
 
 // WithLengthHint sets the hint of the intended length of the IDs to be generated.
-// Providing a length hint allows the Generator to optimize internal configurations,
+// Providing a length hint allows the Interface to optimize internal configurations,
 // such as buffer sizes and scaling factors, based on the expected ID length. This
 // can enhance performance and efficiency, especially when generating a large number
 // of IDs with similar lengths.

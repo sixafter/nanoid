@@ -65,6 +65,7 @@ package main
 
 import (
   "fmt"
+  
   "github.com/sixafter/nanoid"
 )
 
@@ -92,6 +93,7 @@ package main
 
 import (
   "fmt"
+  
   "github.com/sixafter/nanoid"
 )
 
@@ -120,6 +122,7 @@ package main
 import (
   "fmt"
   "io"
+  
   "github.com/sixafter/nanoid"
 )
 

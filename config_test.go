@@ -23,7 +23,7 @@ func TestGetConfig(t *testing.T) {
 
 	// Assert that generator implements Configuration interface
 	config, ok := gen.(Configuration)
-	is.True(ok, "Generator should implement Configuration interface")
+	is.True(ok, "Interface should implement Configuration interface")
 
 	runtimeConfig := config.Config()
 
