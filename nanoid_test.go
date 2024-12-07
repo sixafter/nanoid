@@ -129,7 +129,7 @@ func TestGenerateWithDuplicateAlphabet(t *testing.T) {
 		WithAlphabet(alphabet),
 	)
 	is.Error(err, "NewGenerator() should return an error with duplicate characters in the alphabet")
-	is.Nil(gen, "Generator should be nil when initialization fails")
+	is.Nil(gen, "Interface should be nil when initialization fails")
 	is.Equal(ErrDuplicateCharacters, err, "Expected ErrDuplicateCharacters")
 }
 
@@ -164,11 +164,11 @@ func TestNewGeneratorWithInvalidAlphabet(t *testing.T) {
 			switch true {
 			case l < MinAlphabetLength:
 				is.Error(err, "NewGenerator() should return an error with an invalid alphabet length")
-				is.Nil(gen, "Generator should be nil when initialization fails")
+				is.Nil(gen, "Interface should be nil when initialization fails")
 				is.Equal(ErrAlphabetTooShort, err, "Expected ErrAlphabetTooShort")
 			case l > MaxAlphabetLength:
 				is.Error(err, "NewGenerator() should return an error with an invalid alphabet length")
-				is.Nil(gen, "Generator should be nil when initialization fails")
+				is.Nil(gen, "Interface should be nil when initialization fails")
 				is.Equal(ErrAlphabetTooLong, err, "Expected ErrAlphabetTooLong")
 			default:
 				is.NoError(err, "NewGenerator() should not return an error when initialization succeeds")
@@ -191,7 +191,7 @@ func TestInvalidUTF8Alphabet(t *testing.T) {
 	)
 
 	is.Error(err, "NewGenerator() should return an error with an invalid alphabet")
-	is.Nil(gen, "Generator should be nil when initialization fails")
+	is.Nil(gen, "Interface should be nil when initialization fails")
 	is.Equal(ErrNonUTF8Alphabet, err, "Expected ErrNonUTF8Alphabet")
 }
 
@@ -662,7 +662,7 @@ func TestNewWithZeroLengthHintAndMaxAlphabet(t *testing.T) {
 		WithLengthHint(lengthHint),
 	)
 	is.Error(err, "NewGenerator() should return an error with LengthHint=0 and maximum alphabet size")
-	is.Nil(gen, "Generator should be nil when LengthHint is zero")
+	is.Nil(gen, "Interface should be nil when LengthHint is zero")
 }
 
 // TestGenerateWithCustomRandReaderReturningNoBytes tests generator behavior when the custom reader returns no bytes.
@@ -974,8 +974,8 @@ func TestGenerator_Read_Concurrent(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
-	gen, ok := DefaultGenerator.(*generator)
-	is.True(ok, "DefaultGenerator should be of type *generator")
+	gen, ok := Generator.(*generator)
+	is.True(ok, "Generator should be of type *generator")
 
 	numGoroutines := 10
 	readsPerGoroutine := 100

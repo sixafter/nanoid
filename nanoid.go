@@ -14,11 +14,11 @@ import (
 )
 
 var (
-	// DefaultGenerator is a global, shared instance of a Nano ID generator. It is safe for concurrent use.
-	DefaultGenerator Generator
+	// Generator is a global, shared instance of a Nano ID generator. It is safe for concurrent use.
+	Generator Interface
 
-	// DefaultRandReader is the default random number generator used for generating IDs.
-	DefaultRandReader = prng.Reader
+	// RandReader is the default random number generator used for generating IDs.
+	RandReader = prng.Reader
 )
 
 const (
@@ -60,16 +60,17 @@ const (
 
 func init() {
 	var err error
-	DefaultGenerator, err = NewGenerator()
+	Generator, err = NewGenerator()
 	if err != nil {
-		panic(fmt.Sprintf("failed to initialize DefaultGenerator: %v", err))
+		panic(fmt.Sprintf("failed to initialize Generator: %v", err))
 	}
 }
 
-// Generator defines the interface for generating Nano IDs.
+// Interface defines the contract for generating Nano IDs.
+//
 // Implementations of this interface provide methods to create new IDs
 // and to read random data, supporting both ID generation and direct random byte access.
-type Generator interface {
+type Interface interface {
 	// New generates and returns a new Nano ID as a string with the specified length.
 	// The 'length' parameter determines the number of characters in the generated ID.
 	// Returns an error if the ID generation fails due to issues like insufficient randomness.
@@ -85,7 +86,7 @@ type Generator interface {
 	// Read fills the provided byte slice 'p' with random data, reading up to len(p) bytes.
 	// Returns the number of bytes read and any error encountered during the read operation.
 	//
-	// Implements the io.Reader interface, allowing the Generator to be used wherever an io.Reader is accepted.
+	// Implements the io.Reader interface, allowing the Interface to be used wherever an io.Reader is accepted.
 	// This can be useful for directly obtaining random bytes or integrating with other components that consume random data.
 	//
 	// Usage:
@@ -95,7 +96,7 @@ type Generator interface {
 	//       // handle error
 	//   }
 	//   fmt.Printf("Read %d random bytes\n", n)
-	Read(p []byte) (n int, err error)
+	Read(b []byte) (n int, err error)
 }
 
 type generator struct {
@@ -132,7 +133,7 @@ func New() (ID, error) {
 //	}
 //	fmt.Println("Generated ID:", id)
 func NewWithLength(length int) (ID, error) {
-	return DefaultGenerator.New(length)
+	return Generator.New(length)
 }
 
 // Must generates a new Nano ID using the default length specified by `DefaultLength`.
@@ -201,22 +202,22 @@ func MustWithLength(length int) ID {
 // nothing happened; in particular it does not indicate EOF.
 //
 // Implementations must not retain p.
-func Read(p []byte) (n int, err error) {
-	return DefaultGenerator.Read(p)
+func Read(b []byte) (n int, err error) {
+	return Generator.Read(b)
 }
 
-// NewGenerator creates a new Generator with buffer pooling enabled.
-// It accepts variadic Option parameters to configure the Generator's behavior.
+// NewGenerator creates a new Interface with buffer pooling enabled.
+// It accepts variadic Option parameters to configure the Interface's behavior.
 // The function initializes the configuration with default values, applies any provided options,
 // validates the configuration, constructs the runtime configuration, initializes buffer pools,
-// and returns a configured Generator or an error if the configuration is invalid.
+// and returns a configured Interface or an error if the configuration is invalid.
 //
 // Parameters:
-//   - options ...Option: A variadic list of Option functions to customize the Generator's configuration.
+//   - options ...Option: A variadic list of Option functions to customize the Interface's configuration.
 //
 // Returns:
-//   - Generator: An instance of the Generator interface configured with the specified options.
-//   - error: An error object if the Generator could not be created due to invalid configuration.
+//   - Interface: An instance of the Interface interface configured with the specified options.
+//   - error: An error object if the Interface could not be created due to invalid configuration.
 //
 // Error Conditions:
 //   - ErrInvalidLength: Returned if the provided LengthHint is less than 1.
@@ -224,13 +225,13 @@ func Read(p []byte) (n int, err error) {
 //   - ErrInvalidAlphabet: Returned if the alphabet is invalid or contains invalid UTF-8 characters.
 //   - ErrNonUTF8Alphabet: Returned if the alphabet contains non-UTF-8 characters.
 //   - ErrDuplicateCharacters: Returned if the alphabet contains duplicate characters.
-func NewGenerator(options ...Option) (Generator, error) {
+func NewGenerator(options ...Option) (Interface, error) {
 	// Initialize ConfigOptions with default values.
 	// These defaults include the default alphabet, the default random reader,
 	// and the default length hint for ID generation.
 	configOpts := &ConfigOptions{
 		Alphabet:   DefaultAlphabet,
-		RandReader: DefaultRandReader,
+		RandReader: RandReader,
 		LengthHint: DefaultLength,
 	}
 
@@ -286,7 +287,7 @@ func NewGenerator(options ...Option) (Generator, error) {
 		}
 	}
 
-	// Return the configured Generator instance.
+	// Return the configured Interface instance.
 	// The generator holds references to the runtime configuration and buffer pools,
 	// facilitating efficient and thread-safe ID generation.
 	return &generator{
@@ -313,7 +314,7 @@ func NewGenerator(options ...Option) (Generator, error) {
 //
 // Usage Example:
 //
-//	id, err := DefaultGenerator.New(21)
+//	id, err := Generator.New(21)
 //	if err != nil {
 //	    // handle error
 //	}
