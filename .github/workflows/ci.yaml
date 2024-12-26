@@ -77,9 +77,9 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar-
 
-      # Ref: https://github.com/SonarSource/sonarcloud-github-action
+      # Ref: https://github.com/SonarSource/sonarqube-scan-action
       - name: Scan with SonarCloud
-        uses: sonarsource/sonarcloud-github-action@master
+        uses: sonarsource/sonarqube-scan-action@v4
         with:
           projectBaseDir: ./
         env:
