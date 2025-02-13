@@ -18,6 +18,18 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.23.0] - 2025-02-13
+
+### Added
+### Changed
+- **debt**: Upgraded to Go 1.24.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.22.0] - 2024-12-26
 
 ### Added
@@ -513,7 +525,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.22.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.23.0...HEAD
+[1.22.0]: https://github.com/sixafter/nanoid/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/sixafter/nanoid/compare/v1.21.0...v1.22.0
 [1.21.0]: https://github.com/sixafter/nanoid/compare/v1.20.1...v1.21.0
 [1.20.1]: https://github.com/sixafter/nanoid/compare/v1.20.0...v1.20.1
