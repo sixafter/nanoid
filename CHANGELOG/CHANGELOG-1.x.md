@@ -18,6 +18,20 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.24.0] - 2025-04-14
+
+### Added
+- **risk:** Added copyright notice to GitHub Actions workflows.
+
+### Changed
+- **debt**: Upgraded all dependencies to the latest supported versions.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.23.0] - 2025-02-13
 
 ### Added
@@ -525,8 +539,9 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.23.0...HEAD
-[1.22.0]: https://github.com/sixafter/nanoid/compare/v1.22.0...v1.23.0
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.24.0...HEAD
+[1.24.0]: https://github.com/sixafter/nanoid/compare/v1.23.0...v1.24.0
+[1.23.0]: https://github.com/sixafter/nanoid/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/sixafter/nanoid/compare/v1.21.0...v1.22.0
 [1.21.0]: https://github.com/sixafter/nanoid/compare/v1.20.1...v1.21.0
 [1.20.1]: https://github.com/sixafter/nanoid/compare/v1.20.0...v1.20.1

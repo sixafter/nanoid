@@ -1,3 +1,8 @@
+# Copyright (c) 2024 Six After, Inc
+#
+# This source code is licensed under the Apache 2.0 License found in the
+# LICENSE file in the root directory of this source tree.
+
 # Ref: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
 name: ci
 
@@ -53,7 +58,7 @@ jobs:
 
       # Ref: https://github.com/golangci/golangci-lint-action
       - name: Lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
           args: --timeout=30m --config=.golangci.yaml --issues-exit-code=0
 
