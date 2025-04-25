@@ -20,7 +20,7 @@
 
 ### 🚀 Package and Deploy
 
-[![CI](https://github.com/sixafter/nanoid/workflows/release/badge.svg)](https://github.com/sixafter/nanoid/actions)
+[![Release](https://github.com/sixafter/nanoid/workflows/release/badge.svg)](https://github.com/sixafter/nanoid/actions)
 
 ---
 ## Overview 
