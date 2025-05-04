@@ -18,7 +18,7 @@ func BenchmarkPRNG_ReadSerial(b *testing.B) {
 	for _, size := range bufferSizes {
 		size := size // Capture range variable
 		b.Run(fmt.Sprintf("Serial_Read_%dBytes", size), func(b *testing.B) {
-			reader, err := NewReader()
+			rdr, err := NewReader()
 			if err != nil {
 				b.Fatalf("NewReader failed: %v", err)
 			}
@@ -26,7 +26,7 @@ func BenchmarkPRNG_ReadSerial(b *testing.B) {
 			b.ResetTimer()   // Reset the timer to exclude setup time
 			b.ReportAllocs() // Report memory allocations
 			for i := 0; i < b.N; i++ {
-				_, err := reader.Read(buffer)
+				_, err := rdr.Read(buffer)
 				if err != nil {
 					b.Fatalf("Read failed: %v", err)
 				}
@@ -46,13 +46,13 @@ func BenchmarkPRNG_ReadConcurrent(b *testing.B) {
 			size, gc := size, gc // Capture range variables
 			b.Run(fmt.Sprintf("Concurrent_Read_%dBytes_%dGoroutines", size, gc), func(b *testing.B) {
 				b.RunParallel(func(pb *testing.PB) {
-					reader, err := NewReader()
+					rdr, err := NewReader()
 					if err != nil {
 						b.Fatalf("NewReader failed: %v", err)
 					}
 					buffer := make([]byte, size)
 					for pb.Next() {
-						_, err := reader.Read(buffer)
+						_, err := rdr.Read(buffer)
 						if err != nil {
 							b.Fatalf("Read failed: %v", err)
 						}
@@ -71,7 +71,7 @@ func BenchmarkPRNG_ReadSequentialLargeSizes(b *testing.B) {
 	for _, size := range largeBufferSizes {
 		size := size // Capture range variable
 		b.Run(fmt.Sprintf("Serial_Read_Large_%dBytes", size), func(b *testing.B) {
-			reader, err := NewReader()
+			rdr, err := NewReader()
 			if err != nil {
 				b.Fatalf("NewReader failed: %v", err)
 			}
@@ -79,7 +79,7 @@ func BenchmarkPRNG_ReadSequentialLargeSizes(b *testing.B) {
 			b.ResetTimer()
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				_, err := reader.Read(buffer)
+				_, err := rdr.Read(buffer)
 				if err != nil {
 					b.Fatalf("Read failed: %v", err)
 				}
@@ -99,13 +99,13 @@ func BenchmarkPRNG_ReadConcurrentLargeSizes(b *testing.B) {
 			size, gc := size, gc // Capture range variables
 			b.Run(fmt.Sprintf("Concurrent_Read_Large_%dBytes_%dGoroutines", size, gc), func(b *testing.B) {
 				b.RunParallel(func(pb *testing.PB) {
-					reader, err := NewReader()
+					rdr, err := NewReader()
 					if err != nil {
 						b.Fatalf("NewReader failed: %v", err)
 					}
 					buffer := make([]byte, size)
 					for pb.Next() {
-						_, err := reader.Read(buffer)
+						_, err := rdr.Read(buffer)
 						if err != nil {
 							b.Fatalf("Read failed: %v", err)
 						}
@@ -124,7 +124,7 @@ func BenchmarkPRNG_ReadVariableSizes(b *testing.B) {
 	for _, size := range variableBufferSizes {
 		size := size // Capture range variable
 		b.Run(fmt.Sprintf("Serial_Read_Variable_%dBytes", size), func(b *testing.B) {
-			reader, err := NewReader()
+			rdr, err := NewReader()
 			if err != nil {
 				b.Fatalf("NewReader failed: %v", err)
 			}
@@ -132,7 +132,7 @@ func BenchmarkPRNG_ReadVariableSizes(b *testing.B) {
 			b.ResetTimer()
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				_, err := reader.Read(buffer)
+				_, err := rdr.Read(buffer)
 				if err != nil {
 					b.Fatalf("Read failed: %v", err)
 				}
@@ -152,13 +152,13 @@ func BenchmarkPRNG_ReadConcurrentVariableSizes(b *testing.B) {
 			size, gc := size, gc // Capture range variables
 			b.Run(fmt.Sprintf("Concurrent_Read_Variable_%dBytes_%dGoroutines", size, gc), func(b *testing.B) {
 				b.RunParallel(func(pb *testing.PB) {
-					reader, err := NewReader()
+					rdr, err := NewReader()
 					if err != nil {
 						b.Fatalf("NewReader failed: %v", err)
 					}
 					buffer := make([]byte, size)
 					for pb.Next() {
-						_, err := reader.Read(buffer)
+						_, err := rdr.Read(buffer)
 						if err != nil {
 							b.Fatalf("Read failed: %v", err)
 						}
@@ -178,7 +178,7 @@ func BenchmarkPRNG_ReadExtremeSizes(b *testing.B) {
 		size := size // Capture range variable
 		// Serial Benchmark
 		b.Run(fmt.Sprintf("Serial_Read_Extreme_%dBytes", size), func(b *testing.B) {
-			reader, err := NewReader()
+			rdr, err := NewReader()
 			if err != nil {
 				b.Fatalf("NewReader failed: %v", err)
 			}
@@ -186,7 +186,7 @@ func BenchmarkPRNG_ReadExtremeSizes(b *testing.B) {
 			b.ResetTimer()
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				_, err := reader.Read(buffer)
+				_, err := rdr.Read(buffer)
 				if err != nil {
 					b.Fatalf("Read failed: %v", err)
 				}
@@ -199,13 +199,13 @@ func BenchmarkPRNG_ReadExtremeSizes(b *testing.B) {
 			gc := gc // Capture range variable
 			b.Run(fmt.Sprintf("Concurrent_Read_Extreme_%dBytes_%dGoroutines", size, gc), func(b *testing.B) {
 				b.RunParallel(func(pb *testing.PB) {
-					reader, err := NewReader()
+					rdr, err := NewReader()
 					if err != nil {
 						b.Fatalf("NewReader failed: %v", err)
 					}
 					buffer := make([]byte, size)
 					for pb.Next() {
-						_, err := reader.Read(buffer)
+						_, err := rdr.Read(buffer)
 						if err != nil {
 							b.Fatalf("Read failed: %v", err)
 						}

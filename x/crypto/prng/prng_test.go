@@ -18,13 +18,13 @@ import (
 func TestPRNG_Read(t *testing.T) {
 	t.Parallel() // Enable parallel execution of this test
 
-	reader, err := NewReader()
+	rdr, err := NewReader()
 	if err != nil {
 		t.Fatalf("NewReader failed: %v", err)
 	}
 
 	buffer := make([]byte, 64)
-	n, err := reader.Read(buffer)
+	n, err := rdr.Read(buffer)
 	if err != nil {
 		t.Fatalf("Read failed: %v", err)
 	}
@@ -50,13 +50,13 @@ func TestPRNG_Read(t *testing.T) {
 func TestPRNG_ReadZeroBytes(t *testing.T) {
 	t.Parallel() // Enable parallel execution of this test
 
-	reader, err := NewReader()
+	rdr, err := NewReader()
 	if err != nil {
 		t.Fatalf("NewReader failed: %v", err)
 	}
 
 	buffer := make([]byte, 0)
-	n, err := reader.Read(buffer)
+	n, err := rdr.Read(buffer)
 	if err != nil {
 		t.Fatalf("Read failed: %v", err)
 	}
@@ -70,13 +70,13 @@ func TestPRNG_ReadZeroBytes(t *testing.T) {
 func TestPRNG_ReadMultipleTimes(t *testing.T) {
 	t.Parallel() // Enable parallel execution of this test
 
-	reader, err := NewReader()
+	rdr, err := NewReader()
 	if err != nil {
 		t.Fatalf("NewReader failed: %v", err)
 	}
 
 	buffer1 := make([]byte, 32)
-	n, err := reader.Read(buffer1)
+	n, err := rdr.Read(buffer1)
 	if err != nil {
 		t.Fatalf("First read failed: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestPRNG_ReadMultipleTimes(t *testing.T) {
 	}
 
 	buffer2 := make([]byte, 32)
-	n, err = reader.Read(buffer2)
+	n, err = rdr.Read(buffer2)
 	if err != nil {
 		t.Fatalf("Second read failed: %v", err)
 	}
@@ -111,13 +111,13 @@ func TestPRNG_ReadWithDifferentBufferSizes(t *testing.T) {
 		t.Run(fmt.Sprintf("BufferSize_%d", size), func(t *testing.T) {
 			t.Parallel() // Enable parallel execution of subtests
 
-			reader, err := NewReader()
+			rdr, err := NewReader()
 			if err != nil {
 				t.Fatalf("NewReader failed: %v", err)
 			}
 
 			buffer := make([]byte, size)
-			n, err := reader.Read(buffer)
+			n, err := rdr.Read(buffer)
 			if err != nil {
 				t.Fatalf("Read failed: %v", err)
 			}
@@ -153,7 +153,7 @@ func TestPRNG_Concurrency(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(numGoroutines)
 
-	reader, err := NewReader()
+	rdr, err := NewReader()
 	if err != nil {
 		t.Fatalf("NewReader failed: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestPRNG_Concurrency(t *testing.T) {
 			defer wg.Done()
 
 			buf := make([]byte, bufferSize)
-			_, err := reader.Read(buf)
+			_, err := rdr.Read(buf)
 			if err != nil {
 				errorsChan <- err
 				return
@@ -195,7 +195,7 @@ func TestPRNG_Concurrency(t *testing.T) {
 func TestPRNG_Stream(t *testing.T) {
 	t.Parallel() // Enable parallel execution of this test
 
-	reader, err := NewReader()
+	rdr, err := NewReader()
 	if err != nil {
 		t.Fatalf("NewReader failed: %v", err)
 	}
@@ -203,7 +203,7 @@ func TestPRNG_Stream(t *testing.T) {
 	// Read a large number of bytes to simulate stream usage
 	totalBytes := 1024 * 1024 // 1 MB
 	buffer := make([]byte, totalBytes)
-	n, err := io.ReadFull(reader, buffer)
+	n, err := io.ReadFull(rdr, buffer)
 	if err != nil {
 		t.Fatalf("ReadFull failed: %v", err)
 	}
@@ -229,19 +229,19 @@ func TestPRNG_Stream(t *testing.T) {
 func TestPRNG_ReadUnique(t *testing.T) {
 	t.Parallel() // Enable parallel execution of this test
 
-	reader, err := NewReader()
+	rdr, err := NewReader()
 	if err != nil {
 		t.Fatalf("NewReader failed: %v", err)
 	}
 
 	buffer1 := make([]byte, 64)
-	_, err = reader.Read(buffer1)
+	_, err = rdr.Read(buffer1)
 	if err != nil {
 		t.Fatalf("First read failed: %v", err)
 	}
 
 	buffer2 := make([]byte, 64)
-	_, err = reader.Read(buffer2)
+	_, err = rdr.Read(buffer2)
 	if err != nil {
 		t.Fatalf("Second read failed: %v", err)
 	}
@@ -255,17 +255,17 @@ func TestPRNG_ReadUnique(t *testing.T) {
 func TestPRNG_NewReader(t *testing.T) {
 	t.Parallel() // Enable parallel execution of this test
 
-	newReader, err := NewReader()
+	rdr, err := NewReader()
 	if err != nil {
 		t.Fatalf("NewReader failed: %v", err)
 	}
-	if newReader == nil {
+	if rdr == nil {
 		t.Errorf("NewReader should return a non-nil Reader")
 	}
 
 	// Perform a simple read to ensure the new Reader functions correctly
 	buffer := make([]byte, 32)
-	n, err := newReader.Read(buffer)
+	n, err := rdr.Read(buffer)
 	if err != nil {
 		t.Fatalf("NewReader's Read failed: %v", err)
 	}
@@ -290,14 +290,14 @@ func TestPRNG_NewReader(t *testing.T) {
 func TestPRNG_ReadAll(t *testing.T) {
 	t.Parallel() // Enable parallel execution of this test
 
-	reader, err := NewReader()
+	rdr, err := NewReader()
 	if err != nil {
 		t.Fatalf("NewReader failed: %v", err)
 	}
 
 	// Attempt to read a large number of bytes to simulate continuous reading
 	buffer := make([]byte, 10*1024) // 10 KB
-	n, err := reader.Read(buffer)
+	n, err := rdr.Read(buffer)
 	if err != nil {
 		t.Fatalf("Read failed: %v", err)
 	}
@@ -327,14 +327,14 @@ func TestPRNG_ReadConsistency(t *testing.T) {
 	bufferSize := 128
 	buffers := make([][]byte, numReads)
 
-	reader, err := NewReader()
+	rdr, err := NewReader()
 	if err != nil {
 		t.Fatalf("NewReader failed: %v", err)
 	}
 
 	for i := 0; i < numReads; i++ {
 		buf := make([]byte, bufferSize)
-		n, err := reader.Read(buf)
+		n, err := rdr.Read(buf)
 		if err != nil {
 			t.Fatalf("Read failed at iteration %d: %v", i, err)
 		}
