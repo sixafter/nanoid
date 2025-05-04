@@ -18,6 +18,18 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.24.1] - 2025-05-04
+
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+- **defect:** Fixed minor variable shadowing issues in several `x/crypto/prng` tests.
+
+### Security
+
+---
 ## [1.24.0] - 2025-04-14
 
 ### Added
@@ -539,7 +551,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.24.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.24.1...HEAD
+[1.24.1]: https://github.com/sixafter/nanoid/compare/v1.24.0...v1.24.1
 [1.24.0]: https://github.com/sixafter/nanoid/compare/v1.23.0...v1.24.0
 [1.23.0]: https://github.com/sixafter/nanoid/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/sixafter/nanoid/compare/v1.21.0...v1.22.0
