@@ -17,6 +17,10 @@ var EmptyID = ID("")
 
 // IsEmpty returns true if the ID is an empty ID (EmptyID)
 func (id *ID) IsEmpty() bool {
+	if id == nil {
+		return true
+	}
+
 	return id.Compare(EmptyID) == 0
 }
 
@@ -35,8 +39,8 @@ func (id *ID) IsEmpty() bool {
 //	id2 := ID("V1StGXR8_Z5jdHi6B-myT")
 //	result := id1.Compare(id2)
 //	fmt.Println(result) // Output: 0
-func (id *ID) Compare(other ID) int {
-	return strings.Compare(string(*id), string(other))
+func (id ID) Compare(other ID) int {
+	return strings.Compare(string(id), string(other))
 }
 
 // String returns the string representation of the ID.
@@ -47,8 +51,8 @@ func (id *ID) Compare(other ID) int {
 //
 //	id := Must()
 //	fmt.Println(id) // Output: V1StGXR8_Z5jdHi6B-myT
-func (id *ID) String() string {
-	return string(*id)
+func (id ID) String() string {
+	return string(id)
 }
 
 // MarshalText converts the ID to a byte slice.
