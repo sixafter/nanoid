@@ -192,7 +192,7 @@ func main() {
 	}
 
 	// Generate a Nano ID using the custom generator
-	id, err := gen.New(10)
+	id, err := gen.NewWithLength(10)
 	if err != nil {
 		fmt.Println("Error generating Nano ID:", err)
 		return
@@ -232,8 +232,9 @@ func main() {
 		return
 	}
 
-	// Generate a Nano ID using the custom generator
-	id, err := gen.New(nanoid.DefaultLength)
+	// Generate a Nano ID using the custom generator with 
+	// the default length.
+	id, err := gen.New()
 	if err != nil {
 		fmt.Println("Error generating Nano ID:", err)
 		return

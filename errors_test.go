@@ -140,7 +140,7 @@ func TestErrExceededMaxAttempts(t *testing.T) {
 	is.NoError(err, "Expected no error when initializing generator with valid configuration")
 
 	// Attempt to generate an ID; expect ErrExceededMaxAttempts
-	_, err = generator.New(length)
+	_, err = generator.NewWithLength(length)
 	is.Equal(ErrExceededMaxAttempts, err, "Expected ErrExceededMaxAttempts when generator cannot find valid indices")
 }
 
