@@ -18,6 +18,19 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.26.0] - 2025-05-16
+
+### Added
+- **feature**: The `Interface` interface now includes a `GetConfig()` method to retrieve the current configuration of the generator.
+
+### Changed
+- **debt:** Upgraded dependencies to the latest stable versions.
+
+### Deprecated
+### Removed
+### Fixed
+
+---
 ## [1.25.0] - 2025-05-13
 
 ### Added
@@ -562,7 +575,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.25.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.26.0...HEAD
+[1.26.0]: https://github.com/sixafter/nanoid/compare/v1.25.0...v1.26.0
 [1.25.0]: https://github.com/sixafter/nanoid/compare/v1.24.1...v1.25.0
 [1.24.1]: https://github.com/sixafter/nanoid/compare/v1.24.0...v1.24.1
 [1.24.0]: https://github.com/sixafter/nanoid/compare/v1.23.0...v1.24.0

@@ -6,6 +6,7 @@
 package nanoid
 
 import (
+	"bytes"
 	"encoding"
 	"errors"
 	"fmt"
@@ -1035,4 +1036,43 @@ type errorReader struct{}
 
 func (e *errorReader) Read(_ []byte) (int, error) {
 	return 0, errors.New("simulated read error")
+}
+
+// TestGenerator_GetConfig tests the GetConfig method to ensure it returns the correct configuration.
+func TestGenerator_GetConfig(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Arrange: Use known, deterministic config options
+	randSource := bytes.NewReader([]byte("0123456789abcdef0123456789abcdef"))
+	alphabet := "abcdef123456"
+	lengthHint := uint16(32)
+
+	g, err := NewGenerator(
+		WithRandReader(randSource),
+		WithAlphabet(alphabet),
+		WithLengthHint(lengthHint),
+	)
+	is.NoError(err)
+	is.NotNil(g)
+
+	// Act: Get the configuration from the generator
+	cfg := g.GetConfig()
+
+	// Assert: Verify key config values are as expected
+	is.EqualValues(lengthHint, cfg.LengthHint())
+	is.EqualValues(len([]rune(alphabet)), int(cfg.AlphabetLen()))
+	is.EqualValues(alphabet, string(cfg.RuneAlphabet()))
+	is.Equal(randSource, cfg.RandReader())
+	is.Equal(cfg.IsASCII(), true)
+
+	// Derived properties
+	is.Greater(cfg.BitsNeeded(), uint(0))
+	is.Greater(cfg.BytesNeeded(), uint(0))
+	is.Greater(cfg.Mask(), uint(0))
+	is.Greater(cfg.BufferSize(), 0)
+	is.Greater(cfg.ScalingFactor(), 0)
+	is.Greater(cfg.BaseMultiplier(), 0)
+	is.Greater(cfg.BufferMultiplier(), 0)
+	is.Greater(cfg.MaxBytesPerRune(), 0)
 }

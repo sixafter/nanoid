@@ -97,12 +97,16 @@ type Interface interface {
 	//   }
 	//   fmt.Printf("Read %d random bytes\n", n)
 	Read(b []byte) (n int, err error)
+
+	// GetConfig Config returns the current configuration of the generator.
+	GetConfig() Config
 }
 
 type generator struct {
 	config      *runtimeConfig
 	entropyPool *sync.Pool
 	idPool      *sync.Pool
+	Configuration
 }
 
 // New generates a new Nano ID using the default length specified by `DefaultLength`.
@@ -530,4 +534,9 @@ func (g *generator) processRandomBytes(randomBytes []byte, i int) uint {
 		}
 		return rnd
 	}
+}
+
+// GetConfig returns the current configuration of the generator.
+func (g *generator) GetConfig() Config {
+	return g.config
 }
