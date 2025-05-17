@@ -18,6 +18,17 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.27.0] - 2025-05-16
+
+### Added
+- **feature**: The `Interface` interface now includes a `NewWithlength` method to create a Nano ID with a specified length.
+
+### Changed
+### Deprecated
+### Removed
+### Fixed
+
+---
 ## [1.26.0] - 2025-05-16
 
 ### Added
@@ -575,7 +586,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.26.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.27.0...HEAD
+[1.27.0]: https://github.com/sixafter/nanoid/compare/v1.26.0...v1.27.0
 [1.26.0]: https://github.com/sixafter/nanoid/compare/v1.25.0...v1.26.0
 [1.25.0]: https://github.com/sixafter/nanoid/compare/v1.24.1...v1.25.0
 [1.24.1]: https://github.com/sixafter/nanoid/compare/v1.24.0...v1.24.1

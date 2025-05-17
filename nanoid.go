@@ -71,17 +71,28 @@ func init() {
 // Implementations of this interface provide methods to create new IDs
 // and to read random data, supporting both ID generation and direct random byte access.
 type Interface interface {
-	// New generates and returns a new Nano ID as a string with the specified length.
-	// The 'length' parameter determines the number of characters in the generated ID.
+	// New generates and returns a new Nano ID as a string with configured length hint.
 	// Returns an error if the ID generation fails due to issues like insufficient randomness.
 	//
 	// Usage:
-	//   id, err := generator.New(21)
+	//   id, err := generator.New()
 	//   if err != nil {
 	//       // handle error
 	//   }
 	//   fmt.Println("Generated ID:", id)
-	New(length int) (ID, error)
+	New() (ID, error)
+
+	// NewWithLength generates and returns a new Nano ID as a string with the specified length.
+	// The 'length' parameter determines the number of characters in the generated ID.
+	// Returns an error if the ID generation fails due to issues like insufficient randomness.
+	//
+	// Usage:
+	//   id, err := generator.NewWithLength(21)
+	//   if err != nil {
+	//       // handle error
+	//   }
+	//   fmt.Println("Generated ID:", id)
+	NewWithLength(length int) (ID, error)
 
 	// Read fills the provided byte slice 'p' with random data, reading up to len(p) bytes.
 	// Returns the number of bytes read and any error encountered during the read operation.
@@ -137,7 +148,7 @@ func New() (ID, error) {
 //	}
 //	fmt.Println("Generated ID:", id)
 func NewWithLength(length int) (ID, error) {
-	return Generator.New(length)
+	return Generator.NewWithLength(length)
 }
 
 // Must generates a new Nano ID using the default length specified by `DefaultLength`.
@@ -301,7 +312,24 @@ func NewGenerator(options ...Option) (Interface, error) {
 	}, nil
 }
 
-// New generates a new Nano ID string of the specified length.
+// New generates a new Nano ID string of the configured length hint.
+//
+// Returns:
+//   - string: The generated Nano ID.
+//   - error: An error object if the generation fails due to invalid input.
+//
+// Usage:
+//
+//	id, err := generator.New()
+//	if err != nil {
+//	    // handle error
+//	}
+//	fmt.Println("Generated ID:", id)
+func (g *generator) New() (ID, error) {
+	return g.NewWithLength(int(g.config.lengthHint))
+}
+
+// NewWithLength generates a new Nano ID string of the specified length.
 //
 // It validates the provided length to ensure it is a positive integer.
 // Depending on the generator's configuration, it generates the ID using the appropriate method.
@@ -316,14 +344,14 @@ func NewGenerator(options ...Option) (Interface, error) {
 // Error Conditions:
 //   - ErrInvalidLength: Returned if the provided length is less than or equal to zero.
 //
-// Usage Example:
+// Usage:
 //
-//	id, err := Generator.New(21)
+//	id, err := generator.NewWithLength(21)
 //	if err != nil {
 //	    // handle error
 //	}
 //	fmt.Println("Generated ID:", id)
-func (g *generator) New(length int) (ID, error) {
+func (g *generator) NewWithLength(length int) (ID, error) {
 	if length <= 0 {
 		return EmptyID, ErrInvalidLength
 	}
@@ -492,7 +520,7 @@ func (g *generator) Read(p []byte) (n int, err error) {
 	}
 
 	length := len(p)
-	id, err := g.New(length)
+	id, err := g.NewWithLength(length)
 	if err != nil {
 		return 0, err
 	}
