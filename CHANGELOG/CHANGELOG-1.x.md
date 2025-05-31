@@ -18,6 +18,21 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.28.0] - 2025-05-31
+
+### Added
+- **feature**: Added SonarQube security rating badge to the README.
+
+### Changed
+- **debt**: Changed `GetConfig()` to `Config()` in the `Interface` interface to align with Go naming conventions.
+- **risk**: Added nil receiver test for `ID`.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.27.0] - 2025-05-16
 
 ### Added
@@ -27,6 +42,7 @@ Date format: `YYYY-MM-DD`
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
 
 ---
 ## [1.26.0] - 2025-05-16
@@ -40,6 +56,7 @@ Date format: `YYYY-MM-DD`
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
 
 ---
 ## [1.25.0] - 2025-05-13
@@ -51,6 +68,7 @@ Date format: `YYYY-MM-DD`
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
 
 ---
 ## [1.24.1] - 2025-05-04
@@ -586,7 +604,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.27.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.28.0...HEAD
+[1.28.0]: https://github.com/sixafter/nanoid/compare/v1.27.0...v1.28.0
 [1.27.0]: https://github.com/sixafter/nanoid/compare/v1.26.0...v1.27.0
 [1.26.0]: https://github.com/sixafter/nanoid/compare/v1.25.0...v1.26.0
 [1.25.0]: https://github.com/sixafter/nanoid/compare/v1.24.1...v1.25.0

@@ -136,6 +136,7 @@ func newPRNG() (*prng, error) {
 	if _, err := io.ReadFull(rand.Reader, key); err != nil {
 		return nil, fmt.Errorf("prng.newPRNG: failed to read key from crypto/rand.Reader: %w", err)
 	}
+
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, fmt.Errorf("prng.newPRNG: failed to read nonce from crypto/rand.Reader: %w", err)
 	}

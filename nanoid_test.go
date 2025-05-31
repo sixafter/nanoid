@@ -1057,7 +1057,7 @@ func TestGenerator_GetConfig(t *testing.T) {
 	is.NotNil(g)
 
 	// Act: Get the configuration from the generator
-	cfg := g.GetConfig()
+	cfg := g.Config()
 
 	// Assert: Verify key config values are as expected
 	is.EqualValues(lengthHint, cfg.LengthHint())

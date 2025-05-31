@@ -109,8 +109,8 @@ type Interface interface {
 	//   fmt.Printf("Read %d random bytes\n", n)
 	Read(b []byte) (n int, err error)
 
-	// GetConfig Config returns the current configuration of the generator.
-	GetConfig() Config
+	// Config returns the current configuration of the generator.
+	Config() Config
 }
 
 type generator struct {
