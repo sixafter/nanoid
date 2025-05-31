@@ -149,3 +149,11 @@ func TestID_IsEmpty(t *testing.T) {
 	// Case 2: id2 is empty
 	is.True(id2.IsEmpty(), "id2 should be empty")
 }
+
+func TestID_IsEmpty_NilReceiver(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	var id *ID // nil pointer
+	is.True(id.IsEmpty(), "expected IsEmpty to return true for nil receiver")
+}
