@@ -12,6 +12,8 @@ Date format: `YYYY-MM-DD`
 
 ### Added
 ### Changed
+- **debt**: Modified tests to reflect the new `Config()` method in the `Interface` interface.
+
 ### Deprecated
 ### Removed
 ### Fixed
