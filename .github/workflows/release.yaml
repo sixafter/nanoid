@@ -8,14 +8,16 @@ name: release
 
 on:
   workflow_dispatch:
+  
   push:
     tags: ['v*']
 
+# Ref: https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#permissions
 permissions:
   contents: write
-  id-token: write
-  packages: write
-  pull-requests: read
+#  id-token: write
+#  packages: write
+#  pull-requests: read
 
 jobs:
   release:
