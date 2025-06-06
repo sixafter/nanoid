@@ -24,13 +24,12 @@ on:
       - 'LICENSE'
       - '**/*.md'
 
-permissions:
-  contents: read       # Required for checking out the repo
-  pull-requests: read  # Needed for reading PR details
-  checks: write        # Needed for creating status checks
-
 jobs:
   ci:
+    permissions:
+      contents: read       # Required for checking out the repo
+      pull-requests: read  # Needed for reading PR details
+      checks: write        # Needed for creating status checks
     runs-on: ubuntu-latest
     env:
       flags: ""
