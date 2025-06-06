@@ -12,15 +12,15 @@ on:
   push:
     tags: ['v*']
 
-# Ref: https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#permissions
-permissions:
-  contents: write
-#  id-token: write
-#  packages: write
-#  pull-requests: read
-
 jobs:
   release:
+    # Ref: https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#permissions
+    permissions:
+      contents: write
+      id-token: write
+      packages: write
+      pull-requests: read
+
     runs-on: ubuntu-latest
     env:
       flags: ""
