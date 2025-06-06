@@ -24,6 +24,11 @@ on:
       - 'LICENSE'
       - '**/*.md'
 
+permissions:
+  contents: read       # Required for checking out the repo
+  pull-requests: read  # Needed for reading PR details
+  checks: write        # Needed for creating status checks
+
 jobs:
   ci:
     runs-on: ubuntu-latest
