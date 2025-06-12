@@ -1092,3 +1092,30 @@ func TestGenerator_New(t *testing.T) {
 	is.NoError(err, "gen.New() should not return an error")
 	is.True(isValidID(id, alphabet), "Generated ID contains invalid characters")
 }
+
+// TestGenerate_Must tests the generator's behavior with Must.
+func TestGenerate_Must(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	gen, err := NewGenerator()
+	is.NoError(err)
+
+	// Generate a new ID
+	id := gen.Must()
+	is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
+}
+
+// TestGenerate_Must tests the generator's behavior with Must.
+func TestGenerate_MustWithLength(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	gen, err := NewGenerator()
+	is.NoError(err)
+
+	// Generate a new ID
+	id := gen.MustWithLength(DefaultLength)
+	is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
+	is.Equal(DefaultLength, len([]rune(id)), "Generated ID length should match DefaultLength")
+}
