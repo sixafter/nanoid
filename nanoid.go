@@ -71,6 +71,32 @@ func init() {
 // Implementations of this interface provide methods to create new IDs
 // and to read random data, supporting both ID generation and direct random byte access.
 type Interface interface {
+	// Must generates a new Nano ID using the default length specified by `DefaultLength`.
+	// It returns the generated ID as a string.
+	// If an error occurs during ID generation, it panics.
+	// This function simplifies safe initialization of global variables holding pre-generated Nano IDs.
+	//
+	// Usage:
+	//
+	//	id := nanoid.Must()
+	//	fmt.Println("Generated ID:", id)
+	Must() ID
+
+	// MustWithLength generates a new Nano ID of the specified length.
+	// It returns the generated ID as a string.
+	// If an error occurs during ID generation, it panics.
+	// The 'length' parameter specifies the number of characters in the generated ID.
+	// This function simplifies safe initialization of global variables holding pre-generated Nano IDs.
+	//
+	// Parameters:
+	//   - length int: The number of characters for the generated ID.
+	//
+	// Usage:
+	//
+	//	id := nanoid.MustWithLength(30)
+	//	fmt.Println("Generated ID:", id)
+	MustWithLength(length int) ID
+
 	// New generates and returns a new Nano ID as a string with configured length hint.
 	// Returns an error if the ID generation fails due to issues like insufficient randomness.
 	//
@@ -117,6 +143,7 @@ type generator struct {
 	config      *runtimeConfig
 	entropyPool *sync.Pool
 	idPool      *sync.Pool
+	Interface
 	Configuration
 }
 
@@ -360,6 +387,41 @@ func (g *generator) NewWithLength(length int) (ID, error) {
 		return g.newASCII(length)
 	}
 	return g.newUnicode(length)
+}
+
+// Must generates a new Nano ID using the default length specified by `DefaultLength`.
+// It returns the generated ID as a string.
+// If an error occurs during ID generation, it panics.
+// This function simplifies safe initialization of global variables holding pre-generated Nano IDs.
+//
+// Usage:
+//
+//	id := generator.Must()
+//	fmt.Println("Generated ID:", id)
+func (g *generator) Must() ID {
+	return g.MustWithLength(int(g.config.LengthHint()))
+}
+
+// MustWithLength generates a new Nano ID of the specified length.
+// It returns the generated ID as a string.
+// If an error occurs during ID generation, it panics.
+// The 'length' parameter specifies the number of characters in the generated ID.
+// This function simplifies safe initialization of global variables holding pre-generated Nano IDs.
+//
+// Parameters:
+//   - length int: The number of characters for the generated ID.
+//
+// Usage:
+//
+//	id := generator.MustWithLength(21)
+//	fmt.Println("Generated ID:", id)
+func (g *generator) MustWithLength(length int) ID {
+	id, err := g.NewWithLength(length)
+	if err != nil {
+		panic(err)
+	}
+
+	return id
 }
 
 // Config holds the runtime configuration for the Nano ID generator.
