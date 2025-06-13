@@ -7,9 +7,12 @@ package prng
 import (
 	"bytes"
 	"fmt"
+	"golang.org/x/crypto/chacha20"
 	"io"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -279,6 +282,47 @@ func TestPRNG_ReadConsistency(t *testing.T) {
 	for i := 0; i < numReads; i++ {
 		for j := i + 1; j < numReads; j++ {
 			is.False(bytes.Equal(buffers[i], buffers[j]), "Buffers %d and %d should differ", i, j)
+		}
+	}
+}
+
+func TestPRNG_AsyncRekey(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	cfg := DefaultConfig()
+	cfg.MaxBytesPerKey = 64                  // small threshold to trigger rekey
+	cfg.RekeyBackoff = 10 * time.Millisecond // speed up test execution
+	cfg.MaxRekeyAttempts = 3
+	cfg.MaxInitRetries = 3
+
+	p, err := newPRNG(&cfg)
+	is.NoError(err, "newPRNG should not error")
+
+	initialCipher := p.cipher.Load().(*chacha20.Cipher)
+
+	// Write a large enough buffer to exceed MaxBytesPerKey and trigger rekey
+	buf := make([]byte, 128)
+	_, err = p.Read(buf)
+	is.NoError(err)
+
+	// Wait up to 500ms for the async rekey to complete
+	wait := time.NewTimer(500 * time.Millisecond)
+	tick := time.NewTicker(10 * time.Millisecond)
+	defer wait.Stop()
+	defer tick.Stop()
+
+	for {
+		select {
+		case <-tick.C:
+			// Check if cipher was replaced and usage reset
+			currentCipher := p.cipher.Load().(*chacha20.Cipher)
+			currentUsage := atomic.LoadUint64(&p.usage)
+			if currentCipher != initialCipher && currentUsage == 0 {
+				return // success
+			}
+		case <-wait.C:
+			t.Fatal("Timed out waiting for asyncRekey to complete")
 		}
 	}
 }
