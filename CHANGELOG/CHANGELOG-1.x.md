@@ -12,12 +12,28 @@ Date format: `YYYY-MM-DD`
 
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
+## [1.30.0] - 2025-06-13
+
+### Added
+### Changed
 - **debt**: Modified tests to reflect the new `Config()` method in the `Interface` interface.
 
 ### Deprecated
 ### Removed
 ### Fixed
 ### Security
+- **risk:** Seed zeroing: ChaCha20 key and nonce material are immediately cleared from memory after cipher creation, preventing any residual secret data.
+- **risk:** Fail-fast initialization: The pool uses a capped-retry loop and panics on repeated failures, guaranteeing that no insecure or uninitialized PRNG state is ever used.
+- **risk:** Automatic key rotation: Keys rotate after a configurable byte threshold (default 1 GiB), bounding keystream lifetime and eliminating reuse vulnerabilities.
+- **risk:** Jittered back-off: Retry delays for key rotation employ exponential back-off combined with cryptographically sourced jitter, avoiding synchronized retry storms under low-entropy conditions.
+- **risk:** In-memory cipher wipe: After a successful rotation, the previous ChaCha20 instance is overwritten with its zero value, eradicating any leftover key schedule or counter state.
+- **risk:** Concurrency safety: Each goroutine checks out its own prng from a sync.Pool, ensuring exclusive access to the ChaCha20 cipher and preventing internal state corruption.
 
 ---
 ## [1.29.0] - 2025-06-12
@@ -617,7 +633,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.29.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.30.0...HEAD
+[1.30.0]: https://github.com/sixafter/nanoid/compare/v1.29.0...v1.30.0
 [1.29.0]: https://github.com/sixafter/nanoid/compare/v1.28.0...v1.29.0
 [1.28.0]: https://github.com/sixafter/nanoid/compare/v1.27.0...v1.28.0
 [1.27.0]: https://github.com/sixafter/nanoid/compare/v1.26.0...v1.27.0
