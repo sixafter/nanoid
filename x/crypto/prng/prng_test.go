@@ -2,7 +2,6 @@
 //
 // This source code is licensed under the Apache 2.0 License found in the
 // LICENSE file in the root directory of this source tree.
-
 package prng
 
 import (
@@ -11,28 +10,24 @@ import (
 	"io"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-// TestPRNG_Read performs a basic read operation, verifying that the correct number of bytes is read
-// and that the buffer is not filled with all zeros.
+// TestPRNG_Read verifies that a single Read call fills the buffer completely
+// and produces non-zero (random) data.
 func TestPRNG_Read(t *testing.T) {
-	t.Parallel() // Enable parallel execution of this test
+	t.Parallel()
+	is := assert.New(t)
 
 	rdr, err := NewReader()
-	if err != nil {
-		t.Fatalf("NewReader failed: %v", err)
-	}
+	is.NoError(err, "NewReader should not error")
 
 	buffer := make([]byte, 64)
 	n, err := rdr.Read(buffer)
-	if err != nil {
-		t.Fatalf("Read failed: %v", err)
-	}
-	if n != len(buffer) {
-		t.Errorf("Expected to read %d bytes, but read %d bytes", len(buffer), n)
-	}
+	is.NoError(err, "Read should not error")
+	is.Equal(len(buffer), n, "Read should return full buffer length")
 
-	// Ensure that the buffer is not all zeros
 	allZeros := true
 	for _, b := range buffer {
 		if b != 0 {
@@ -40,309 +35,236 @@ func TestPRNG_Read(t *testing.T) {
 			break
 		}
 	}
-	if allZeros {
-		t.Errorf("Buffer should not be all zeros, expected random data")
-	}
+	is.False(allZeros, "Buffer should not be all zeros")
 }
 
-// TestPRNG_ReadZeroBytes tests reading with a zero-length buffer, ensuring no bytes are read
-// and no errors are returned.
+// TestPRNG_ReadZeroBytes ensures that reading into a zero-length slice
+// returns immediately with a count of zero and no error.
 func TestPRNG_ReadZeroBytes(t *testing.T) {
-	t.Parallel() // Enable parallel execution of this test
+	t.Parallel()
+	is := assert.New(t)
 
 	rdr, err := NewReader()
-	if err != nil {
-		t.Fatalf("NewReader failed: %v", err)
-	}
+	is.NoError(err)
 
 	buffer := make([]byte, 0)
 	n, err := rdr.Read(buffer)
-	if err != nil {
-		t.Fatalf("Read failed: %v", err)
-	}
-	if n != 0 {
-		t.Errorf("Expected to read 0 bytes, but read %d bytes", n)
-	}
+	is.NoError(err, "Reading zero-length buffer should not error")
+	is.Equal(0, n, "Reading zero-length buffer should return 0")
 }
 
-// TestPRNG_ReadMultipleTimes performs multiple sequential read operations, ensuring each read
-// is successful and returns unique data.
+// TestPRNG_ReadMultipleTimes checks that consecutive Read calls produce
+// different outputs, confirming the generator does not repeat data immediately.
 func TestPRNG_ReadMultipleTimes(t *testing.T) {
-	t.Parallel() // Enable parallel execution of this test
+	t.Parallel()
+	is := assert.New(t)
 
 	rdr, err := NewReader()
-	if err != nil {
-		t.Fatalf("NewReader failed: %v", err)
-	}
+	is.NoError(err)
 
-	buffer1 := make([]byte, 32)
-	n, err := rdr.Read(buffer1)
-	if err != nil {
-		t.Fatalf("First read failed: %v", err)
-	}
-	if n != len(buffer1) {
-		t.Errorf("First read expected %d bytes, but read %d bytes", len(buffer1), n)
-	}
+	buf1 := make([]byte, 32)
+	n, err := rdr.Read(buf1)
+	is.NoError(err)
+	is.Equal(len(buf1), n)
 
-	buffer2 := make([]byte, 32)
-	n, err = rdr.Read(buffer2)
-	if err != nil {
-		t.Fatalf("Second read failed: %v", err)
-	}
-	if n != len(buffer2) {
-		t.Errorf("Second read expected %d bytes, but read %d bytes", len(buffer2), n)
-	}
+	buf2 := make([]byte, 32)
+	n, err = rdr.Read(buf2)
+	is.NoError(err)
+	is.Equal(len(buf2), n)
 
-	// Ensure that the two buffers are different
-	if bytes.Equal(buffer1, buffer2) {
-		t.Errorf("Consecutive reads should produce different data")
-	}
+	is.False(bytes.Equal(buf1, buf2), "Consecutive reads should differ")
 }
 
-// TestPRNG_ReadWithDifferentBufferSizes tests reading with various buffer sizes to ensure
-// consistent behavior across different data volumes.
+// TestPRNG_ReadWithDifferentBufferSizes runs Read with various sizes to
+// ensure correctness across a range of buffer lengths.
 func TestPRNG_ReadWithDifferentBufferSizes(t *testing.T) {
-	t.Parallel() // Enable parallel execution of this test
+	t.Parallel()
 
-	bufferSizes := []int{1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048}
-
-	for _, size := range bufferSizes {
-		size := size // Capture range variable
-		t.Run(fmt.Sprintf("BufferSize_%d", size), func(t *testing.T) {
-			t.Parallel() // Enable parallel execution of subtests
+	sizes := []int{1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048}
+	for _, size := range sizes {
+		size := size
+		t.Run(fmt.Sprintf("Size_%d", size), func(t *testing.T) {
+			t.Parallel()
+			is := assert.New(t)
 
 			rdr, err := NewReader()
-			if err != nil {
-				t.Fatalf("NewReader failed: %v", err)
-			}
+			is.NoError(err)
 
-			buffer := make([]byte, size)
-			n, err := rdr.Read(buffer)
-			if err != nil {
-				t.Fatalf("Read failed: %v", err)
-			}
-			if n != len(buffer) {
-				t.Errorf("Expected to read %d bytes, but read %d bytes", len(buffer), n)
-			}
+			buf := make([]byte, size)
+			n, err := rdr.Read(buf)
+			is.NoError(err)
+			is.Equal(size, n)
 
-			// Ensure that the buffer is not all zeros
 			allZeros := true
-			for _, b := range buffer {
+			for _, b := range buf {
 				if b != 0 {
 					allZeros = false
 					break
 				}
 			}
-			if allZeros {
-				t.Errorf("Buffer should not be all zeros, expected random data")
-			}
+			is.False(allZeros, "Buffer of size %d should not be all zeros", size)
 		})
 	}
 }
 
-// TestPRNG_Concurrency tests concurrent read operations by spawning multiple goroutines,
-// each performing a read. It ensures thread safety and data integrity under high concurrency.
+// TestPRNG_Concurrency spawns many goroutines performing Read concurrently
+// to verify thread safety and data integrity under parallel usage.
 func TestPRNG_Concurrency(t *testing.T) {
-	t.Parallel() // Enable parallel execution of this test
+	t.Parallel()
+	is := assert.New(t)
 
-	numGoroutines := 100
-	bufferSize := 64
-	buffers := make([][]byte, numGoroutines)
-	errorsChan := make(chan error, numGoroutines)
+	const (
+		numGoroutines = 100
+		bufferSize    = 64
+	)
+	rdr, err := NewReader()
+	is.NoError(err)
 
 	var wg sync.WaitGroup
 	wg.Add(numGoroutines)
-
-	rdr, err := NewReader()
-	if err != nil {
-		t.Fatalf("NewReader failed: %v", err)
-	}
+	errCh := make(chan error, numGoroutines)
+	buffers := make([][]byte, numGoroutines)
 
 	for i := 0; i < numGoroutines; i++ {
-		go func(index int) {
+		go func(i int) {
 			defer wg.Done()
-
 			buf := make([]byte, bufferSize)
-			_, err := rdr.Read(buf)
-			if err != nil {
-				errorsChan <- err
+			if _, err := rdr.Read(buf); err != nil {
+				errCh <- err
 				return
 			}
-			buffers[index] = buf
+			buffers[i] = buf
 		}(i)
 	}
 
 	wg.Wait()
-	close(errorsChan)
-
-	for err := range errorsChan {
-		t.Errorf("Concurrent Read should not return an error: %v", err)
+	close(errCh)
+	for err := range errCh {
+		is.NoError(err, "Concurrent Read should not error")
 	}
 
-	// Optionally, verify that all buffers contain unique data
-	// Note: This is a basic check and may not always pass due to randomness
+	// Optional uniqueness check (best-effort for randomness)
 	for i := 0; i < numGoroutines; i++ {
 		for j := i + 1; j < numGoroutines; j++ {
-			if bytes.Equal(buffers[i], buffers[j]) {
-				t.Errorf("Buffers at index %d and %d are identical", i, j)
-			}
+			is.False(bytes.Equal(buffers[i], buffers[j]), "Buffers %d and %d should differ", i, j)
 		}
 	}
 }
 
-// TestPRNG_Stream tests reading a large stream of data using io.ReadFull to ensure that
-// the Reader can handle substantial data volumes efficiently.
+// TestPRNG_Stream uses io.ReadFull to read a large stream of data,
+// ensuring the Reader can handle substantial volumes without error.
 func TestPRNG_Stream(t *testing.T) {
-	t.Parallel() // Enable parallel execution of this test
+	t.Parallel()
+	is := assert.New(t)
 
 	rdr, err := NewReader()
-	if err != nil {
-		t.Fatalf("NewReader failed: %v", err)
-	}
+	is.NoError(err)
 
-	// Read a large number of bytes to simulate stream usage
-	totalBytes := 1024 * 1024 // 1 MB
-	buffer := make([]byte, totalBytes)
-	n, err := io.ReadFull(rdr, buffer)
-	if err != nil {
-		t.Fatalf("ReadFull failed: %v", err)
-	}
-	if n != totalBytes {
-		t.Errorf("Expected to read %d bytes, but read %d bytes", totalBytes, n)
-	}
+	const total = 1 << 20 // 1 MiB
+	buf := make([]byte, total)
+	n, err := io.ReadFull(rdr, buf)
+	is.NoError(err)
+	is.Equal(total, n)
 
-	// Ensure that the buffer is not all zeros
 	allZeros := true
-	for _, b := range buffer {
+	for _, b := range buf {
 		if b != 0 {
 			allZeros = false
 			break
 		}
 	}
-	if allZeros {
-		t.Errorf("Buffer should not be all zeros, expected random data")
-	}
+	is.False(allZeros, "Stream buffer should not be all zeros")
 }
 
-// TestPRNG_ReadUnique ensures that multiple reads produce unique data, enhancing the confidence
-// in the randomness provided by the PRNG.
+// TestPRNG_ReadUnique reads twice into buffers and verifies the outputs differ,
+// providing additional confidence in randomness between successive calls.
 func TestPRNG_ReadUnique(t *testing.T) {
-	t.Parallel() // Enable parallel execution of this test
+	t.Parallel()
+	is := assert.New(t)
 
 	rdr, err := NewReader()
-	if err != nil {
-		t.Fatalf("NewReader failed: %v", err)
-	}
+	is.NoError(err)
 
-	buffer1 := make([]byte, 64)
-	_, err = rdr.Read(buffer1)
-	if err != nil {
-		t.Fatalf("First read failed: %v", err)
-	}
+	b1 := make([]byte, 64)
+	_, err = rdr.Read(b1)
+	is.NoError(err)
 
-	buffer2 := make([]byte, 64)
-	_, err = rdr.Read(buffer2)
-	if err != nil {
-		t.Fatalf("Second read failed: %v", err)
-	}
+	b2 := make([]byte, 64)
+	_, err = rdr.Read(b2)
+	is.NoError(err)
 
-	if bytes.Equal(buffer1, buffer2) {
-		t.Errorf("Consecutive reads should produce different data")
-	}
+	is.False(bytes.Equal(b1, b2), "Consecutive reads should produce unique data")
 }
 
-// TestPRNG_NewReader tests the NewReader function to ensure it returns a valid io.Reader instance.
+// TestPRNG_NewReader ensures NewReader returns a non-nil Reader that
+// can successfully produce random bytes on Read.
 func TestPRNG_NewReader(t *testing.T) {
-	t.Parallel() // Enable parallel execution of this test
+	t.Parallel()
+	is := assert.New(t)
 
 	rdr, err := NewReader()
-	if err != nil {
-		t.Fatalf("NewReader failed: %v", err)
-	}
-	if rdr == nil {
-		t.Errorf("NewReader should return a non-nil Reader")
-	}
+	is.NoError(err)
+	is.NotNil(rdr, "NewReader should return non-nil Reader")
 
-	// Perform a simple read to ensure the new Reader functions correctly
-	buffer := make([]byte, 32)
-	n, err := rdr.Read(buffer)
-	if err != nil {
-		t.Fatalf("NewReader's Read failed: %v", err)
-	}
-	if n != len(buffer) {
-		t.Errorf("NewReader's Read expected %d bytes, but read %d bytes", len(buffer), n)
-	}
+	buf := make([]byte, 32)
+	n, err := rdr.Read(buf)
+	is.NoError(err)
+	is.Equal(len(buf), n)
 
-	// Ensure that the buffer is not all zeros
 	allZeros := true
-	for _, b := range buffer {
+	for _, b := range buf {
 		if b != 0 {
 			allZeros = false
 			break
 		}
 	}
-	if allZeros {
-		t.Errorf("NewReader's buffer should not be all zeros, expected random data")
-	}
+	is.False(allZeros, "NewReader buffer should not be all zeros")
 }
 
-// TestPRNG_ReadAll ensures that reading a substantial amount of data is handled correctly.
+// TestPRNG_ReadAll reads a larger buffer in one call to exercise
+// the Reader's ability to fill arbitrary-length slices.
 func TestPRNG_ReadAll(t *testing.T) {
-	t.Parallel() // Enable parallel execution of this test
+	t.Parallel()
+	is := assert.New(t)
 
 	rdr, err := NewReader()
-	if err != nil {
-		t.Fatalf("NewReader failed: %v", err)
-	}
+	is.NoError(err)
 
-	// Attempt to read a large number of bytes to simulate continuous reading
-	buffer := make([]byte, 10*1024) // 10 KB
-	n, err := rdr.Read(buffer)
-	if err != nil {
-		t.Fatalf("Read failed: %v", err)
-	}
-	if n != len(buffer) {
-		t.Errorf("Read expected %d bytes, but read %d bytes", len(buffer), n)
-	}
+	buf := make([]byte, 10*1024) // 10 KiB
+	n, err := rdr.Read(buf)
+	is.NoError(err)
+	is.Equal(len(buf), n)
 
-	// Ensure that the buffer is not all zeros
 	allZeros := true
-	for _, b := range buffer {
+	for _, b := range buf {
 		if b != 0 {
 			allZeros = false
 			break
 		}
 	}
-	if allZeros {
-		t.Errorf("Buffer should not be all zeros, expected random data")
-	}
+	is.False(allZeros, "ReadAll buffer should not be all zeros")
 }
 
-// TestPRNG_ReadConsistency tests the consistency of the Read method by ensuring that
-// multiple reads with the same buffer size produce unique data.
+// TestPRNG_ReadConsistency performs multiple reads of the same size
+// and validates each buffer is filled and buffers differ from one another.
 func TestPRNG_ReadConsistency(t *testing.T) {
-	t.Parallel() // Enable parallel execution of this test
+	t.Parallel()
+	is := assert.New(t)
 
-	numReads := 50
-	bufferSize := 128
-	buffers := make([][]byte, numReads)
-
+	const (
+		numReads   = 50
+		bufferSize = 128
+	)
 	rdr, err := NewReader()
-	if err != nil {
-		t.Fatalf("NewReader failed: %v", err)
-	}
+	is.NoError(err)
 
+	buffers := make([][]byte, numReads)
 	for i := 0; i < numReads; i++ {
 		buf := make([]byte, bufferSize)
 		n, err := rdr.Read(buf)
-		if err != nil {
-			t.Fatalf("Read failed at iteration %d: %v", i, err)
-		}
-		if n != len(buf) {
-			t.Errorf("Read at iteration %d expected %d bytes, but read %d bytes", i, len(buf), n)
-		}
+		is.NoError(err, "Read %d should not error", i)
+		is.Equal(bufferSize, n, "Read %d should fill the buffer", i)
 
-		// Ensure that the buffer is not all zeros
 		allZeros := true
 		for _, b := range buf {
 			if b != 0 {
@@ -350,19 +272,13 @@ func TestPRNG_ReadConsistency(t *testing.T) {
 				break
 			}
 		}
-		if allZeros {
-			t.Errorf("Buffer at iteration %d should not be all zeros, expected random data", i)
-		}
-
+		is.False(allZeros, "Buffer %d should not be all zeros", i)
 		buffers[i] = buf
 	}
 
-	// Optionally, ensure that all buffers are unique
 	for i := 0; i < numReads; i++ {
 		for j := i + 1; j < numReads; j++ {
-			if bytes.Equal(buffers[i], buffers[j]) {
-				t.Errorf("Buffers at index %d and %d are identical", i, j)
-			}
+			is.False(bytes.Equal(buffers[i], buffers[j]), "Buffers %d and %d should differ", i, j)
 		}
 	}
 }
