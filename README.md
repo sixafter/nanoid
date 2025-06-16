@@ -8,7 +8,7 @@
 
 ## Status
 
-### 🛠Build & Test
+### Build & Test
 
 [![CI](https://github.com/sixafter/nanoid/workflows/ci/badge.svg)](https://github.com/sixafter/nanoid/actions)
 [![GitHub issues](https://img.shields.io/github/issues/sixafter/nanoid)](https://github.com/sixafter/nanoid/issues)
