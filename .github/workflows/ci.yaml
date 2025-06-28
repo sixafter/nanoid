@@ -24,6 +24,9 @@ on:
       - 'LICENSE'
       - '**/*.md'
 
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   ci:
     permissions:
