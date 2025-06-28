@@ -78,9 +78,44 @@ changelog:
     - title: Others
       order: 999
 
+# Ref: https://goreleaser.com/customization/checksums/
+checksum:
+  name_template: 'checksums.txt'
+
+# Ref: https://goreleaser.com/customization/sign/
+signs:
+  - id: source
+    cmd: cosign
+    stdin: '{{ .Env.COSIGN_PASSWORD }}'
+    output: true
+    artifacts: source
+    args:
+      - sign-blob
+      - --yes
+      - --key
+      - env://COSIGN_PRIVATE_KEY
+      - '--output-certificate=${certificate}'
+      - '--output-signature=${signature}'
+      - '${artifact}'
+
+  - id: checksums
+    cmd: cosign
+    stdin: '{{ .Env.COSIGN_PASSWORD }}'
+    output: true
+    artifacts: checksum
+    args:
+      - sign-blob
+      - --yes
+      - --key
+      - env://COSIGN_PRIVATE_KEY
+      - '--output-certificate=${certificate}'
+      - '--output-signature=${signature}'
+      - '${artifact}'
+
 sboms:
   - artifacts: archive
 
+# Ref: https://goreleaser.com/customization/release/
 release:
   name_template: 'v{{ .Version }}'
   footer: |
