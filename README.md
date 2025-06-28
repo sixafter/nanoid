@@ -54,6 +54,34 @@ Please see the [Nano ID CLI](https://github.com/sixafter/nanoid-cli) for a comma
 
 ---
 
+## Verify with Cosign
+
+Download the source archive and its .sig file from the GitHub release (e.g., source.tar.gz and source.tar.gz.sig), then run:
+
+```sh
+cosign verify-blob \
+  --key https://raw.githubusercontent.com/sixafter/nanoid/main/cosign.pub \
+  --signature source.tar.gz.sig \
+  source.tar.gz
+```
+
+The checksums are also signed (checksums.txt and checksums.txt.sig), verify with:
+
+```sh
+cosign verify-blob \
+  --key https://raw.githubusercontent.com/sixafter/nanoid/main/cosign.pub \
+  --signature checksums.txt.sig \
+  checksums.txt
+```
+
+If valid, Cosign will output:
+
+```shell
+Verified OK
+```
+
+---
+
 ## Installation
 
 ### Using `go get`

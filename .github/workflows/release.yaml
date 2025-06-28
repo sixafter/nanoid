@@ -66,3 +66,6 @@ jobs:
           args: release --clean ${{ env.flags }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COSIGN_PASSWORD: '${{ secrets.NANOID_COSIGN_PASSWORD }}'
+          COSIGN_PRIVATE_KEY: '${{ secrets.NANOID_COSIGN_PRIVATE_KEY }}'
+          COSIGN_PUBLIC_KEY: '${{ secrets.NANOID_COSIGN_PUBLIC_KEY }}'
