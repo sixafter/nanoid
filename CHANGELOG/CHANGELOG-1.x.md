@@ -18,6 +18,20 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.32.0] - 2025-06-28
+
+### Added
+- **debt:** Added `release-verify` make target to optimize break-fix cycle with GoReleaser testing.
+
+### Changed
+### Deprecated
+### Removed
+### Fixed
+
+### Security
+- **risk:** Add digital signatures for release source and checksums files.
+
+---
 ## [1.31.2] - 2025-06-28
 
 ### Added
@@ -28,7 +42,6 @@ Date format: `YYYY-MM-DD`
 - **defect:** Added archive stanza to Go Releaser config to ensure signature files are released.
 
 ### Security
-
 
 ---
 ## [1.31.1] - 2025-06-28
@@ -669,7 +682,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.31.2...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.32.0...HEAD
+[1.32.0]: https://github.com/sixafter/nanoid/compare/v1.31.2...v1.32.0
 [1.31.2]: https://github.com/sixafter/nanoid/compare/v1.31.1...v1.31.2
 [1.31.1]: https://github.com/sixafter/nanoid/compare/v1.31.0...v1.31.1
 [1.31.0]: https://github.com/sixafter/nanoid/compare/v1.30.0...v1.31.0

@@ -84,11 +84,11 @@ checksum:
 
 # Ref: https://goreleaser.com/customization/sign/
 signs:
-  - id: src-archive
+  - id: source
     cmd: cosign
     stdin: '{{ .Env.COSIGN_PASSWORD }}'
     output: true
-    artifacts: archive
+    artifacts: source
     args:
       - sign-blob
       - --yes
@@ -112,54 +112,62 @@ signs:
       - '--output-signature=${signature}'
       - '${artifact}'
 
-# Ref: https://goreleaser.com/customization/archive/
-archives:
-  - id: src
+# Ref: https://goreleaser.com/customization/source/
+source:
+  # Whether this pipe is enabled or not.
+  enabled: true
 
-    # Archive format.
+  # Name template of the final archive.
+  #
+  # Default: '{{ .ProjectName }}-{{ .Version }}'.
+  # Templates: allowed.
+  name_template: "{{ .ProjectName }}-{{ .Version }}"
+
+  # Format of the archive.
+  #
+  # Valid formats are: tar, tgz, tar.gz, and zip.
+  #
+  # Default: 'tar.gz'.
+  format: tar.gz
+
+  # Prefix.
+  # String to prepend to each filename in the archive.
+  #
+  # Templates: allowed.
+  prefix_template: "{{ .ProjectName }}-{{ .Version }}/"
+
+  # You can add additional files if needed, or omit for default behavior.
+  # files:
+  #   - LICENSE
+  #   - README.md
+
+# Ref: https://goreleaser.com/customization/sbom/
+sboms:
+  - # ID of the sbom config, must be unique.
     #
-    # If format is `binary`, no archives are created and the binaries are instead
-    # uploaded directly.
+    # Default: 'default'.
+    id: default
+
+    # Which artifacts to catalog.
     #
     # Valid options are:
-    # - `tar.gz`
-    # - `tgz`
-    # - `tar.xz`
-    # - `txz`
-    # - `tar.zst`
-    # - `tzst` (since v2.1)
-    # - `tar`
-    # - `gz`
-    # - `zip`
-    # - `binary`
+    # - any:        let the SBOM tool decide which artifacts available in
+    #               the cwd should be cataloged
+    # - source:     source archive
+    # - package:    Linux packages (deb, rpm, apk, etc)
+    # - installer:  Windows MSI installers (Pro only)
+    # - diskimage:  macOS DMG disk images (Pro only)
+    # - archive:    archives from archive pipe
+    # - binary:     binaries output from the build stage
     #
-    # Default: 'tar.gz'.
-    formats: [tar.gz]
+    # Default: 'archive'.
+    artifacts: source
 
-    # Additional files/globs you want to add to the archive.
+    # IDs of the artifacts to catalog.
     #
-    # Default: [ 'LICENSE*', 'README*', 'CHANGELOG', 'license*', 'readme*', 'changelog'].
-    # Templates: allowed.
-    files:
-      - go.mod
-      - go.sum
-      - LICENSE
-      - README.md
-      - CHANGELOG/CHANGELOG*
-      - "**/*.go"
-
-    # Archive name.
-    #
-    # Default:
-    # - if format is `binary`:
-    #   - `{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}`
-    # - if format is anything else:
-    #   - `{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}`
-    # Templates: allowed.
-    name_template: "{{ .ProjectName }}_{{ .Version }}_source"
-
-sboms:
-  - artifacts: archive
+    # If `artifacts` is "source" or "any" then this fields has no effect.
+    # ids:
+    #   - src
 
 # Ref: https://goreleaser.com/customization/release/
 release:

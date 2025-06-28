@@ -56,13 +56,21 @@ Please see the [Nano ID CLI](https://github.com/sixafter/nanoid-cli) for a comma
 
 ## Verify with Cosign
 
-Download the source archive and its .sig file from the GitHub release (e.g., source.tar.gz and source.tar.gz.sig), then run:
+Download the source archive and its .sig file from the GitHub release (e.g., nanoid-1.32.0.tar.gz and nanoid-1.32.0.tar.gz.sig ), then run:
 
 ```sh
+# Replace <version> with the release version you downloaded, e.g., 1.32.0
+
 cosign verify-blob \
   --key https://raw.githubusercontent.com/sixafter/nanoid/main/cosign.pub \
-  --signature source.tar.gz.sig \
-  source.tar.gz
+  --signature nanoid-<version>.tar.gz.sig \
+  nanoid-<version>.tar.gz
+
+# Example with version 1.32.0:
+cosign verify-blob \
+  --key https://raw.githubusercontent.com/sixafter/nanoid/main/cosign.pub \
+  --signature nanoid-1.32.0.tar.gz.sig \
+  nanoid-1.32.0.tar.gz
 ```
 
 The checksums are also signed (checksums.txt and checksums.txt.sig), verify with:
