@@ -58,6 +58,10 @@ jobs:
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         run: echo "flags=--snapshot" >> $GITHUB_ENV
 
+      # Ref: https://github.com/sigstore/cosign-installer
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.9.1
+
       # Ref: https://github.com/goreleaser/goreleaser-action
       - name: "Release"
         uses: goreleaser/goreleaser-action@v6

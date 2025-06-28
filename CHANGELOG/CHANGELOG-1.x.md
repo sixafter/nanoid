@@ -18,6 +18,18 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.31.1] - 2025-06-28
+
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+- **defect:** Added Cosign step in release job.
+
+### Security
+
+---
 ## [1.31.0] - 2025-06-28
 
 ### Added
@@ -644,7 +656,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.31.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.31.1...HEAD
+[1.31.1]: https://github.com/sixafter/nanoid/compare/v1.31.0...v1.31.1
 [1.31.0]: https://github.com/sixafter/nanoid/compare/v1.30.0...v1.31.0
 [1.30.0]: https://github.com/sixafter/nanoid/compare/v1.29.0...v1.30.0
 [1.29.0]: https://github.com/sixafter/nanoid/compare/v1.28.0...v1.29.0
