@@ -18,6 +18,20 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.32.1] - 2025-06-28
+
+### Added
+- **debt:** Added OpenSSF Best Practices badge to [README](README.md).
+
+### Changed
+### Deprecated
+### Removed
+### Fixed
+
+### Security
+- **risk:** Add digital signatures for release source and checksums files.
+
+---
 ## [1.32.0] - 2025-06-28
 
 ### Added
@@ -682,7 +696,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.32.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.32.1...HEAD
+[1.32.1]: https://github.com/sixafter/nanoid/compare/v1.32.0...v1.32.1
 [1.32.0]: https://github.com/sixafter/nanoid/compare/v1.31.2...v1.32.0
 [1.31.2]: https://github.com/sixafter/nanoid/compare/v1.31.1...v1.31.2
 [1.31.1]: https://github.com/sixafter/nanoid/compare/v1.31.0...v1.31.1
