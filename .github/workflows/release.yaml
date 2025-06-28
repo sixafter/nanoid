@@ -62,6 +62,13 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.9.1
 
+      # Ref: https://github.com/anchore/sbom-action
+      - name: Generate SBOM via Syft
+        uses: anchore/sbom-action@v0
+        with:
+          format: spdx-json
+          artifact-name: sbom.spdx.json
+
       # Ref: https://github.com/goreleaser/goreleaser-action
       - name: "Release"
         uses: goreleaser/goreleaser-action@v6
