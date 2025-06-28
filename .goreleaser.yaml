@@ -84,11 +84,11 @@ checksum:
 
 # Ref: https://goreleaser.com/customization/sign/
 signs:
-  - id: source
+  - id: src-archive
     cmd: cosign
     stdin: '{{ .Env.COSIGN_PASSWORD }}'
     output: true
-    artifacts: source
+    artifacts: archive
     args:
       - sign-blob
       - --yes
@@ -112,12 +112,72 @@ signs:
       - '--output-signature=${signature}'
       - '${artifact}'
 
+# Ref: https://goreleaser.com/customization/archive/
+archives:
+  - id: src
+
+    # Archive format.
+    #
+    # If format is `binary`, no archives are created and the binaries are instead
+    # uploaded directly.
+    #
+    # Valid options are:
+    # - `tar.gz`
+    # - `tgz`
+    # - `tar.xz`
+    # - `txz`
+    # - `tar.zst`
+    # - `tzst` (since v2.1)
+    # - `tar`
+    # - `gz`
+    # - `zip`
+    # - `binary`
+    #
+    # Default: 'tar.gz'.
+    formats: [tar.gz]
+
+    # Additional files/globs you want to add to the archive.
+    #
+    # Default: [ 'LICENSE*', 'README*', 'CHANGELOG', 'license*', 'readme*', 'changelog'].
+    # Templates: allowed.
+    files:
+      - go.mod
+      - go.sum
+      - LICENSE
+      - README.md
+      - CHANGELOG/CHANGELOG*
+      - "**/*.go"
+
+    # Archive name.
+    #
+    # Default:
+    # - if format is `binary`:
+    #   - `{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}`
+    # - if format is anything else:
+    #   - `{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}`
+    # Templates: allowed.
+    name_template: "{{ .ProjectName }}_{{ .Version }}_source"
+
 sboms:
   - artifacts: archive
 
 # Ref: https://goreleaser.com/customization/release/
 release:
+  # Repo in which the release will be created.
+  # Default: extracted from the origin remote URL or empty if its private hosted.
+  github:
+    owner: sixafter
+    name: nanoid
+
+  # You can change the name of the release.
+  #
+  # Default: '{{.Tag}}' ('{{.PrefixedTag}}' on Pro).
+  # Templates: allowed.
   name_template: 'v{{ .Version }}'
+
+  # Footer for the release body.
+  #
+  # Templates: allowed.
   footer: |
     **Full Changelog**: [CHANGELOG](https://github.com/sixafter/nanoid/tree/main/CHANGELOG/CHANGELOG-1.x.md)
         
