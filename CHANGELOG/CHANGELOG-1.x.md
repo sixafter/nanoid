@@ -12,6 +12,8 @@ Date format: `YYYY-MM-DD`
 
 ### Added
 ### Changed
+- **debt:** Added reference to [Cosign]() in the [README](README.md) for verifying release integrity.
+
 ### Deprecated
 ### Removed
 ### Fixed
