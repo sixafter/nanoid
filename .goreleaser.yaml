@@ -145,15 +145,15 @@ source:
   # files:
   #   - LICENSE
   #   - README.md
-  files:
-    - LICENSE
-    - README.md
-    - CHANGELOG/CHANGELOG*
-    - go.mod
-    - go.sum
-    - "*.go"
-    - "x/**/*"
-    - "vendor/**/*"
+  # files:
+  #   - LICENSE
+  #   - README.md
+  #   - CHANGELOG/CHANGELOG*
+  #   - go.mod
+  #   - go.sum
+  #   - "*.go"
+  #   - "x/**/*"
+  #   - "vendor/**/*"
 
 # Ref: https://goreleaser.com/customization/sbom/
 sboms:
