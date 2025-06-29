@@ -18,7 +18,7 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
-## [1.30.0] - 2025-06-29
+## [1.33.0] - 2025-06-29
 
 ### Added
 ### Changed
