@@ -18,6 +18,18 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.30.0] - 2025-06-29
+
+### Added
+### Changed
+- **debt:** GoReleaser configuration now includes only necessary files.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.32.1] - 2025-06-28
 
 ### Added
@@ -696,7 +708,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.32.1...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.33.0...HEAD
+[1.33.0]: https://github.com/sixafter/nanoid/compare/v1.32.1...v1.33.0
 [1.32.1]: https://github.com/sixafter/nanoid/compare/v1.32.0...v1.32.1
 [1.32.0]: https://github.com/sixafter/nanoid/compare/v1.31.2...v1.32.0
 [1.31.2]: https://github.com/sixafter/nanoid/compare/v1.31.1...v1.31.2

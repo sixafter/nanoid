@@ -1,3 +1,8 @@
+# Copyright (c) 2024 Six After, Inc.
+#
+# This source code is licensed under the Apache 2.0 License found in the
+# LICENSE file in the root directory of this source tree.
+
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 # vim: set ts=2 sw=2 tw=0 fo=jcroql
 version: 2
@@ -140,6 +145,15 @@ source:
   # files:
   #   - LICENSE
   #   - README.md
+  files:
+    - LICENSE
+    - README.md
+    - CHANGELOG/CHANGELOG*
+    - go.mod
+    - go.sum
+    - "*.go"
+    - "x/**/*"
+    - "vendor/**/*"
 
 # Ref: https://goreleaser.com/customization/sbom/
 sboms:
