@@ -1,4 +1,4 @@
-# nanoid: A cryptographically random library.
+# nanoid: A cryptographically random library for generating Nano IDs.
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/sixafter/nanoid)](https://goreportcard.com/report/github.com/sixafter/nanoid)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
