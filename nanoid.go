@@ -9,6 +9,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"sync"
+	"unicode/utf8"
+	"unsafe"
 
 	"github.com/sixafter/nanoid/x/crypto/prng"
 )
@@ -353,14 +355,37 @@ func (g *generator) New() (ID, error) {
 //	}
 //	fmt.Println("Generated ID:", id)
 func (g *generator) NewWithLength(length int) (ID, error) {
+	// Validate the requested length: must be positive and non-zero. ---
 	if length <= 0 {
 		return EmptyID, ErrInvalidLength
 	}
 
+	// ASCII Mode: Use a stack-allocated byte buffer for maximal performance and zero pooling overhead.
 	if g.config.isASCII {
-		return g.newASCII(length)
+		buf := make([]byte, length) // Allocate the buffer for the resulting ID.
+		if err := g.newASCII(length, buf); err != nil {
+			// Propagate any error (randomness failure, exceeded attempts, etc).
+			return EmptyID, err
+		}
+		// Convert the filled byte buffer to an ID using an unsafe zero-copy conversion.
+		// This is the only allocation in this fast path.
+		return ID(unsafe.String(&buf[0], len(buf))), nil
 	}
-	return g.newUnicode(length)
+
+	// Unicode Mode: Use a pooled buffer for runes to minimize allocations and reduce GC pressure.
+	idBufferPtr := g.idPool.Get().(*[]rune) // Get a pooled buffer pointer from the sync.Pool.
+	idBuffer := (*idBufferPtr)[:length]     // Slice the buffer to the required length.
+	defer g.idPool.Put(idBufferPtr)         // Ensure the buffer is returned to the pool after use.
+
+	if err := g.newUnicode(length, idBuffer); err != nil {
+		// Propagate errors from ID generation (randomness failure, pool issues, etc).
+		return EmptyID, err
+	}
+
+	// Convert the filled rune buffer to an ID.
+	// This conversion (from []rune to string) will always incur a single allocation,
+	// as required by Go's memory model for Unicode string construction.
+	return ID(idBuffer), nil
 }
 
 // Config holds the runtime configuration for the Nano ID generator.
@@ -369,119 +394,6 @@ func (g *generator) NewWithLength(length int) (ID, error) {
 // parameters for generating unique IDs efficiently and securely.
 func (g *generator) Config() Config {
 	return g.config
-}
-
-// newASCII generates a new Nano ID using the ASCII alphabet.
-func (g *generator) newASCII(length int) (ID, error) {
-	randomBytesPtr := g.entropyPool.Get().(*[]byte)
-	randomBytes := *randomBytesPtr
-	bufferLen := len(randomBytes)
-
-	// Defer returning the randomBytes buffer to the pool
-	defer func() {
-		g.entropyPool.Put(randomBytesPtr)
-	}()
-
-	cursor := 0
-	maxAttempts := length * maxAttemptsMultiplier
-	mask := g.config.mask
-	bytesNeeded := g.config.bytesNeeded
-	isPowerOfTwo := g.config.isPowerOfTwo
-
-	// Retrieve the idBuffer from the pool
-	idBufferPtr := g.idPool.Get().(*[]byte)
-	idBuffer := (*idBufferPtr)[:length] // Ensure it has the correct length
-
-	defer func() {
-		g.idPool.Put(idBufferPtr)
-	}()
-
-	for attempts := 0; cursor < length && attempts < maxAttempts; attempts++ {
-		neededBytes := (length - cursor) * int(bytesNeeded)
-		if neededBytes > bufferLen {
-			neededBytes = bufferLen
-		}
-
-		// Fill the random bytes buffer
-		if _, err := g.config.randReader.Read(randomBytes[:neededBytes]); err != nil {
-			return EmptyID, err
-		}
-
-		// Process each segment of random bytes
-		for i := 0; i < neededBytes && cursor < length; i += int(bytesNeeded) {
-			rnd := g.processRandomBytes(randomBytes, i)
-			rnd &= mask
-
-			if isPowerOfTwo || int(rnd) < int(g.config.alphabetLen) {
-				idBuffer[cursor] = g.config.byteAlphabet[rnd]
-				cursor++
-			}
-		}
-	}
-
-	// Check for max attempts
-	if cursor < length {
-		return EmptyID, ErrExceededMaxAttempts
-	}
-
-	return ID(idBuffer), nil
-}
-
-// newUnicode generates a new Nano ID using the Unicode alphabet.
-func (g *generator) newUnicode(length int) (ID, error) {
-	// Retrieve random bytes from the pool
-	randomBytesPtr := g.entropyPool.Get().(*[]byte)
-	randomBytes := *randomBytesPtr
-	bufferLen := len(randomBytes)
-
-	// Defer returning the randomBytes buffer to the pool
-	defer func() {
-		g.entropyPool.Put(randomBytesPtr)
-	}()
-
-	cursor := 0
-	maxAttempts := length * maxAttemptsMultiplier
-	mask := g.config.mask
-	bytesNeeded := g.config.bytesNeeded
-	isPowerOfTwo := g.config.isPowerOfTwo
-
-	// Retrieve the idBuffer from the pool
-	idBufferPtr := g.idPool.Get().(*[]rune)
-	idBuffer := (*idBufferPtr)[:length] // Ensure it has the correct length
-
-	defer func() {
-		g.idPool.Put(idBufferPtr)
-	}()
-
-	for attempts := 0; cursor < length && attempts < maxAttempts; attempts++ {
-		neededBytes := (length - cursor) * int(bytesNeeded)
-		if neededBytes > bufferLen {
-			neededBytes = bufferLen
-		}
-
-		// Fill the random bytes buffer
-		if _, err := g.config.randReader.Read(randomBytes[:neededBytes]); err != nil {
-			return EmptyID, err
-		}
-
-		// Process each segment of random bytes
-		for i := 0; i < neededBytes && cursor < length; i += int(bytesNeeded) {
-			rnd := g.processRandomBytes(randomBytes, i)
-			rnd &= mask
-
-			if isPowerOfTwo || int(rnd) < int(g.config.alphabetLen) {
-				idBuffer[cursor] = g.config.runeAlphabet[rnd]
-				cursor++
-			}
-		}
-	}
-
-	// Check for max attempts
-	if cursor < length {
-		return EmptyID, ErrExceededMaxAttempts
-	}
-
-	return ID(idBuffer), nil
 }
 
 // Reader is the interface that wraps the basic Read method.
@@ -515,19 +427,191 @@ func (g *generator) newUnicode(length int) (ID, error) {
 // nothing happened; in particular it does not indicate EOF.
 //
 // Implementations must not retain p.
-func (g *generator) Read(p []byte) (n int, err error) {
+func (g *generator) Read(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
 
-	length := len(p)
-	id, err := g.NewWithLength(length)
-	if err != nil {
-		return 0, err
+	if g.config.isASCII {
+		// Fill ASCII directly into client buffer
+		if err := g.newASCII(len(p), p); err != nil {
+			return 0, err
+		}
+		return len(p), nil
 	}
 
-	copy(p, id)
-	return length, nil
+	// Unicode: Fill runes, then encode as UTF-8 into p
+	runeBuf := make([]rune, g.config.lengthHint)
+	if err := g.newUnicode(len(runeBuf), runeBuf); err != nil {
+		return 0, err
+	}
+	// Encode runes into p, up to capacity
+	n := 0
+	for _, r := range runeBuf {
+		size := utf8.RuneLen(r)
+		if n+size > len(p) {
+			break // buffer full
+		}
+		utf8.EncodeRune(p[n:], r)
+		n += size
+	}
+	return n, nil
+}
+
+// GetConfig returns the current configuration of the generator.
+func (g *generator) GetConfig() Config {
+	return g.config
+}
+
+// newASCII generates a new Nano ID using the configured ASCII alphabet.
+//
+// This method fills the provided byte slice `idBuffer` with a random sequence of
+// characters selected from the generator's ASCII alphabet. The buffer must have at
+// least `length` capacity. The function performs no heap allocations beyond the use
+// of internal buffer pools.
+//
+// Parameters:
+//   - length:   The number of random ASCII characters to generate.
+//   - idBuffer: The buffer to fill with generated characters.
+//
+// Returns:
+//   - error: An error if the buffer is too small, random source fails, or max attempts are exceeded.
+//
+// Example:
+//
+//	buf := make([]byte, 21)
+//	err := generator.newASCII(21, buf)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Println(string(buf))
+func (g *generator) newASCII(length int, idBuffer []byte) error {
+	// --- Parameter validation: Ensure output buffer is large enough. ---
+	if len(idBuffer) < length {
+		return fmt.Errorf("buffer too small")
+	}
+
+	// --- Acquire a buffer for entropy from the pool for efficient random data handling. ---
+	randomBytesPtr := g.entropyPool.Get().(*[]byte)
+	randomBytes := *randomBytesPtr
+	bufferLen := len(randomBytes)
+	defer g.entropyPool.Put(randomBytesPtr) // Always return buffer to the pool.
+
+	// --- Initialize internal state for NanoID generation. ---
+	cursor := 0                                   // Tracks how many characters have been written.
+	maxAttempts := length * maxAttemptsMultiplier // Upper bound to prevent infinite loops.
+	mask := g.config.mask                         // Bitmask for index truncation.
+	bytesNeeded := g.config.bytesNeeded           // Bytes required for each index sample.
+	isPowerOfTwo := g.config.isPowerOfTwo         // Optimization for binary-friendly alphabets.
+
+	// --- Main generation loop: Fill idBuffer with valid random characters. ---
+	for attempts := 0; cursor < length && attempts < maxAttempts; attempts++ {
+		// --- Determine how many random bytes are needed for this iteration. ---
+		neededBytes := (length - cursor) * int(bytesNeeded)
+		if neededBytes > bufferLen {
+			neededBytes = bufferLen
+		}
+
+		// --- Refill the entropy buffer with secure random bytes. ---
+		if _, err := g.config.randReader.Read(randomBytes[:neededBytes]); err != nil {
+			// Propagate any error from the random reader.
+			return err
+		}
+
+		// --- Use each segment of random bytes to select characters from the alphabet. ---
+		for i := 0; i < neededBytes && cursor < length; i += int(bytesNeeded) {
+			rnd := g.processRandomBytes(randomBytes, i) // Extract an integer sample.
+			rnd &= mask                                 // Mask for non-power-of-two alphabet sizes.
+
+			// --- If the random index is valid, select the character and write to output. ---
+			if isPowerOfTwo || int(rnd) < int(g.config.alphabetLen) {
+				idBuffer[cursor] = g.config.byteAlphabet[rnd]
+				cursor++
+			}
+		}
+	}
+
+	// --- If unable to generate a full ID within the allowed attempts, return an error. ---
+	if cursor < length {
+		return ErrExceededMaxAttempts
+	}
+
+	return nil
+}
+
+// newUnicode generates a new Nano ID using the configured Unicode alphabet.
+//
+// This method fills the provided rune slice `idBuffer` with a random sequence of
+// runes selected from the generator's Unicode alphabet. The buffer must have at
+// least `length` capacity. No heap allocations occur outside internal buffer pools.
+//
+// Parameters:
+//   - length:   The number of random runes to generate.
+//   - idBuffer: The buffer to fill with generated runes.
+//
+// Returns:
+//   - error: An error if the buffer is too small, random source fails, or max attempts are exceeded.
+//
+// Example:
+//
+//	buf := make([]rune, 16)
+//	err := generator.newUnicode(16, buf)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Println(string(buf))
+func (g *generator) newUnicode(length int, idBuffer []rune) error {
+	// --- Parameter validation: Ensure output buffer is large enough. ---
+	if len(idBuffer) < length {
+		return fmt.Errorf("buffer too small")
+	}
+
+	// --- Acquire a buffer for entropy from the pool for efficient random data handling. ---
+	randomBytesPtr := g.entropyPool.Get().(*[]byte)
+	randomBytes := *randomBytesPtr
+	bufferLen := len(randomBytes)
+	defer g.entropyPool.Put(randomBytesPtr) // Always return buffer to the pool.
+
+	// --- Initialize internal state for NanoID generation. ---
+	cursor := 0                                   // Tracks how many runes have been written.
+	maxAttempts := length * maxAttemptsMultiplier // Upper bound to prevent infinite loops.
+	mask := g.config.mask                         // Bitmask for index truncation.
+	bytesNeeded := g.config.bytesNeeded           // Bytes required for each index sample.
+	isPowerOfTwo := g.config.isPowerOfTwo         // Optimization for binary-friendly alphabets.
+
+	// --- Main generation loop: Fill idBuffer with valid random runes. ---
+	for attempts := 0; cursor < length && attempts < maxAttempts; attempts++ {
+		// --- Determine how many random bytes are needed for this iteration. ---
+		neededBytes := (length - cursor) * int(bytesNeeded)
+		if neededBytes > bufferLen {
+			neededBytes = bufferLen
+		}
+
+		// --- Refill the entropy buffer with secure random bytes. ---
+		if _, err := g.config.randReader.Read(randomBytes[:neededBytes]); err != nil {
+			// Propagate any error from the random reader.
+			return err
+		}
+
+		// --- Use each segment of random bytes to select runes from the alphabet. ---
+		for i := 0; i < neededBytes && cursor < length; i += int(bytesNeeded) {
+			rnd := g.processRandomBytes(randomBytes, i) // Extract an integer sample.
+			rnd &= mask                                 // Mask for non-power-of-two alphabet sizes.
+
+			// --- If the random index is valid, select the rune and write to output. ---
+			if isPowerOfTwo || int(rnd) < int(g.config.alphabetLen) {
+				idBuffer[cursor] = g.config.runeAlphabet[rnd]
+				cursor++
+			}
+		}
+	}
+
+	// --- If unable to generate a full ID within the allowed attempts, return an error. ---
+	if cursor < length {
+		return ErrExceededMaxAttempts
+	}
+
+	return nil
 }
 
 // processRandomBytes extracts and returns an unsigned integer from the given randomBytes slice,
@@ -551,21 +635,25 @@ func (g *generator) Read(p []byte) (n int, err error) {
 func (g *generator) processRandomBytes(randomBytes []byte, i int) uint {
 	switch g.config.bytesNeeded {
 	case 1:
+		// Fast path: Use a single byte as the random value.
+		// Suitable for small alphabets (≤ 256) where 8 bits is sufficient.
 		return uint(randomBytes[i])
 	case 2:
+		// Use 2 bytes to construct a 16-bit unsigned integer in Big Endian order.
+		// Suitable for alphabets up to 2^16 unique characters.
 		return uint(binary.BigEndian.Uint16(randomBytes[i : i+2]))
 	case 4:
+		// Use 4 bytes to construct a 32-bit unsigned integer in Big Endian order.
+		// Suitable for very large alphabets, and provides a fast path for power-of-two sizing.
 		return uint(binary.BigEndian.Uint32(randomBytes[i : i+4]))
 	default:
+		// General case: Combine `bytesNeeded` bytes into a single unsigned integer.
+		// Shifts the result left by 8 bits on each iteration, then adds the next byte.
+		// This path is used when the alphabet size requires a custom number of bytes.
 		var rnd uint
 		for j := 0; j < int(g.config.bytesNeeded); j++ {
 			rnd = (rnd << 8) | uint(randomBytes[i+j])
 		}
 		return rnd
 	}
-}
-
-// GetConfig returns the current configuration of the generator.
-func (g *generator) GetConfig() Config {
-	return g.config
 }
