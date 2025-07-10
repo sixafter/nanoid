@@ -18,6 +18,21 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.35.0] - 2025-07-10
+
+### Added
+- **risk:** Added benchmark tests for [x/crypto/prng](../x/crypto/prng) to measure performance of Cryptographically Secure Pseudo-Random Number Generator (CSPRNG) Reader.
+- **debt:** Added `bench-csprng` `Makefile` target for running [x/crypto/prng](../x/crypto/prng) benchmark tests.
+
+### Changed
+- **debt:** Updated [README](README.md) to include information about the new `bench-csprng` target and benchmark tests for [x/crypto/prng](../x/crypto/prng).
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.34.0] - 2025-07-09
 
 ### Added
@@ -722,7 +737,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.34.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.35.0...HEAD
+[1.35.0]: https://github.com/sixafter/nanoid/compare/v1.34.0...v1.35.0
 [1.34.0]: https://github.com/sixafter/nanoid/compare/v1.33.0...v1.34.0
 [1.33.0]: https://github.com/sixafter/nanoid/compare/v1.32.1...v1.33.0
 [1.32.1]: https://github.com/sixafter/nanoid/compare/v1.32.0...v1.32.1
