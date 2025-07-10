@@ -46,6 +46,7 @@ Please see the [godoc](https://pkg.go.dev/github.com/sixafter/nanoid) for detail
 - **High Performance**: Optimized with buffer pooling to minimize allocations and enhance speed.
 - **Optimized for Low Allocations**: Carefully structured to minimize heap allocations, reducing memory overhead and improving cache locality. This optimization is crucial for applications where performance and resource usage are critical.
     - 1 `allocs/op` for ASCII and Unicode alphabets regardless of alphabet size or generated ID length.
+    - 0 `allocs/op` for `Reader` interface across ASCII and Unicode alphabets regardlss of alphabet size or generated ID length.
 - **Zero Dependencies**: Lightweight implementation with no external dependencies beyond the standard library.
 - **Supports `io.Reader` Interface**: 
   - The Nano ID generator satisfies the `io.Reader` interface, allowing it to be used interchangeably with any `io.Reader` implementations. 
