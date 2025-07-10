@@ -1,13 +1,92 @@
-# prng: Cryptographically Secure Pseudo-Random Number Generator (PRNG)
+# prng: Cryptographically Secure Pseudo-Random Number Generator (CSPRNG)
 
 ## Overview
 
-The prng package provides a high-performance, cryptographically secure pseudo-random number generator (PRNG) 
-that implements the io.Reader interface. Designed for concurrent use, it leverages the ChaCha20 cipher stream 
+The `prng` package provides a high-performance, cryptographically secure pseudo-random number generator (CSPRNG) 
+that implements the `io.Reader` interface. Designed for concurrent use, it leverages the ChaCha20 cipher stream 
 to efficiently generate random bytes.
 
-The package includes a global Reader and a sync.Pool to manage PRNG instances, ensuring low contention and 
+The package includes a global `Reader` and a `sync.Pool` to manage PRNG instances, ensuring low contention and 
 optimized performance.
+
+## Features
+
+* **Cryptographic Security:** Utilizes the [ChaCha20](https://pkg.go.dev/golang.org/x/crypto/chacha20) cipher for secure random number generation. 
+* **Concurrent Support:** Includes a thread-safe global `Reader` for concurrent access. 
+    * Up to 98% faster when using the `prng.Reader` as a source for v4 UUID generation using Google's [UUID](https://pkg.go.dev/github.com/google/uuid) package as compared to using the default rand reader.
+    * See the benchmark results [here](#uuid-generation).
+* **Efficient Resource Management:** Uses a `sync.Pool` to manage PRNG instances, reducing the overhead on `crypto/rand.Reader`. 
+* **Extensible API:** Allows users to create and manage custom PRNG instances via `NewReader`.
+
+---
+
+## Installation
+
+To install the package, run the following command:
+
+```bash
+go get -u github.com/sixafter/nanoid/x/crypto/prng
+```
+
+## Usage
+
+Global Reader:
+
+```go
+package main
+
+import (
+  "fmt"
+  
+  "github.com/sixafter/nanoid/x/crypto/prng"
+)
+
+func main() {
+  buffer := make([]byte, 64)
+  n, err := prng.Reader.Read(buffer)
+  if err != nil {
+      // Handle error
+  }
+  fmt.Printf("Read %d bytes of random data: %x\n", n, buffer)
+}
+```
+
+Replacing default random reader for UUID Generation:
+
+```go
+package main
+
+import (
+  "fmt"
+
+  "github.com/google/uuid"
+  "github.com/sixafter/nanoid/x/crypto/prng"
+)
+
+func main() {
+  // Set the global random reader for UUID generation
+  uuid.SetRand(prng.Reader)
+
+  // Generate a new v4 UUID
+  u := uuid.New()
+  fmt.Printf("Generated UUID: %s\n", u)
+}
+```
+
+---
+
+## Architecture
+
+* Global Reader: A pre-configured io.Reader (`prng.Reader`) manages a pool of PRNG instances for concurrent use. 
+* PRNG Instances: Each instance uses ChaCha20, initialized with a unique key and nonce sourced from `crypto/rand.Reader`. 
+* Error Handling: The `errorPRNG` ensures safe failure when initialization errors occur. 
+* Resource Efficiency: A `sync.Pool` optimizes resource reuse and reduces contention on `crypto/rand.Reader`.
+
+---
+
+## Performance Benchmarks
+
+### NanoID Generation
 
 Performance Benchmarks for concurrent reads of standard size Nano ID generation of 21 bytes:
 
@@ -153,58 +232,55 @@ ok  	github.com/sixafter/nanoid/x/crypto/prng	182.010s
 ```
 </details>
 
----
+### UUID Generation
 
-## Features
+Here's a summary of the benchmark results comparing the default random reader for Google's [UUID](https://pkg.go.dev/github.com/google/uuid) package and the CSPRNG-based UUID generation:
 
-* Cryptographic Security: Utilizes the [ChaCha20](https://pkg.go.dev/golang.org/x/crypto/chacha20) cipher for secure random number generation. 
-* Concurrent Support: Includes a thread-safe global `Reader` for concurrent access. 
-* Efficient Resource Management: Uses a `sync.Pool` to manage PRNG instances, reducing the overhead on `crypto/rand.Reader`. 
-* Extensible API: Allows users to create and manage custom PRNG instances via `NewReader`.
+| Benchmark Scenario                       | Default ns/op | CSPRNG ns/op | % Faster (ns/op) | Default B/op | CSPRNG B/op | Default allocs/op | CSPRNG allocs/op |
+|------------------------------------------|--------------:|-------------:|-----------------:|-------------:|------------:|------------------:|-----------------:|
+| v4 Serial                               |      184.4    |      36.00   |    80.5%         |      16      |     16      |      1            |      1           |
+| v4 Parallel                             |      455.8    |       6.68   |    98.5%         |      16      |     16      |      1            |      1           |
+| v4 Concurrent (1 goroutine)             |      185.4    |      36.90   |    80.1%         |      16      |     16      |      1            |      1           |
+| v4 Concurrent (2 goroutines)            |      371.5    |      19.83   |    94.7%         |      16      |     16      |      1            |      1           |
+| v4 Concurrent (4 goroutines)            |      461.5    |      11.72   |    97.5%         |      16      |     16      |      1            |      1           |
+| v4 Concurrent (8 goroutines)            |      481.1    |       8.54   |    98.2%         |      16      |     16      |      1            |      1           |
+| v4 Concurrent (16 goroutines)           |      453.8    |       6.62   |    98.5%         |      16      |     16      |      1            |      1           |
+| v4 Concurrent (32 goroutines)           |      505.1    |       6.50   |    98.7%         |      16      |     16      |      1            |      1           |
+| v4 Concurrent (64 goroutines)           |      510.2    |       6.46   |    98.7%         |      16      |     16      |      1            |      1           |
+| v4 Concurrent (128 goroutines)          |      511.7    |       6.41   |    98.7%         |      16      |     16      |      1            |      1           |
 
----
-
-## Installation
-
-To install the package, run the following command:
-
-```bash
-go get -u github.com/sixafter/nanoid/x/crypto/prng
+<details>
+  <summary>Expand to see results</summary>
+```shell
+go test -bench='^BenchmarkUUID_' -benchmem -memprofile=mem.out -cpuprofile=cpu.out
+goos: darwin
+goarch: arm64
+pkg: github.com/sixafter/nanoid
+cpu: Apple M4 Max
+BenchmarkUUID_v4_Default_Serial-16               6512481               184.4 ns/op            16 B/op          1 allocs/op
+BenchmarkUUID_v4_Default_Parallel-16             2641772               455.8 ns/op            16 B/op          1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_1-16              6466557               185.4 ns/op            16 B/op          1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_2-16              3225741               371.5 ns/op            16 B/op          1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_4-16              2658018               461.5 ns/op            16 B/op          1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_8-16              2490762               481.1 ns/op            16 B/op          1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_16-16             2624019               453.8 ns/op            16 B/op          1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_32-16             2373811               505.1 ns/op            16 B/op          1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_64-16             2358780               510.2 ns/op            16 B/op          1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_128-16            2350291               511.7 ns/op            16 B/op          1 allocs/op
+BenchmarkUUID_v4_CSPRNG_Serial-16                               31947392                36.00 ns/op           16 B/op          1 allocs/op
+BenchmarkUUID_v4_CSPRNG_Parallel-16                             177618490                6.675 ns/op          16 B/op          1 allocs/op
+BenchmarkUUID_v4_CSPRNG_Concurrent/Goroutines_1-16              30928698                36.90 ns/op           16 B/op          1 allocs/op
+BenchmarkUUID_v4_CSPRNG_Concurrent/Goroutines_2-16              60665552                19.83 ns/op           16 B/op          1 allocs/op
+BenchmarkUUID_v4_CSPRNG_Concurrent/Goroutines_4-16              91901493                11.72 ns/op           16 B/op          1 allocs/op
+BenchmarkUUID_v4_CSPRNG_Concurrent/Goroutines_8-16              140070646                8.545 ns/op          16 B/op          1 allocs/op
+BenchmarkUUID_v4_CSPRNG_Concurrent/Goroutines_16-16             182767742                6.625 ns/op          16 B/op          1 allocs/op
+BenchmarkUUID_v4_CSPRNG_Concurrent/Goroutines_32-16             184506772                6.502 ns/op          16 B/op          1 allocs/op
+BenchmarkUUID_v4_CSPRNG_Concurrent/Goroutines_64-16             185731188                6.458 ns/op          16 B/op          1 allocs/op
+BenchmarkUUID_v4_CSPRNG_Concurrent/Goroutines_128-16            186703047                6.412 ns/op          16 B/op          1 allocs/op
+PASS
+ok      github.com/sixafter/nanoid      32.519s
 ```
-
-## Usage
-
-Global Reader:
-
-```go
-package main
-
-import (
-	"fmt"
-	
-	"github.com/sixafter/nanoid/x/crypto/prng"
-)
-
-func main() {
-	buffer := make([]byte, 64)
-	n, err := prng.Reader.Read(buffer)
-	if err != nil {
-		// Handle error
-	}
-	fmt.Printf("Read %d bytes of random data: %x\n", n, buffer)
-}
-```
-
----
-
-## Architecture
-
-* Global Reader: A pre-configured io.Reader (`prng.Reader`) manages a pool of PRNG instances for concurrent use. 
-* PRNG Instances: Each instance uses ChaCha20, initialized with a unique key and nonce sourced from `crypto/rand.Reader`. 
-* Error Handling: The `errorPRNG` ensures safe failure when initialization errors occur. 
-* Resource Efficiency: A `sync.Pool` optimizes resource reuse and reduces contention on `crypto/rand.Reader`.
-
----
+</details>
 
 ## License
 

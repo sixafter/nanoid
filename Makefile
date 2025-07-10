@@ -42,6 +42,11 @@ bench: ## Execute benchmark tests
 	@rm -f mem.out
 	$(GO_TEST) -bench=. -benchmem -memprofile=mem.out -cpuprofile=cpu.out
 
+.PHONY: bench-csprng
+bench-csprng: ## Execute benchmark tests for CSPRNG
+	@rm -f mem.out
+	$(GO_TEST) -bench='^BenchmarkUUID_' -benchmem -memprofile=mem.out -cpuprofile=cpu.out ./x/crypto/prng
+
 .PHONY: clean
 clean: ## Remove previous build
 	$(GO_CLEAN) ./...
