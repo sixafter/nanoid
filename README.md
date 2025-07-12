@@ -61,7 +61,12 @@ Please see the [Nano ID CLI](https://github.com/sixafter/nanoid-cli) for a comma
 
 ## Verify with Cosign
 
-Download the source archive and its .sig file from the GitHub release (e.g., nanoid-1.32.0.tar.gz and nanoid-1.32.0.tar.gz.sig ), then run:
+[Cosign](https://github.com/sigstore/cosign) is used to sign releases for integrity verification.
+
+To verify the integrity of the `nanoid` source, first download the target version and its signature file 
+from the [releases page](https://github.com/sixafter/nanoid/releases) along with its `.sig` file; e.g., 
+`nanoid-1.32.0.tar.gz` and `nanoid-1.32.0.tar.gz.sig`. Then run the following command to verify the 
+signature:
 
 ```sh
 # Replace <version> with the release version you downloaded, e.g., 1.32.0
@@ -78,7 +83,7 @@ cosign verify-blob \
   nanoid-1.32.0.tar.gz
 ```
 
-The checksums are also signed (checksums.txt and checksums.txt.sig), verify with:
+The checksums are also signed (`checksums.txt` and `checksums.txt.sig`), verify with:
 
 ```sh
 cosign verify-blob \

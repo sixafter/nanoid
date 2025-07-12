@@ -7,12 +7,13 @@ package prng
 import (
 	"bytes"
 	"fmt"
-	"golang.org/x/crypto/chacha20"
 	"io"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/chacha20"
 
 	"github.com/stretchr/testify/assert"
 )

@@ -38,17 +38,17 @@ var (
 // TestNewWithCustomLengths tests the generation of Nano IDs with custom lengths.
 func TestNewWithCustomLengths(t *testing.T) {
 	t.Parallel()
-	lengths := []int{1, 5, 10, 21, 50, 100}
+	lengths := []int{1, 3, 5, 13, 21, 34, 55}
 
 	for _, length := range lengths {
-		length := length // capture range variable
-		t.Run("Length_"+strconv.Itoa(length), func(t *testing.T) {
+		ln := length // capture range variable
+		t.Run("Length_"+strconv.Itoa(ln), func(t *testing.T) {
 			t.Parallel()
 			is := assert.New(t)
 
-			id, err := NewWithLength(length)
-			is.NoError(err, "NewWithLength(%d) should not return an error", length)
-			is.Equal(length, len([]rune(id)), "Generated ID should have the specified length")
+			id, err := NewWithLength(ln)
+			is.NoError(err, "NewWithLength(%d) should not return an error", ln)
+			is.Equal(ln, len([]rune(id)), "Generated ID should have the specified ln")
 
 			is.True(isValidID(id, DefaultAlphabet), "Generated ID contains invalid characters")
 		})
@@ -139,9 +139,9 @@ func TestNewGeneratorWithInvalidAlphabet(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
-	lengths := []int{1, 2, 256, 257}
+	lengths := []int{1, 2, 4, 8, 16, 32, 64, 128}
 
-	mean := mean(lengths)
+	mn := mean(lengths)
 
 	// Define the alphabet types to test
 	types := []string{"ASCII", "Unicode"}
@@ -157,7 +157,7 @@ func TestNewGeneratorWithInvalidAlphabet(t *testing.T) {
 			}
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
-				WithLengthHint(uint16(mean)),
+				WithLengthHint(uint16(mn)),
 			)
 
 			alphabetRunes := []rune(alphabet)

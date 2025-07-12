@@ -6,6 +6,8 @@ The `prng` package provides a high-performance, cryptographically secure pseudo-
 that implements the `io.Reader` interface. Designed for concurrent use, it leverages the ChaCha20 cipher stream 
 to efficiently generate random bytes.
 
+Technically, this PRNG is not pseudo-random but is cryptographically random.
+
 The package includes a global `Reader` and a `sync.Pool` to manage PRNG instances, ensuring low contention and 
 optimized performance.
 
