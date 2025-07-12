@@ -54,7 +54,7 @@ func itoa(i int) string {
 func BenchmarkUUID_v4_Default_Serial(b *testing.B) {
 	uuid.SetRand(nil)
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = uuid.New()
 	}
 }
@@ -71,7 +71,7 @@ func BenchmarkUUID_v4_Default_Parallel(b *testing.B) {
 
 func BenchmarkUUID_v4_Default_Concurrent(b *testing.B) {
 	uuid.SetRand(nil)
-	for _, gr := range []int{1, 2, 4, 8, 16, 32, 64, 128} {
+	for _, gr := range []int{4, 8, 16, 32, 64, 128, 256} {
 		b.Run("Goroutines_"+itoa(gr), func(b *testing.B) {
 			benchConcurrent(b, func() { _ = uuid.New() }, gr)
 		})
@@ -83,7 +83,7 @@ func BenchmarkUUID_v4_CSPRNG_Serial(b *testing.B) {
 	uuid.SetRand(Reader)
 	defer uuid.SetRand(nil)
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = uuid.New()
 	}
 }
@@ -102,7 +102,7 @@ func BenchmarkUUID_v4_CSPRNG_Parallel(b *testing.B) {
 func BenchmarkUUID_v4_CSPRNG_Concurrent(b *testing.B) {
 	uuid.SetRand(Reader)
 	defer uuid.SetRand(nil)
-	for _, gr := range []int{1, 2, 4, 8, 16, 32, 64, 128} {
+	for _, gr := range []int{4, 8, 16, 32, 64, 128, 256} {
 		b.Run("Goroutines_"+itoa(gr), func(b *testing.B) {
 			benchConcurrent(b, func() { _ = uuid.New() }, gr)
 		})

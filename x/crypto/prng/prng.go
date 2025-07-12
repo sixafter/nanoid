@@ -8,7 +8,6 @@
 // use in generating random bytes.
 //
 // This package is part of the experimental "x" modules and may be subject to change.
-
 package prng
 
 import (
@@ -96,11 +95,16 @@ type reader struct {
 //	}
 //	fmt.Printf("Read %d bytes: %x\n", n, buf)
 func NewReader(opts ...Option) (io.Reader, error) {
+	// Initialize a default configuration and apply any supplied options.
 	cfg := DefaultConfig()
 	for _, opt := range opts {
 		opt(&cfg)
 	}
 
+	// Create a sync.Pool for managing reusable prng instances.
+	// The pool's New function attempts to construct a new *prng,
+	// retrying up to cfg.MaxInitRetries times in case of failure.
+	// If construction fails after all retries, the function panics.
 	pool := &sync.Pool{
 		New: func() interface{} {
 			var (
@@ -112,9 +116,31 @@ func NewReader(opts ...Option) (io.Reader, error) {
 					return p
 				}
 			}
+			// Panic if the PRNG cannot be initialized after the allowed retries.
 			panic(fmt.Sprintf("prng pool init failed after %d retries: %v", cfg.MaxInitRetries, err))
 		},
 	}
+
+	// Eagerly initialize the pool to ensure that any initialization failure
+	// is detected during construction, not deferred to first use.
+	// If pool.New panics, recover the panic and store it as an error.
+	var panicErr error
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				panicErr = fmt.Errorf("prng pool initialization failed: %v", r)
+			}
+		}()
+		item := pool.Get()
+		pool.Put(item)
+	}()
+
+	// If a panic was encountered during eager initialization, return it as an error.
+	if panicErr != nil {
+		return nil, panicErr
+	}
+
+	// Return a new reader that wraps the initialized pool.
 	return &reader{pool: pool}, nil
 }
 
@@ -146,10 +172,10 @@ func (r *reader) Read(b []byte) (int, error) {
 // scratch buffer for encryption, and internal counters to enforce a
 // “forward secrecy” rekey after a configurable output threshold.
 type prng struct {
-	// cfg holds a pointer to this PRNG instance’s configuration parameters.
+	// config holds a pointer to this PRNG instance’s configuration parameters.
 	// It provides tunable settings such as MaxBytesPerKey (keystream rotation threshold)
 	// and MaxInitRetries (how many times to retry initialization).
-	cfg *Config
+	config *Config
 
 	// cipher holds the active *chacha20.Cipher. We use atomic.Value so that
 	// loads and stores of the cipher pointer are safe and nonblocking.
@@ -208,7 +234,7 @@ func (p *prng) Read(b []byte) (int, error) {
 	atomic.AddUint64(&p.usage, uint64(n))
 
 	// If we've exceeded our per-key threshold, trigger an async rekey.
-	if atomic.LoadUint64(&p.usage) > p.cfg.MaxBytesPerKey {
+	if atomic.LoadUint64(&p.usage) > p.config.MaxBytesPerKey {
 		if atomic.CompareAndSwapUint32(&p.rekeying, 0, 1) {
 			go p.asyncRekey()
 		}
@@ -221,15 +247,15 @@ func (p *prng) Read(b []byte) (int, error) {
 // It generates a fresh ChaCha20 cipher, zeroes out any sensitive seed material,
 // and stores the cipher in an atomic.Value for lock-free access in Read().
 // Returns an error if the underlying cipher setup fails.
-func newPRNG(cfg *Config) (*prng, error) {
+func newPRNG(config *Config) (*prng, error) {
 	stream, err := newCipher()
 	if err != nil {
 		return nil, err
 	}
 
 	p := &prng{
-		zero: make([]byte, 0),
-		cfg:  cfg,
+		zero:   make([]byte, 0),
+		config: config,
 	}
 
 	// Store the cipher for atomic.Load() in Read().
@@ -283,10 +309,10 @@ func (p *prng) asyncRekey() {
 	// Always clear the rekeying flag when this goroutine exits
 	defer atomic.StoreUint32(&p.rekeying, 0)
 
-	base := p.cfg.RekeyBackoff
+	base := p.config.RekeyBackoff
 	var old *chacha20.Cipher
 
-	for i := 0; i < p.cfg.MaxRekeyAttempts; i++ {
+	for i := 0; i < p.config.MaxRekeyAttempts; i++ {
 		// Capture the existing cipher so we can wipe it later
 		old = p.cipher.Load().(*chacha20.Cipher)
 

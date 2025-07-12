@@ -8,7 +8,6 @@
 // use in generating random bytes.
 //
 // This package is part of the experimental "x" modules and may be subject to change.
-
 package prng
 
 import (

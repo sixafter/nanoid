@@ -109,7 +109,7 @@ func Benchmark_Allocations_Serial(b *testing.B) {
 		b.Fatalf("failed to create generator: %v", err)
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, err = gen.NewWithLength(idLength)
 	}
 }
@@ -150,7 +150,7 @@ func Benchmark_Read_DefaultLength(b *testing.B) {
 	buffer := make([]byte, DefaultLength)
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, err := Generator.Read(buffer)
 		if err != nil {
 			b.Fatalf("Read returned an unexpected error: %v", err)
@@ -175,7 +175,7 @@ func Benchmark_Read_VaryingBufferSizes(b *testing.B) {
 		b.Run(fmt.Sprintf("BufferSize_%d", size), func(b *testing.B) {
 			buffer := make([]byte, size)
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				_, err := gen.Read(buffer)
 				if err != nil {
 					b.Fatalf("Read returned an unexpected error: %v", err)
@@ -191,7 +191,7 @@ func Benchmark_Read_ZeroLengthBuffer(b *testing.B) {
 	buffer := make([]byte, 0)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, err := Generator.Read(buffer)
 		if err != nil {
 			b.Fatalf("Read returned an unexpected error: %v", err)
@@ -239,7 +239,7 @@ func Benchmark_Read_Concurrent(b *testing.B) {
 func Benchmark_Alphabet_Varying_Serial(b *testing.B) {
 	b.ReportAllocs()
 	idLengths := []int{8, 16, 21, 32, 64, 128}
-	mean := mean(idLengths)
+	mn := mean(idLengths)
 	alphabetLengths := []int{2, 16, 32, 64}
 	alphabetTypes := []string{"ASCII", "Unicode"}
 	for _, alphabetType := range alphabetTypes {
@@ -252,7 +252,7 @@ func Benchmark_Alphabet_Varying_Serial(b *testing.B) {
 			}
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
-				WithLengthHint(uint16(mean)),
+				WithLengthHint(uint16(mn)),
 			)
 			if err != nil {
 				b.Fatalf("Failed to create generator with %s alphabet of length %d: %v", alphabetType, alphaLen, err)
@@ -261,7 +261,7 @@ func Benchmark_Alphabet_Varying_Serial(b *testing.B) {
 				for _, idLen := range idLengths {
 					b.Run(fmt.Sprintf("IDLen%d", idLen), func(b *testing.B) {
 						b.ResetTimer()
-						for i := 0; i < b.N; i++ {
+						for b.Loop() {
 							_, err := gen.NewWithLength(idLen)
 							if err != nil {
 								b.Fatalf("Failed to generate Nano ID: %v", err)
@@ -325,7 +325,7 @@ func Benchmark_Alphabet_Varying_Length_Varying_Serial(b *testing.B) {
 	alphabetTypes := []string{"ASCII", "Unicode"}
 	alphabetLengths := []int{2, 16, 32, 64}
 	idLengths := []int{8, 16, 21, 32, 64, 128}
-	mean := mean(idLengths)
+	mn := mean(idLengths)
 	for _, alphabetType := range alphabetTypes {
 		for _, alphaLen := range alphabetLengths {
 			var alphabet string
@@ -336,7 +336,7 @@ func Benchmark_Alphabet_Varying_Length_Varying_Serial(b *testing.B) {
 			}
 			gen, err := NewGenerator(
 				WithAlphabet(alphabet),
-				WithLengthHint(uint16(mean)),
+				WithLengthHint(uint16(mn)),
 			)
 			if err != nil {
 				b.Fatalf("Failed to create generator with %s alphabet of length %d: %v", alphabetType, alphaLen, err)
@@ -345,7 +345,7 @@ func Benchmark_Alphabet_Varying_Length_Varying_Serial(b *testing.B) {
 				for _, idLen := range idLengths {
 					b.Run(fmt.Sprintf("IDLen%d", idLen), func(b *testing.B) {
 						b.ResetTimer()
-						for i := 0; i < b.N; i++ {
+						for b.Loop() {
 							_, err := gen.NewWithLength(idLen)
 							if err != nil {
 								b.Fatalf("Failed to generate Nano ID: %v", err)
