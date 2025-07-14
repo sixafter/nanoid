@@ -98,3 +98,67 @@ func TestConfig_CombinedOptions(t *testing.T) {
 	is.Equal(6, cfg.MaxRekeyAttempts)
 	is.Equal(250*time.Millisecond, cfg.RekeyBackoff)
 }
+
+func TestConfig_WithZeroBuffer(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	cfg := DefaultConfig()
+	WithZeroBuffer(true)(&cfg)
+	is.True(cfg.UseZeroBuffer, "WithZeroBuffer(true) should set UseZeroBuffer to true")
+	WithZeroBuffer(false)(&cfg)
+	is.False(cfg.UseZeroBuffer, "WithZeroBuffer(false) should set UseZeroBuffer to false")
+	// other field remains unchanged
+	is.Equal(uint64(1<<30), cfg.MaxBytesPerKey)
+}
+
+func TestConfig_WithEnableKeyRotation(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	cfg := DefaultConfig()
+	WithEnableKeyRotation(true)(&cfg)
+	is.True(cfg.EnableKeyRotation, "WithEnableKeyRotation(true) should set EnableKeyRotation to true")
+	WithEnableKeyRotation(false)(&cfg)
+	is.False(cfg.EnableKeyRotation, "WithEnableKeyRotation(false) should set EnableKeyRotation to false")
+	// other field remains unchanged
+	is.Equal(uint64(1<<30), cfg.MaxBytesPerKey)
+}
+
+func TestConfig_WithDefaultBufferSize(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	cfg := DefaultConfig()
+	WithDefaultBufferSize(128)(&cfg)
+	is.Equal(128, cfg.DefaultBufferSize, "WithDefaultBufferSize should override DefaultBufferSize")
+	// other field remains unchanged
+	is.False(cfg.UseZeroBuffer)
+}
+
+func TestConfig_AllOptions(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	cfg := DefaultConfig()
+	opts := []Option{
+		WithMaxBytesPerKey(777),
+		WithMaxInitRetries(2),
+		WithMaxRekeyAttempts(1),
+		WithRekeyBackoff(77 * time.Millisecond),
+		WithZeroBuffer(true),
+		WithEnableKeyRotation(true),
+		WithDefaultBufferSize(321),
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	is.Equal(uint64(777), cfg.MaxBytesPerKey)
+	is.Equal(2, cfg.MaxInitRetries)
+	is.Equal(1, cfg.MaxRekeyAttempts)
+	is.Equal(77*time.Millisecond, cfg.RekeyBackoff)
+	is.True(cfg.UseZeroBuffer)
+	is.True(cfg.EnableKeyRotation)
+	is.Equal(321, cfg.DefaultBufferSize)
+}
