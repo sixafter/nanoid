@@ -296,6 +296,7 @@ func TestPRNG_AsyncRekey(t *testing.T) {
 	cfg.RekeyBackoff = 10 * time.Millisecond // speed up test execution
 	cfg.MaxRekeyAttempts = 3
 	cfg.MaxInitRetries = 3
+	cfg.EnableKeyRotation = true
 
 	p, err := newPRNG(&cfg)
 	is.NoError(err, "newPRNG should not error")

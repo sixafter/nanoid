@@ -16,3 +16,5 @@ fi
 # govulncheck
 # Ref: https://github.com/golang/vuln
 go install golang.org/x/vuln/cmd/govulncheck@latest
+
+go install golang.org/x/perf/cmd/benchstat@latest

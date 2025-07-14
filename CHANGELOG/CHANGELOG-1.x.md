@@ -18,6 +18,22 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.37.0] - 2025-07-13
+
+### Added
+- **feature:** Added [`EnableKeyRotation`](../x/crypto/prng/config.go)] option to automatically rotate PRNG keys after a configurable number of bytes, improving key hygiene for long-lived instances.
+- **feature:** Added [`UseZeroBuffer`](../x/crypto/prng/config.go) option to support legacy XORKeyStream behavior with a zero-filled buffer on each read.
+- **feature:** Added [`DefaultBufferSize`](../x/crypto/prng/config.go) option to control initial allocation size for the internal zero buffer when UseZeroBuffer is enabled
+
+### Changed
+- **debt:** Upgraded dependencies to their latest stable versions.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.36.0] - 2025-07-12
 
 ### Added
@@ -752,7 +768,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.36.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.37.0...HEAD
+[1.37.0]: https://github.com/sixafter/nanoid/compare/v1.36.0...v1.37.0
 [1.36.0]: https://github.com/sixafter/nanoid/compare/v1.35.0...v1.36.0
 [1.35.0]: https://github.com/sixafter/nanoid/compare/v1.34.0...v1.35.0
 [1.34.0]: https://github.com/sixafter/nanoid/compare/v1.33.0...v1.34.0

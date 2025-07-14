@@ -158,6 +158,11 @@ func NewReader(opts ...Option) (io.Reader, error) {
 //	}
 //	fmt.Printf("Read %d bytes of random data: %x\n", n, buffer)
 func (r *reader) Read(b []byte) (int, error) {
+	// Ensure the buffer is non-empty; if it is, return immediately.
+	if len(b) == 0 {
+		return 0, nil
+	}
+
 	p := r.pool.Get().(io.Reader)
 
 	// Ensure the instance is returned to the pool when done
@@ -197,46 +202,51 @@ type prng struct {
 }
 
 // Read fills the provided byte slice `b` with cryptographically secure random data.
-// It implements the `io.Reader` interface and is intended for exclusive use by a single goroutine.
+// It implements the `io.Reader` interface and is intended for exclusive use by a single goroutine
+// per PRNG instance (each pool entry is not shared between goroutines).
 //
 // Internally, Read does the following:
 //  1. Determines the length `n` of the requested output. If `n == 0`, returns immediately with no error.
 //  2. Atomically loads the current ChaCha20 cipher stream from `p.cipher`.
-//  3. Prepares a zero-valued buffer of length `n` in `p.zero`, growing it if necessary.
-//  4. Calls `cipher.XORKeyStream(b, p.zero)` to generate `n` bytes of output.
-//  5. Atomically increments `p.usage` by `n`.
-//  6. If `p.usage` has crossed `maxBytesPerKey`, attempts a single non-blocking
-//     CAS to set `p.rekeying` from 0→1, and if successful, launches `p.asyncRekey()`
-//     in a background goroutine to rotate the ChaCha20 key/nonce pair.
-//
-// Returns the number of bytes written (`n`) and any error encountered during rekey initiation
-// (though key rotation errors are logged or dropped inside `asyncRekey`).
+//  3. If `UseZeroBuffer` is true, prepares a zero-valued buffer of length `n` in `p.zero`, growing it if necessary.
+//  4. Calls `cipher.XORKeyStream(b, p.zero)` if `UseZeroBuffer` is true; otherwise, calls `cipher.XORKeyStream(b, b)` for in-place output.
+//  5. If key usage tracking is enabled (`EnableKeyRotation`), atomically increments `p.usage` by `n` and, if the threshold is crossed,
+//     attempts a single non-blocking CAS to set `p.rekeying` from 0→1; if successful, launches `p.asyncRekey()` in a background goroutine.
+//  6. Returns the number of bytes written (`n`). Errors are only expected on internal cipher malfunction, which should not occur
+//     under normal operation.
 func (p *prng) Read(b []byte) (int, error) {
 	n := len(b)
 	if n == 0 {
 		return 0, nil
 	}
 
-	// Atomically retrieve the active cipher stream.
+	// Step 1: Atomically retrieve the active cipher stream.
 	stream := p.cipher.Load().(*chacha20.Cipher)
 
-	// Ensure `p.zero` is a zero-filled buffer of length `n`.
-	if cap(p.zero) < n {
-		p.zero = make([]byte, n)
+	// Step 2: Generate random output based on configuration.
+	if p.config.UseZeroBuffer {
+		// Ensure internal zero buffer is at least n bytes.
+		if cap(p.zero) < n {
+			p.zero = make([]byte, n)
+		} else {
+			p.zero = p.zero[:n]
+		}
+		// XOR the zero buffer into b, producing random bytes.
+		stream.XORKeyStream(b, p.zero)
 	} else {
-		p.zero = p.zero[:n]
+		// XOR the buffer into itself (in-place), producing random bytes.
+		stream.XORKeyStream(b, b)
 	}
 
-	// XOR the zero buffer into `b`, producing random bytes.
-	stream.XORKeyStream(b, p.zero)
-
-	// Track how many bytes we've generated under the current key.
-	atomic.AddUint64(&p.usage, uint64(n))
-
-	// If we've exceeded our per-key threshold, trigger an async rekey.
-	if atomic.LoadUint64(&p.usage) > p.config.MaxBytesPerKey {
-		if atomic.CompareAndSwapUint32(&p.rekeying, 0, 1) {
-			go p.asyncRekey()
+	// Step 3: Optionally track key usage and trigger rekeying.
+	if p.config.EnableKeyRotation {
+		// Atomically increment usage counter by n bytes.
+		atomic.AddUint64(&p.usage, uint64(n))
+		// If usage exceeds threshold, attempt async rekey.
+		if atomic.LoadUint64(&p.usage) > p.config.MaxBytesPerKey {
+			if atomic.CompareAndSwapUint32(&p.rekeying, 0, 1) {
+				go p.asyncRekey()
+			}
 		}
 	}
 
@@ -253,8 +263,16 @@ func newPRNG(config *Config) (*prng, error) {
 		return nil, err
 	}
 
+	// Preallocate zero buffer if requested.
+	var zero []byte
+	if config.UseZeroBuffer && config.DefaultBufferSize > 0 {
+		zero = make([]byte, config.DefaultBufferSize)
+	} else {
+		zero = make([]byte, 0)
+	}
+
 	p := &prng{
-		zero:   make([]byte, 0),
+		zero:   zero,
 		config: config,
 	}
 
