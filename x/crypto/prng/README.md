@@ -411,6 +411,7 @@ Here's a summary of the benchmark results comparing the default random reader fo
 
 <details>
   <summary>Expand to see results</summary>
+
 ```shell
 make bench-uuid
 go test -bench='^BenchmarkUUID_' -benchmem -memprofile=mem.out -cpuprofile=cpu.out ./x/crypto/prng
