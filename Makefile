@@ -47,13 +47,13 @@ bench: ## Execute benchmark tests for NanoID
 bench-csprng: ## Execute benchmark tests for CSPRNG (raw bytes).
 	@rm -f x/crypto/prng/cpu.out
 	@rm -f x/crypto/prng/mem.out
-	$(GO_TEST) -bench='^BenchmarkPRNG_' -benchmem -memprofile=mem.out -cpuprofile=cpu.out ./x/crypto/prng
+	$(GO_TEST) -bench='^BenchmarkPRNG_' -benchmem -memprofile=x/crypto/prng/mem.out -cpuprofile=x/crypto/prng/cpu.out ./x/crypto/prng
 
 .PHONY: bench-uuid
 bench-uuid: ## Execute benchmark tests for using the CSPRNG to generate UUIDs using Google's uuid package.
 	@rm -f x/crypto/prng/cpu.out
 	@rm -f x/crypto/prng/mem.out
-	$(GO_TEST) -bench='^BenchmarkUUID_' -benchmem -memprofile=mem.out -cpuprofile=cpu.out ./x/crypto/prng
+	$(GO_TEST) -bench='^BenchmarkUUID_' -benchmem -memprofile=x/crypto/prng/mem.out -cpuprofile=x/crypto/prng/cpu.out ./x/crypto/prng
 
 .PHONY: clean
 clean: ## Remove previous build

@@ -163,7 +163,7 @@ func (r *reader) Read(b []byte) (int, error) {
 		return 0, nil
 	}
 
-	p := r.pool.Get().(io.Reader)
+	p := r.pool.Get().(*prng)
 
 	// Ensure the instance is returned to the pool when done
 	defer r.pool.Put(p)
@@ -330,6 +330,11 @@ func (p *prng) asyncRekey() {
 	base := p.config.RekeyBackoff
 	var old *chacha20.Cipher
 
+	maxBackoff := p.config.MaxRekeyBackoff
+	if maxBackoff == 0 {
+		maxBackoff = maxRekeyBackoff // fallback to default
+	}
+
 	for i := 0; i < p.config.MaxRekeyAttempts; i++ {
 		// Capture the existing cipher so we can wipe it later
 		old = p.cipher.Load().(*chacha20.Cipher)
@@ -355,6 +360,9 @@ func (p *prng) asyncRekey() {
 			time.Sleep(base)
 		}
 		base *= 2
+		if base > maxBackoff {
+			base = maxBackoff
+		}
 	}
 
 	// All retries failed: leave the existing cipher in place, then exit

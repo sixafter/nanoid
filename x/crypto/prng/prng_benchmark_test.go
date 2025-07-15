@@ -10,6 +10,32 @@ import (
 	"testing"
 )
 
+func (r *reader) syncPoolGetPut() {
+	p := r.pool.Get().(*prng)
+	r.pool.Put(p)
+}
+
+func BenchmarkPRNG_Concurrent_SyncPool_Baseline(b *testing.B) {
+	b.ReportAllocs()
+	rdr, _ := NewReader()
+	goroutineCounts := []int{1, 2, 4, 8, 16, 32, 64, 128}
+	if prngReader, ok := rdr.(*reader); ok {
+		for _, count := range goroutineCounts {
+			benchName := fmt.Sprintf("G%d", count)
+			b.ResetTimer() // Reset the timer to exclude setup time
+			b.Run(benchName, func(b *testing.B) {
+				b.SetParallelism(count)
+				b.ResetTimer()
+				b.RunParallel(func(pb *testing.PB) {
+					for pb.Next() {
+						prngReader.syncPoolGetPut()
+					}
+				})
+			})
+		}
+	}
+}
+
 // BenchmarkPRNG_ReadSerial benchmarks the Read method of prng.Reader with various buffer sizes in serial.
 func BenchmarkPRNG_ReadSerial(b *testing.B) {
 	// Define the buffer sizes to benchmark.

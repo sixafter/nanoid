@@ -18,6 +18,21 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.38.0] - 2025-07-14
+
+### Added
+- **feature:** Added `MaxRekeyBackoff` [config](../x/crypto/prng/config.go) option to clamp maximum exponential backoff duration between key rotation attempts.
+- **debt:** Added `BenchmarkPRNG_Concurrent_SyncPool_Baseline` benchmark test to measure performance of the `sync.Pool` as a baseline for comparison against the `x/crypto/prng` implementation.
+
+### Changed
+### Deprecated
+### Removed
+### Fixed
+- **defect:** Corrected `bench-uuid` and `bench-csprng` parameters to ensure the correct `cpu.out` and `mem.out` files are generated.
+
+### Security
+
+---
 ## [1.37.0] - 2025-07-13
 
 ### Added
@@ -768,7 +783,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.37.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.38.0...HEAD
+[1.38.0]: https://github.com/sixafter/nanoid/compare/v1.37.0...v1.38.0
 [1.37.0]: https://github.com/sixafter/nanoid/compare/v1.36.0...v1.37.0
 [1.36.0]: https://github.com/sixafter/nanoid/compare/v1.35.0...v1.36.0
 [1.35.0]: https://github.com/sixafter/nanoid/compare/v1.34.0...v1.35.0

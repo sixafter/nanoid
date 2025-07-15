@@ -18,8 +18,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestPRNG_Read verifies that a single Read call fills the buffer completely
-// and produces non-zero (random) data.
+// TestPRNG_Read validates that a single call to Read fills the buffer with random (non-zero) data.
+// It ensures the Reader returns the expected number of bytes and that output is not all zeros.
 func TestPRNG_Read(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
@@ -42,8 +42,8 @@ func TestPRNG_Read(t *testing.T) {
 	is.False(allZeros, "Buffer should not be all zeros")
 }
 
-// TestPRNG_ReadZeroBytes ensures that reading into a zero-length slice
-// returns immediately with a count of zero and no error.
+// TestPRNG_ReadZeroBytes ensures that reading into a zero-length slice is a no-op:
+// it should return immediately with no error and report zero bytes read.
 func TestPRNG_ReadZeroBytes(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
@@ -57,8 +57,8 @@ func TestPRNG_ReadZeroBytes(t *testing.T) {
 	is.Equal(0, n, "Reading zero-length buffer should return 0")
 }
 
-// TestPRNG_ReadMultipleTimes checks that consecutive Read calls produce
-// different outputs, confirming the generator does not repeat data immediately.
+// TestPRNG_ReadMultipleTimes confirms that consecutive Read calls
+// produce different outputs, ensuring the PRNG does not repeat data.
 func TestPRNG_ReadMultipleTimes(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
@@ -79,8 +79,8 @@ func TestPRNG_ReadMultipleTimes(t *testing.T) {
 	is.False(bytes.Equal(buf1, buf2), "Consecutive reads should differ")
 }
 
-// TestPRNG_ReadWithDifferentBufferSizes runs Read with various sizes to
-// ensure correctness across a range of buffer lengths.
+// TestPRNG_ReadWithDifferentBufferSizes tests Read with a variety of buffer sizes,
+// ensuring the Reader works correctly across a range of input slice lengths.
 func TestPRNG_ReadWithDifferentBufferSizes(t *testing.T) {
 	t.Parallel()
 
@@ -111,8 +111,9 @@ func TestPRNG_ReadWithDifferentBufferSizes(t *testing.T) {
 	}
 }
 
-// TestPRNG_Concurrency spawns many goroutines performing Read concurrently
-// to verify thread safety and data integrity under parallel usage.
+// TestPRNG_Concurrency verifies the thread safety of the Reader by launching
+// many concurrent goroutines that perform Read operations in parallel.
+// It asserts that all goroutines succeed and that output buffers are not all identical.
 func TestPRNG_Concurrency(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
@@ -155,8 +156,8 @@ func TestPRNG_Concurrency(t *testing.T) {
 	}
 }
 
-// TestPRNG_Stream uses io.ReadFull to read a large stream of data,
-// ensuring the Reader can handle substantial volumes without error.
+// TestPRNG_Stream checks that the Reader can handle large requests (e.g., 1 MiB)
+// via io.ReadFull, and that the returned buffer contains non-zero (random) data.
 func TestPRNG_Stream(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
@@ -180,8 +181,8 @@ func TestPRNG_Stream(t *testing.T) {
 	is.False(allZeros, "Stream buffer should not be all zeros")
 }
 
-// TestPRNG_ReadUnique reads twice into buffers and verifies the outputs differ,
-// providing additional confidence in randomness between successive calls.
+// TestPRNG_ReadUnique verifies that two consecutive Read calls to the Reader
+// fill buffers with different random data, reinforcing correct PRNG behavior.
 func TestPRNG_ReadUnique(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
@@ -200,8 +201,8 @@ func TestPRNG_ReadUnique(t *testing.T) {
 	is.False(bytes.Equal(b1, b2), "Consecutive reads should produce unique data")
 }
 
-// TestPRNG_NewReader ensures NewReader returns a non-nil Reader that
-// can successfully produce random bytes on Read.
+// TestPRNG_NewReader ensures NewReader returns a non-nil Reader instance
+// and that the Reader can fill a buffer with random, non-zero bytes.
 func TestPRNG_NewReader(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
@@ -225,8 +226,8 @@ func TestPRNG_NewReader(t *testing.T) {
 	is.False(allZeros, "NewReader buffer should not be all zeros")
 }
 
-// TestPRNG_ReadAll reads a larger buffer in one call to exercise
-// the Reader's ability to fill arbitrary-length slices.
+// TestPRNG_ReadAll reads a large buffer in a single call to ensure the Reader
+// can fill arbitrary-length slices and returns random, non-zero data.
 func TestPRNG_ReadAll(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
@@ -250,7 +251,8 @@ func TestPRNG_ReadAll(t *testing.T) {
 }
 
 // TestPRNG_ReadConsistency performs multiple reads of the same size
-// and validates each buffer is filled and buffers differ from one another.
+// and checks that all buffers are filled and differ from each other,
+// verifying both completeness and randomness of output.
 func TestPRNG_ReadConsistency(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
@@ -287,6 +289,9 @@ func TestPRNG_ReadConsistency(t *testing.T) {
 	}
 }
 
+// TestPRNG_AsyncRekey validates the asynchronous rekeying mechanism of the PRNG implementation.
+// It configures a low MaxBytesPerKey to force rekeying, writes enough data to trigger it,
+// and then checks that a new cipher is used and usage counter is reset, all within a timeout.
 func TestPRNG_AsyncRekey(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
