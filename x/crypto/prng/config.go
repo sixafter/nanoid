@@ -33,6 +33,11 @@ type Config struct {
 	// If zero, the default is 5.
 	MaxRekeyAttempts int
 
+	// MaxRekeyBackoff clamps the maximum backoff duration between rekey attempts.
+	// During rekeying, the retry interval is doubled on each failed attempt, but will
+	// never exceed this maximum duration. If zero, the default is 2 seconds.
+	MaxRekeyBackoff time.Duration
+
 	// RekeyBackoff specifies the initial wait duration between key-rotation retry
 	// attempts. On each retry, this interval is doubled (exponential backoff).
 	// If zero, the default is 100ms.
@@ -68,6 +73,10 @@ const (
 	// (exponential backoff) to reduce contention and load on the random source.
 	rekeyBackoff = 100 * time.Millisecond
 
+	// maxRekeyBackoff defines the maximum backoff duration between rekey attempts.
+	// If the exponential backoff exceeds this value, it is clamped.
+	maxRekeyBackoff = 2 * time.Second
+
 	// maxBytesPerKey sets the default maximum number of bytes that may be generated
 	// using a single ChaCha20 key/nonce pair before automatic key rotation is triggered.
 	// This value is set to 1 << 30, which is approximately 1 GiB.
@@ -85,6 +94,7 @@ func DefaultConfig() Config {
 		MaxBytesPerKey:    maxBytesPerKey,
 		MaxInitRetries:    3,
 		MaxRekeyAttempts:  maxRekeyAttempts,
+		MaxRekeyBackoff:   maxRekeyBackoff,
 		RekeyBackoff:      rekeyBackoff,
 		UseZeroBuffer:     false,
 		EnableKeyRotation: false,
@@ -113,6 +123,13 @@ func WithMaxInitRetries(r int) Option {
 func WithMaxRekeyAttempts(r int) Option {
 	return func(cfg *Config) {
 		cfg.MaxRekeyAttempts = r
+	}
+}
+
+// WithMaxRekeyBackoff sets the maximum allowed backoff duration for key rotation retries.
+func WithMaxRekeyBackoff(d time.Duration) Option {
+	return func(cfg *Config) {
+		cfg.MaxRekeyBackoff = d
 	}
 }
 
