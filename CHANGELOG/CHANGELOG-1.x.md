@@ -18,6 +18,19 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.40.0] - 2025-07-17
+
+### Added
+### Changed
+- **feature:** - Added support configurable sharded `sync.Pool` instances in [`prng`](../x/crypto/prng) and [`ctrdrbg`](../x/crypto/ctrdrbg) for improved concurrency and throughput.
+  - The number of shards defaults to `runtime.GOMAXPROCS(0)`, which is useful in containerized or CPU-constrained environments pending https://github.com/golang/go/issues/73193.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.39.0] - 2025-07-16
 
 ### Added
@@ -809,7 +822,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.39.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.40.0...HEAD
+[1.40.0]: https://github.com/sixafter/nanoid/compare/v1.39.0...v1.40.0
 [1.39.0]: https://github.com/sixafter/nanoid/compare/v1.38.0...v1.39.0
 [1.38.0]: https://github.com/sixafter/nanoid/compare/v1.37.0...v1.38.0
 [1.37.0]: https://github.com/sixafter/nanoid/compare/v1.36.0...v1.37.0

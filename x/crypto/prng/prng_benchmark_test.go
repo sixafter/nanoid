@@ -11,8 +11,8 @@ import (
 )
 
 func (r *reader) syncPoolGetPut() {
-	p := r.pool.Get().(*prng)
-	r.pool.Put(p)
+	p := r.pools[0].Get().(*prng)
+	r.pools[0].Put(p)
 }
 
 func BenchmarkPRNG_Concurrent_SyncPool_Baseline(b *testing.B) {

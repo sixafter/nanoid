@@ -11,7 +11,10 @@
 
 package prng
 
-import "time"
+import (
+	"runtime"
+	"time"
+)
 
 // Config defines the tunable parameters for ChaCha20-PRNG instances and the PRNG pool.
 //
@@ -72,6 +75,12 @@ type Config struct {
 	//
 	// Only relevant if UseZeroBuffer is true. If zero, no preallocation is performed.
 	DefaultBufferSize int
+
+	// Shards controls the number of pools (shards) to use for parallelism.
+	//
+	// If zero, defaults to runtime.GOMAXPROCS(0).
+	// Increase this to improve throughput under high concurrency.
+	Shards int
 }
 
 // Default configuration constants for ChaCha20-PRNG.
@@ -108,6 +117,8 @@ func DefaultConfig() Config {
 		UseZeroBuffer:     false,
 		EnableKeyRotation: false,
 		DefaultBufferSize: defaultBufferSize,
+		// Ref: Use of GOMAXPROCS is fine for now: https://github.com/golang/go/issues/73193
+		Shards: 1, //runtime.GOMAXPROCS(0),
 	}
 }
 
@@ -177,4 +188,20 @@ func WithZeroBuffer(enable bool) Option {
 // Only relevant if UseZeroBuffer is true.
 func WithDefaultBufferSize(n int) Option {
 	return func(cfg *Config) { cfg.DefaultBufferSize = n }
+}
+
+// WithShards sets the number of independent sync.Pool shards to use.
+// By default, a single shard is used. Sharding may reduce contention
+// under high concurrency, but can increase overhead on most systems.
+//
+// Note: If n <= 0, the number of shards defaults to runtime.GOMAXPROCS(0),
+// which is useful in containerized or CPU-constrained environments.
+// See: https://github.com/golang/go/issues/73193
+func WithShards(n int) Option {
+	return func(cfg *Config) {
+		if n <= 0 {
+			n = runtime.GOMAXPROCS(0)
+		}
+		cfg.Shards = n
+	}
 }

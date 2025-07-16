@@ -11,7 +11,7 @@ No third-party, homegrown, or experimental ciphers are used.
 
 ## Features
 
-- **Deterministic Random Bit Generation:** Implements AES-CTR-DRBG as specified in NIST SP 800-90A, Revision 1.
+- **Deterministic Random Bit Generation:** Implements AES-CTR-DRBG as specified in [NIST SP 800-90A, Revision 1](https://csrc.nist.gov/pubs/sp/800/90/a/r1/final).
 - **FIPS‑140 Mode Compatible:** Designed to run in FIPS‑140 validated environments using only Go standard library crypto.
     - For details and deployment guidance, see [FIPS‑140.md](../../../FIPS-140.md).
 - **Stateless and Concurrent:** Safe for concurrent use and supports stateless operation with independent DRBG instances.
@@ -31,7 +31,29 @@ go get -u github.com/sixafter/nanoid/x/crypto/ctrdrbg
 
 ## Usage
 
-### Basic Usage: Generate Secure Random Bytes
+### Basic Usage: Generate Secure Random Bytes With Reader
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/sixafter/nanoid/x/crypto/ctrdrbg"
+)
+
+func main() {
+	buf := make([]byte, 64)
+	n, err := ctrdrbg.Reader.Read(buf)
+	if err != nil {
+		log.Fatalf("failed to read random bytes: %v", err)
+	}
+	fmt.Printf("Read %d random bytes: %x\n", n, buf)
+}
+```
+
+### Basic Usage: Generate Secure Random Bytes with NewReader
 
 ```go
 package main
@@ -59,27 +81,6 @@ func main() {
 }
 ```
 
-### Basic Usage: With Personalization
-
-```go
-package main
-
-import (
-	"fmt"
-	"log"
-
-	"github.com/sixafter/nanoid/x/crypto/ctrdrbg"
-)
-
-func main() {
-	buf := make([]byte, 64)
-	n, err := ctrdrbg.Reader.Read(buf)
-	if err != nil {
-		log.Fatalf("failed to read random bytes: %v", err)
-	}
-	fmt.Printf("Read %d random bytes: %x\n", n, buf)
-}
-```
 ### Using Personalization and Additional Input
 
 ```go
