@@ -3,22 +3,23 @@
 // This source code is licensed under the Apache 2.0 License found in the
 // LICENSE file in the root directory of this source tree.
 
-package prng
+package ctrdrbg
 
 import (
 	"fmt"
 	"testing"
 )
 
+// For benchmarking sync.Pool get/put only (DRBG instancing contention, not output).
 func (r *reader) syncPoolGetPut() {
-	p := r.pool.Get().(*prng)
-	r.pool.Put(p)
+	dr := r.pool.Get().(*drbg)
+	r.pool.Put(dr)
 }
 
-func BenchmarkPRNG_Concurrent_SyncPool_Baseline(b *testing.B) {
+func BenchmarkDRBG_Concurrent_SyncPool_Baseline(b *testing.B) {
 	rdr, _ := NewReader()
 	goroutineCounts := []int{2, 4, 8, 16, 32, 64, 128}
-	if prngReader, ok := rdr.(*reader); ok {
+	if r, ok := rdr.(*reader); ok {
 		for _, count := range goroutineCounts {
 			benchName := fmt.Sprintf("G%d", count)
 			b.Run(benchName, func(b *testing.B) {
@@ -27,7 +28,7 @@ func BenchmarkPRNG_Concurrent_SyncPool_Baseline(b *testing.B) {
 				b.ResetTimer()
 				b.RunParallel(func(pb *testing.PB) {
 					for pb.Next() {
-						prngReader.syncPoolGetPut()
+						r.syncPoolGetPut()
 					}
 				})
 			})
@@ -35,7 +36,7 @@ func BenchmarkPRNG_Concurrent_SyncPool_Baseline(b *testing.B) {
 	}
 }
 
-func BenchmarkPRNG_ReadSerial(b *testing.B) {
+func BenchmarkDRBG_ReadSerial(b *testing.B) {
 	bufferSizes := []int{8, 16, 21, 32, 64, 100, 256, 512, 1000, 4096, 16384}
 	for _, size := range bufferSizes {
 		size := size
@@ -53,7 +54,7 @@ func BenchmarkPRNG_ReadSerial(b *testing.B) {
 	}
 }
 
-func BenchmarkPRNG_ReadConcurrent(b *testing.B) {
+func BenchmarkDRBG_ReadConcurrent(b *testing.B) {
 	bufferSizes := []int{16, 21, 32, 64, 100, 256, 512, 1000, 4096, 16384}
 	goroutineCounts := []int{2, 4, 8, 16, 32, 64, 128}
 	for _, size := range bufferSizes {
@@ -77,7 +78,7 @@ func BenchmarkPRNG_ReadConcurrent(b *testing.B) {
 	}
 }
 
-func BenchmarkPRNG_ReadSequentialLargeSizes(b *testing.B) {
+func BenchmarkDRBG_ReadSequentialLargeSizes(b *testing.B) {
 	largeBufferSizes := []int{4096, 10000, 16384, 65536, 1048576}
 	for _, size := range largeBufferSizes {
 		size := size
@@ -95,7 +96,7 @@ func BenchmarkPRNG_ReadSequentialLargeSizes(b *testing.B) {
 	}
 }
 
-func BenchmarkPRNG_ReadConcurrentLargeSizes(b *testing.B) {
+func BenchmarkDRBG_ReadConcurrentLargeSizes(b *testing.B) {
 	largeBufferSizes := []int{4096, 10000, 16384, 65536, 1048576}
 	goroutineCounts := []int{2, 4, 8, 16, 32, 64, 128}
 	for _, size := range largeBufferSizes {
@@ -119,7 +120,7 @@ func BenchmarkPRNG_ReadConcurrentLargeSizes(b *testing.B) {
 	}
 }
 
-func BenchmarkPRNG_ReadVariableSizes(b *testing.B) {
+func BenchmarkDRBG_ReadVariableSizes(b *testing.B) {
 	variableBufferSizes := []int{8, 16, 21, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096}
 	for _, size := range variableBufferSizes {
 		size := size
@@ -137,24 +138,20 @@ func BenchmarkPRNG_ReadVariableSizes(b *testing.B) {
 	}
 }
 
-func BenchmarkPRNG_ReadConcurrentVariableSizes(b *testing.B) {
+func BenchmarkDRBG_ReadConcurrentVariableSizes(b *testing.B) {
 	variableBufferSizes := []int{8, 16, 21, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096}
 	goroutineCounts := []int{2, 4, 8, 16, 32, 64, 128}
 	for _, size := range variableBufferSizes {
 		for _, gc := range goroutineCounts {
 			size, gc := size, gc
 			b.Run(fmt.Sprintf("Concurrent_Read_Variable_%dBytes_%dGoroutines", size, gc), func(b *testing.B) {
-				rdr, err := NewReader()
-				if err != nil {
-					b.Fatalf("NewReader failed: %v", err)
-				}
 				buffer := make([]byte, size)
 				b.SetParallelism(gc)
 				b.ReportAllocs()
 				b.ResetTimer()
 				b.RunParallel(func(pb *testing.PB) {
 					for pb.Next() {
-						_, err = rdr.Read(buffer)
+						_, err := Reader.Read(buffer)
 						if err != nil {
 							b.Fatalf("Read failed: %v", err)
 						}
@@ -165,7 +162,7 @@ func BenchmarkPRNG_ReadConcurrentVariableSizes(b *testing.B) {
 	}
 }
 
-func BenchmarkPRNG_ReadExtremeSizes(b *testing.B) {
+func BenchmarkDRBG_ReadExtremeSizes(b *testing.B) {
 	extremeBufferSizes := []int{10485760, 52428800, 104857600} // 10MB, 50MB, 100MB
 	for _, size := range extremeBufferSizes {
 		size := size
