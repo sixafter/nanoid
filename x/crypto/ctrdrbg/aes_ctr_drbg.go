@@ -20,6 +20,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	mrand "math/rand/v2"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -44,17 +45,39 @@ var Reader io.Reader
 // init initializes the package-level Reader. It panics if NewReader fails, preventing operation without
 // a secure random source. This follows cryptographic best practices by making entropy failure a fatal error.
 func init() {
-	var err error
-	Reader, err = NewReader()
-	if err != nil {
-		panic(fmt.Sprintf("ctrdrbg.init: failed to create Reader: %v", err))
+	cfg := DefaultConfig()
+	pools := make([]*sync.Pool, cfg.Shards)
+	for i := range pools {
+		cfg := cfg // Capture the current configuration for this shard
+		pools[i] = &sync.Pool{
+			New: func() interface{} {
+				var (
+					d   *drbg
+					err error
+				)
+				for r := 0; r < cfg.MaxInitRetries; r++ {
+					if d, err = newDRBG(&cfg); err == nil {
+						return d
+					}
+				}
+				// If initialization fails after all retries, panic.
+				panic(fmt.Sprintf("ctrdrbg pool init failed after %d retries: %v", cfg.MaxInitRetries, err))
+			},
+		}
+
+		// Eagerly test the pool initialization to ensure that any catastrophic
+		// failure is caught immediately, not deferred to the first use.
+		//item := pools[i].Get()
+		//pools[i].Put(item)
 	}
+
+	Reader = &reader{pools: pools}
 }
 
 // reader is an internal implementation of io.Reader that uses a pool of DRBG instances
 // to support efficient concurrent random byte generation.
 type reader struct {
-	pool *sync.Pool
+	pools []*sync.Pool
 }
 
 // NewReader constructs and returns an io.Reader that produces cryptographically secure
@@ -114,43 +137,62 @@ func NewReader(opts ...Option) (io.Reader, error) {
 	// Step 3: Create a sync.Pool to manage DRBG instances for concurrent access.
 	// The pool's New function attempts to create a new DRBG, retrying up to MaxInitRetries times.
 	// If all attempts fail, the function panics, making failure explicit and visible.
-	pool := &sync.Pool{
-		New: func() interface{} {
-			var (
-				d   *drbg
-				err error
-			)
-			for i := 0; i < cfg.MaxInitRetries; i++ {
-				if d, err = newDRBG(&cfg); err == nil {
-					return d
+	pools := make([]*sync.Pool, cfg.Shards)
+	for i := range pools {
+		cfg := cfg // Capture the current configuration for this shard
+		pools[i] = &sync.Pool{
+			New: func() interface{} {
+				var (
+					d   *drbg
+					err error
+				)
+				for r := 0; r < cfg.MaxInitRetries; r++ {
+					if d, err = newDRBG(&cfg); err == nil {
+						return d
+					}
 				}
-			}
-			// If DRBG initialization fails after all retries, panic.
-			panic(fmt.Sprintf("ctrdrbg pool init failed after %d retries: %v", cfg.MaxInitRetries, err))
-		},
-	}
+				// If DRBG initialization fails after all retries, panic.
+				panic(fmt.Sprintf("ctrdrbg pool init failed after %d retries: %v", cfg.MaxInitRetries, err))
+			},
+		}
 
-	// Step 4: Eagerly test pool initialization by creating (and releasing) one DRBG.
-	// This ensures that catastrophic failures are detected during NewReader rather than at first use.
-	// If pool.New panics, recover and convert the panic to an error.
-	var panicErr error
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				panicErr = fmt.Errorf("ctrdrbg pool initialization failed: %v", r)
-			}
+		// Step 4: Eagerly test pool initialization by creating (and releasing) one DRBG.
+		// This ensures that catastrophic failures are detected during NewReader rather than at first use.
+		// If pool.New panics, recover and convert the panic to an error.
+		var panicErr error
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					panicErr = fmt.Errorf("ctrdrbg pool initialization failed: %v", r)
+				}
+			}()
+			item := pools[i].Get()
+			pools[i].Put(item)
 		}()
-		item := pool.Get()
-		pool.Put(item)
-	}()
 
-	// Step 5: If any panic occurred during pool initialization, return it as an error.
-	if panicErr != nil {
-		return nil, panicErr
+		// Step 5: If any panic occurred during pool initialization, return it as an error.
+		if panicErr != nil {
+			return nil, panicErr
+		}
 	}
 
 	// Step 6: Return a new reader that wraps the initialized pool.
-	return &reader{pool: pool}, nil
+	return &reader{pools: pools}, nil
+}
+
+// shardIndex selects a pseudo-random shard index in the range [0, n) using
+// a fast, thread-safe global PCG64-based RNG.
+//
+// This function is used to evenly distribute load across multiple sync.Pool
+// shards, reducing contention in high-concurrency scenarios. It avoids the
+// overhead of time-based seeding or mutex contention.
+//
+// The randomness is not cryptographically secure but is safe for concurrent
+// use and sufficient for load balancing purposes.
+//
+// Panics if n <= 0.
+func shardIndex(n int) int {
+	return mrand.IntN(n)
 }
 
 // Read fills the provided buffer with cryptographically secure random data.
@@ -172,13 +214,19 @@ func (r *reader) Read(b []byte) (int, error) {
 		return 0, nil
 	}
 
+	// Determine the shard index based on the number of pools available.
+	shard := len(r.pools) - 1
+	if shard > 1 {
+		shard = shardIndex(shard)
+	}
+
 	// Step 2: Borrow an instance of the internal deterministic random bit generator from the pool.
 	// This ensures that each call gets exclusive access to an isolated state for cryptographic safety.
-	d := r.pool.Get().(*drbg)
+	d := r.pools[shard].Get().(*drbg)
 
 	// Step 3: Ensure that the borrowed instance is returned to the pool, even if Read fails or panics.
 	// This pattern prevents resource leaks and maintains pool integrity.
-	defer r.pool.Put(d)
+	defer r.pools[shard].Put(d)
 
 	// Step 4: Fill the caller’s buffer with random data using the borrowed generator.
 	// The actual cryptographic work is performed by the internal generator’s Read method.

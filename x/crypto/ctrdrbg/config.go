@@ -11,7 +11,10 @@
 
 package ctrdrbg
 
-import "time"
+import (
+	"runtime"
+	"time"
+)
 
 // Config defines the tunable parameters for AES-CTR-DRBG instances and the DRBG pool.
 //
@@ -89,7 +92,13 @@ type Config struct {
 	// Only relevant if UseZeroBuffer is true. If zero, no preallocation is performed.
 	DefaultBufferSize int
 
-	// EnableKeyRotation controls whether DRBG instances automatically rotate their key after MaxBytesPerKey output.
+	// Shards controls the number of pools (shards) to use for parallelism.
+	//
+	// If zero, defaults to runtime.GOMAXPROCS(0).
+	// Increase this to improve throughput under high concurrency.
+	Shards int
+
+	// EnableKeyRotation controls whether instances automatically rotate their key after MaxBytesPerKey output.
 	//
 	// Automatic key rotation provides forward secrecy and aligns with cryptographic best practices.
 	// Defaults to true.
@@ -140,6 +149,7 @@ func DefaultConfig() Config {
 		Personalization:   nil,
 		UseZeroBuffer:     false,
 		DefaultBufferSize: 0,
+		Shards:            1,
 	}
 }
 
@@ -220,4 +230,20 @@ func WithUseZeroBuffer(enable bool) Option {
 // WithDefaultBufferSize returns an Option to set the default buffer size for zero-filled output.
 func WithDefaultBufferSize(n int) Option {
 	return func(cfg *Config) { cfg.DefaultBufferSize = n }
+}
+
+// WithShards sets the number of independent sync.Pool shards to use.
+// By default, a single shard is used. Sharding may reduce contention
+// under high concurrency, but can increase overhead on most systems.
+//
+// Note: If n <= 0, the number of shards defaults to runtime.GOMAXPROCS(0),
+// which is useful in containerized or CPU-constrained environments.
+// See: https://github.com/golang/go/issues/73193
+func WithShards(n int) Option {
+	return func(cfg *Config) {
+		if n <= 0 {
+			n = runtime.GOMAXPROCS(0)
+		}
+		cfg.Shards = n
+	}
 }

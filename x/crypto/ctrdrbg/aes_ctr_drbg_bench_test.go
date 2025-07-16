@@ -12,8 +12,8 @@ import (
 
 // For benchmarking sync.Pool get/put only (DRBG instancing contention, not output).
 func (r *reader) syncPoolGetPut() {
-	dr := r.pool.Get().(*drbg)
-	r.pool.Put(dr)
+	dr := r.pools[0].Get().(*drbg)
+	r.pools[0].Put(dr)
 }
 
 func BenchmarkDRBG_Concurrent_SyncPool_Baseline(b *testing.B) {

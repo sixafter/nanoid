@@ -162,6 +162,16 @@ func TestConfig_WithMaxRekeyBackoff(t *testing.T) {
 	is.Equal(100*time.Millisecond, cfg.RekeyBackoff)
 }
 
+// TestConfig_WithShards ensures that WithShards updates only the Shards field.
+func TestConfig_WithShards(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	cfg := DefaultConfig()
+	WithShards(8)(&cfg)
+	is.Equal(8, cfg.Shards, "WithShards should override Shards")
+}
+
 // TestConfig_AllOptions verifies that all option functions can be composed
 // and applied together, each updating their corresponding field in the Config struct.
 func TestConfig_AllOptions(t *testing.T) {

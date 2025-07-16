@@ -133,6 +133,16 @@ func TestConfig_WithDefaultBufferSize(t *testing.T) {
 	is.Equal(64, cfg.DefaultBufferSize, "WithDefaultBufferSize should set DefaultBufferSize")
 }
 
+// TestConfig_WithShards ensures that WithShards updates only the Shards field.
+func TestConfig_WithShards(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	cfg := DefaultConfig()
+	WithShards(8)(&cfg)
+	is.Equal(8, cfg.Shards, "WithShards should override Shards")
+}
+
 // TestConfig_CombinedOptions ensures multiple options can be applied sequentially.
 func TestConfig_CombinedOptions(t *testing.T) {
 	t.Parallel()
