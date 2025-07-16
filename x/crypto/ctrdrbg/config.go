@@ -28,50 +28,6 @@ import "time"
 //   - EnableKeyRotation: Whether to enable automatic key rotation (default: true).
 //   - Personalization: Optional per-instance byte string for domain separation.
 type Config struct {
-	// KeySize is the AES key length in bytes (16, 24, or 32).
-	//
-	// Valid values:
-	//   - 16 (AES-128)
-	//   - 24 (AES-192)
-	//   - 32 (AES-256)
-	//
-	// Default: 32 (AES-256).
-	KeySize int
-
-	// MaxBytesPerKey is the maximum number of bytes generated per key before triggering automatic rekeying.
-	//
-	// Rekeying after a fixed output window enforces forward secrecy and mitigates key exposure risk.
-	// If set to zero, a default value of 1 GiB (1 << 30) is used.
-	MaxBytesPerKey uint64
-
-	// MaxInitRetries is the maximum number of attempts to initialize a DRBG pool entry before giving up and panicking.
-	//
-	// Initialization can fail if system entropy is exhausted or if the cryptographic backend is unavailable.
-	// If set to zero, a default of 3 is used.
-	MaxInitRetries int
-
-	// MaxRekeyAttempts specifies the number of attempts to perform asynchronous rekeying.
-	//
-	// On failure, exponential backoff is used between attempts. If zero, a default of 5 is used.
-	MaxRekeyAttempts int
-
-	// MaxRekeyBackoff specifies the maximum duration (clamped) for exponential backoff during rekey attempts.
-	//
-	// If set to zero, a default value of 2 seconds is used.
-	MaxRekeyBackoff time.Duration
-
-	// RekeyBackoff is the initial delay before retrying a failed rekey operation.
-	//
-	// Exponential backoff doubles the delay for each failure up to MaxRekeyBackoff.
-	// If set to zero, the default is 100 milliseconds.
-	RekeyBackoff time.Duration
-
-	// EnableKeyRotation controls whether DRBG instances automatically rotate their key after MaxBytesPerKey output.
-	//
-	// Automatic key rotation provides forward secrecy and aligns with cryptographic best practices.
-	// Defaults to true.
-	EnableKeyRotation bool
-
 	// Personalization provides a per-instance personalization string, which is XOR-ed into the
 	// DRBG’s initial seed to support domain separation or unique generator state.
 	//
@@ -90,17 +46,61 @@ type Config struct {
 	// When unset (nil), no personalization is applied.
 	Personalization []byte
 
+	// RekeyBackoff is the initial delay before retrying a failed rekey operation.
+	//
+	// Exponential backoff doubles the delay for each failure up to MaxRekeyBackoff.
+	// If set to zero, the default is 100 milliseconds.
+	RekeyBackoff time.Duration
+
+	// MaxRekeyBackoff specifies the maximum duration (clamped) for exponential backoff during rekey attempts.
+	//
+	// If set to zero, a default value of 2 seconds is used.
+	MaxRekeyBackoff time.Duration
+
+	// MaxBytesPerKey is the maximum number of bytes generated per key before triggering automatic rekeying.
+	//
+	// Rekeying after a fixed output window enforces forward secrecy and mitigates key exposure risk.
+	// If set to zero, a default value of 1 GiB (1 << 30) is used.
+	MaxBytesPerKey uint64
+
+	// KeySize is the AES key length in bytes (16, 24, or 32).
+	//
+	// Valid values:
+	//   - 16 (AES-128)
+	//   - 24 (AES-192)
+	//   - 32 (AES-256)
+	//
+	// Default: 32 (AES-256).
+	KeySize int
+
+	// MaxRekeyAttempts specifies the number of attempts to perform asynchronous rekeying.
+	//
+	// On failure, exponential backoff is used between attempts. If zero, a default of 5 is used.
+	MaxRekeyAttempts int
+
+	// MaxInitRetries is the maximum number of attempts to initialize a DRBG pool entry before giving up and panicking.
+	//
+	// Initialization can fail if system entropy is exhausted or if the cryptographic backend is unavailable.
+	// If set to zero, a default of 3 is used.
+	MaxInitRetries int
+
+	// DefaultBufferSize specifies the initial capacity of the internal buffer used for zero-filled output operations.
+	//
+	// Only relevant if UseZeroBuffer is true. If zero, no preallocation is performed.
+	DefaultBufferSize int
+
+	// EnableKeyRotation controls whether DRBG instances automatically rotate their key after MaxBytesPerKey output.
+	//
+	// Automatic key rotation provides forward secrecy and aligns with cryptographic best practices.
+	// Defaults to true.
+	EnableKeyRotation bool
+
 	// UseZeroBuffer determines whether each Read operation uses a zero-filled buffer for AES-CTR output.
 	//
 	// If true, Read uses an internal buffer of zeroes for XOR operations (if the underlying implementation requires).
 	// If false, output may be generated in place, which is typically faster and allocation-free.
 	// Defaults to false.
 	UseZeroBuffer bool
-
-	// DefaultBufferSize specifies the initial capacity of the internal buffer used for zero-filled output operations.
-	//
-	// Only relevant if UseZeroBuffer is true. If zero, no preallocation is performed.
-	DefaultBufferSize int
 }
 
 // Default configuration constants for AES-CTR-DRBG.

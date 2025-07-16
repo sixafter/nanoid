@@ -192,26 +192,55 @@ func (r *reader) Read(b []byte) (int, error) {
 // safe for concurrent use. It maintains its own AES cipher, secret key, counter, usage counter,
 // and rekeying flag for key rotation.
 type drbg struct {
-	// config holds the immutable configuration for this DRBG instance, including
-	// key size, personalization string, key rotation policy, and pool settings.
+	// config holds the immutable configuration for this DRBG instance.
+	//
+	// Includes:
+	// - AES key size (e.g., 16, 24, or 32 bytes)
+	// - Personalization string for domain separation
+	// - Automatic key rotation policy
+	// - Pool initialization and retry settings
 	config *Config
 
-	// block is the initialized AES cipher.Block used in CTR mode to generate output bytes.
+	// block is the initialized AES cipher.Block used in CTR mode.
+	//
+	// AES-CTR transforms the block cipher into a stream cipher by
+	// encrypting a counter and XOR-ing it with plaintext to produce
+	// pseudorandom output bytes.
 	block cipher.Block
 
-	// key is the DRBG secret key (up to 32 bytes for AES-256). Only the first config.KeySize bytes are used.
-	key [32]byte
+	// zero is a preallocated slice of zero-filled bytes used for XOR operations.
+	//
+	// When UseZeroBuffer is enabled in config, this buffer is XOR-ed with
+	// AES-CTR output to efficiently produce random bytes.
+	zero []byte
 
-	// v is the 128-bit (16-byte) counter value, incremented for each output block (per NIST "V").
-	v [16]byte
-
-	// usage tracks the number of bytes output since the last key rotation; used to trigger rekeying.
+	// usage tracks the number of bytes generated since the last key rotation.
+	//
+	// When usage exceeds config.MaxBytesPerKey, a rekey is triggered to ensure
+	// forward secrecy and mitigate key compromise risk.
 	usage uint64
 
-	// rekeying is an atomic flag (0/1) to ensure only one goroutine performs rekeying at a time.
+	// rekeying is an atomic flag (0 or 1) that guards rekey attempts.
+	//
+	// It ensures that only one goroutine performs rekeying at a time.
+	// Uses atomic operations for concurrency safety.
 	rekeying uint32
 
-	zero []byte
+	// key holds the internal DRBG secret key used for AES-CTR operations.
+	//
+	// The key length is determined by config.KeySize and can be:
+	// - 16 bytes for AES-128
+	// - 24 bytes for AES-192
+	// - 32 bytes for AES-256
+	//
+	// Unused bytes are zeroed and ignored.
+	key [32]byte
+
+	// v is the 128-bit internal counter (NIST "V") used by the DRBG.
+	//
+	// This counter is incremented for each AES block to produce a unique
+	// keystream segment in CTR mode. It ensures deterministic, non-repeating output.
+	v [16]byte
 }
 
 // Read generates cryptographically secure random bytes and writes them into the provided slice b.
