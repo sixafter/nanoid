@@ -4,6 +4,8 @@
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/sixafter/nanoid)](https://img.shields.io/github/go-mod/go-version/sixafter/nanoid)
 [![Go Reference](https://pkg.go.dev/badge/github.com/sixafter/nanoid.svg)](https://pkg.go.dev/github.com/sixafter/nanoid)
+[![FIPS‑140 Mode Compatible](https://img.shields.io/badge/FIPS‑140--Mode-Compatible-brightgreen)](FIPS‑140.md)
+
 ---
 
 ## Status
@@ -54,8 +56,11 @@ Please see the [godoc](https://pkg.go.dev/github.com/sixafter/nanoid) for detail
 - **Supports `io.Reader` Interface**: 
   - The Nano ID generator satisfies the `io.Reader` interface, allowing it to be used interchangeably with any `io.Reader` implementations. 
   - Developers can utilize the Nano ID generator in contexts such as streaming data processing, pipelines, and other I/O-driven operations.
+- **FIPS‑140 Mode Compatible**: Designed to run in FIPS‑140 validated environments using only Go standard library crypto. 
+  - For FIPS‑140 compatible random number generation, use the [x/crypto/ctrdrbg](x/crypto/ctrdrbg) module.
+  - See [FIPS‑140.md](FIPS-140.md) for details and deployment guidance.
 
-Please see the [Nano ID CLI](https://github.com/sixafter/nanoid-cli) for a command-line interface (CLI) that uses this package to generate Nano IDs.
+Please see the [nanoid-cli](https://github.com/sixafter/nanoid-cli) for a command-line interface (CLI) that uses this package to generate NanoIDs.
 
 ---
 

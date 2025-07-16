@@ -2,93 +2,102 @@
 //
 // This source code is licensed under the Apache 2.0 License found in the
 // LICENSE file in the root directory of this source tree.
-
-// Package prng provides a cryptographically secure pseudo-random number generator (PRNG)
-// that implements the io.Reader interface. It is designed for high-performance, concurrent
-// use in generating random bytes.
 //
-// This package is part of the experimental "x" modules and may be subject to change.
+// Package prng provides configuration types and functional options for the ChaCha20-based
+// cryptographically secure pseudo-random number generator.
+//
+// The Config type exposes tunable parameters for the PRNG pool, instance management, and
+// cryptographic behavior. These options support both security and operational flexibility.
+
 package prng
 
-import (
-	"time"
-)
+import "time"
 
-// Config holds tunable parameters for the PRNG pool and per-instance behavior.
+// Config defines the tunable parameters for ChaCha20-PRNG instances and the PRNG pool.
 //
-// All fields are optional; zero values will use the library defaults.
+// It supports fine-grained control over key rotation, rekeying policies, buffer management,
+// and operational backoff, enabling security-focused customization for a variety of use cases.
+//
+// Fields:
+//   - MaxBytesPerKey: Max output per key before automatic rekeying (forward secrecy).
+//   - MaxInitRetries: Number of retries for PRNG pool initialization before panic.
+//   - MaxRekeyAttempts: Max number of rekey attempts before giving up.
+//   - MaxRekeyBackoff: Maximum backoff duration for exponential rekey retries.
+//   - RekeyBackoff: Initial backoff for rekey attempts.
+//   - EnableKeyRotation: Whether to enable automatic key rotation (default: false).
+//   - UseZeroBuffer: Whether to use a zero-filled buffer for ChaCha20 XORKeyStream.
+//   - DefaultBufferSize: Initial internal buffer size for zero buffer operations.
 type Config struct {
-	// MaxBytesPerKey specifies the maximum number of bytes generated with a single
-	// ChaCha20 key/nonce pair before triggering automatic key rotation. Once the
-	// threshold is reached, the PRNG asynchronously rekeys and uses a fresh cipher
-	// instance. If zero, the default threshold is 1 GiB.
+	// MaxBytesPerKey is the maximum number of bytes generated per key/nonce before triggering automatic rekeying.
+	//
+	// Rekeying after a fixed output window enforces forward secrecy and mitigates key exposure risk.
+	// If set to zero, a default value of 1 GiB (1 << 30) is used.
 	MaxBytesPerKey uint64
 
-	// MaxInitRetries defines the number of times pool.New will retry initialization
-	// before panicking. If zero, the default is 3.
+	// MaxInitRetries is the maximum number of attempts to initialize a PRNG pool entry before giving up and panicking.
+	//
+	// Initialization can fail if system entropy is exhausted or if the cryptographic backend is unavailable.
+	// If set to zero, a default of 3 is used.
 	MaxInitRetries int
 
-	// MaxRekeyAttempts controls how many times the key-rotation process will retry
-	// generating a new cipher instance before giving up on the current rekey cycle.
-	// If zero, the default is 5.
+	// MaxRekeyAttempts specifies the number of attempts to perform asynchronous rekeying.
+	//
+	// On failure, exponential backoff is used between attempts. If zero, a default of 5 is used.
 	MaxRekeyAttempts int
 
-	// MaxRekeyBackoff clamps the maximum backoff duration between rekey attempts.
-	// During rekeying, the retry interval is doubled on each failed attempt, but will
-	// never exceed this maximum duration. If zero, the default is 2 seconds.
+	// MaxRekeyBackoff specifies the maximum duration (clamped) for exponential backoff during rekey attempts.
+	//
+	// If set to zero, a default value of 2 seconds is used.
 	MaxRekeyBackoff time.Duration
 
-	// RekeyBackoff specifies the initial wait duration between key-rotation retry
-	// attempts. On each retry, this interval is doubled (exponential backoff).
-	// If zero, the default is 100ms.
+	// RekeyBackoff is the initial delay before retrying a failed rekey operation.
+	//
+	// Exponential backoff doubles the delay for each failure up to MaxRekeyBackoff.
+	// If set to zero, the default is 100 milliseconds.
 	RekeyBackoff time.Duration
 
-	// EnableKeyRotation controls whether the PRNG automatically rotates keys
-	// after generating a configured amount of key material (see MaxBytesPerKey).
-	// If false, key usage is not tracked and keys are never automatically rotated.
-	// Defaults to false for maximum performance.
+	// EnableKeyRotation controls whether PRNG instances automatically rotate their key/nonce after MaxBytesPerKey output.
+	//
+	// Automatic key rotation provides forward secrecy and aligns with cryptographic best practices.
+	// Defaults to false for performance.
 	EnableKeyRotation bool
 
-	// UseZeroBuffer, when set to true, causes each Read operation to use a
-	// zero-filled buffer for ChaCha20's XORKeyStream, rather than performing
-	// in-place XOR. This provides legacy or compatibility behavior, but may
-	// reduce performance. Defaults to false for maximum performance.
+	// UseZeroBuffer determines whether each Read operation uses a zero-filled buffer for ChaCha20's XORKeyStream.
+	//
+	// If true, Read uses an internal buffer of zeroes for output; if false, in-place XOR is used (faster).
+	// Defaults to false.
 	UseZeroBuffer bool
 
-	// DefaultBufferSize specifies the initial capacity of the internal buffer
-	// used for zero-filled XOR operations. This is only relevant if UseZeroBuffer
-	// is true. If zero, no preallocation is performed.
+	// DefaultBufferSize specifies the initial capacity of the internal buffer used for zero-filled XOR operations.
+	//
+	// Only relevant if UseZeroBuffer is true. If zero, no preallocation is performed.
 	DefaultBufferSize int
 }
 
+// Default configuration constants for ChaCha20-PRNG.
 const (
-	// maxRekeyAttempts defines the maximum number of times the PRNG will attempt
-	// to generate and install a fresh ChaCha20 cipher during an automatic key rotation
-	// before abandoning the current rekey cycle. If all attempts fail, the existing
-	// cipher remains in use until the next rekey is triggered.
-	maxRekeyAttempts = 5
-
-	// rekeyBackoff specifies the initial duration to wait between consecutive
-	// rekey attempts. The back-off duration is doubled on each subsequent retry
-	// (exponential backoff) to reduce contention and load on the random source.
-	rekeyBackoff = 100 * time.Millisecond
-
-	// maxRekeyBackoff defines the maximum backoff duration between rekey attempts.
-	// If the exponential backoff exceeds this value, it is clamped.
-	maxRekeyBackoff = 2 * time.Second
-
-	// maxBytesPerKey sets the default maximum number of bytes that may be generated
-	// using a single ChaCha20 key/nonce pair before automatic key rotation is triggered.
-	// This value is set to 1 << 30, which is approximately 1 GiB.
-	maxBytesPerKey = 1 << 30
-
-	// defaultBufferSize specifies the initial capacity (in bytes) of the internal
-	// zero-filled buffer used for XOR operations when UseZeroBuffer is enabled.
-	// If no value is provided in the configuration, this default is used.
-	defaultBufferSize = 64
+	maxRekeyAttempts  = 5                      // Default max rekey attempts
+	rekeyBackoff      = 100 * time.Millisecond // Default initial rekey backoff (100 ms)
+	maxRekeyBackoff   = 2 * time.Second        // Default max backoff for rekey (2 seconds)
+	maxBytesPerKey    = 1 << 30                // Default max bytes per key (1 GiB)
+	defaultBufferSize = 64                     // Default internal buffer size for XOR operations
 )
 
-// DefaultConfig returns a Config with sensible defaults.
+// DefaultConfig returns a Config struct populated with production-safe, recommended defaults.
+//
+// Defaults:
+//   - MaxBytesPerKey: 1 GiB (1 << 30)
+//   - MaxInitRetries: 3
+//   - MaxRekeyAttempts: 5
+//   - MaxRekeyBackoff: 2 seconds
+//   - RekeyBackoff: 100 milliseconds
+//   - EnableKeyRotation: false
+//   - UseZeroBuffer: false
+//   - DefaultBufferSize: 64
+//
+// Example usage:
+//
+//	cfg := prng.DefaultConfig()
 func DefaultConfig() Config {
 	return Config{
 		MaxBytesPerKey:    maxBytesPerKey,
@@ -102,62 +111,70 @@ func DefaultConfig() Config {
 	}
 }
 
-// Option is a functional option for tweaking Config.
+// Option defines a functional option for customizing a Config.
+//
+// Use Option values with NewReader or other constructors that accept variadic options.
+//
+// Example:
+//
+//	r, err := prng.NewReader(
+//	    prng.WithEnableKeyRotation(true),
+//	    prng.WithDefaultBufferSize(128),
+//	)
 type Option func(*Config)
 
-// WithMaxBytesPerKey overrides the bytes-per-key threshold.
+// WithMaxBytesPerKey returns an Option that sets the maximum output (in bytes) per key before rekeying.
+//
+// Recommended to lower for higher security or compliance regimes.
 func WithMaxBytesPerKey(n uint64) Option {
-	return func(cfg *Config) {
-		cfg.MaxBytesPerKey = n
-	}
+	return func(cfg *Config) { cfg.MaxBytesPerKey = n }
 }
 
-// WithMaxInitRetries overrides the pool init retry count.
+// WithMaxInitRetries returns an Option that sets the maximum number of PRNG pool initialization retries.
+//
+// Use for customizing startup reliability and error handling.
 func WithMaxInitRetries(r int) Option {
-	return func(cfg *Config) {
-		cfg.MaxInitRetries = r
-	}
+	return func(cfg *Config) { cfg.MaxInitRetries = r }
 }
 
-// WithMaxRekeyAttempts overrides the retry count for key rotation.
+// WithMaxRekeyAttempts returns an Option that sets the maximum number of retries allowed for asynchronous rekeying.
+//
+// Applies exponential backoff (see WithMaxRekeyBackoff/WithRekeyBackoff).
 func WithMaxRekeyAttempts(r int) Option {
-	return func(cfg *Config) {
-		cfg.MaxRekeyAttempts = r
-	}
+	return func(cfg *Config) { cfg.MaxRekeyAttempts = r }
 }
 
-// WithMaxRekeyBackoff sets the maximum allowed backoff duration for key rotation retries.
+// WithMaxRekeyBackoff returns an Option that sets the maximum duration for rekey exponential backoff.
+//
+// Limits time spent in failed rekey attempts.
 func WithMaxRekeyBackoff(d time.Duration) Option {
-	return func(cfg *Config) {
-		cfg.MaxRekeyBackoff = d
-	}
+	return func(cfg *Config) { cfg.MaxRekeyBackoff = d }
 }
 
-// WithRekeyBackoff overrides the initial back-off duration for key rotation retries.
+// WithRekeyBackoff returns an Option that sets the initial backoff duration for rekey retries.
+//
+// Initial sleep interval before exponential growth on rekey failure.
 func WithRekeyBackoff(d time.Duration) Option {
-	return func(cfg *Config) {
-		cfg.RekeyBackoff = d
-	}
+	return func(cfg *Config) { cfg.RekeyBackoff = d }
 }
 
-// WithZeroBuffer enables the use of a zero-filled buffer for XORKeyStream.
-// If set, each Read() will use an internal zero buffer (legacy/compatibility mode).
-func WithZeroBuffer(enable bool) Option {
-	return func(cfg *Config) {
-		cfg.UseZeroBuffer = enable
-	}
-}
-
-// WithEnableKeyRotation enables or disables per-key byte tracking and async rekeying.
+// WithEnableKeyRotation returns an Option that enables or disables automatic key rotation.
+//
+// Disable only if you understand and accept the security risk.
 func WithEnableKeyRotation(enable bool) Option {
-	return func(cfg *Config) {
-		cfg.EnableKeyRotation = enable
-	}
+	return func(cfg *Config) { cfg.EnableKeyRotation = enable }
 }
 
-// WithDefaultBufferSize preallocates the internal zero buffer to at least n bytes.
+// WithZeroBuffer returns an Option that enables or disables use of a zero-filled buffer for XORKeyStream.
+//
+// Enable only if required for legacy compatibility.
+func WithZeroBuffer(enable bool) Option {
+	return func(cfg *Config) { cfg.UseZeroBuffer = enable }
+}
+
+// WithDefaultBufferSize returns an Option that sets the initial zero buffer size.
+//
+// Only relevant if UseZeroBuffer is true.
 func WithDefaultBufferSize(n int) Option {
-	return func(cfg *Config) {
-		cfg.DefaultBufferSize = n
-	}
+	return func(cfg *Config) { cfg.DefaultBufferSize = n }
 }

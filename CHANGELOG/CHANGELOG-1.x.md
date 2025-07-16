@@ -18,6 +18,32 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.39.0] - 2025-07-16
+
+### Added
+- **feature:** FIPS‑140 mode compatibility.
+  - Adds support for cryptographic operations in environments requiring FIPS‑140 validation.
+  - All cryptographic primitives are sourced exclusively from the Go standard library.
+  - No third-party or non-standard cryptography is included when FIPS mode is enabled.
+  - See [FIPS‑140.md](FIPS-140.md) for configuration, deployment recommendations, and compliance details.
+  - The [`x/crypto/ctrdrbg`](../x/crypto/ctrdrbg) subpackage provides a deterministic random bit generator compatible with FIPS‑140 mode.
+- **feature:** Added dedicated Make targets for benchmarking `ctrdrbg`.
+  - Added `bench-ctrdrbg` to run raw AES-CTR-DRBG benchmark tests with memory and CPU profiling.
+  - Added `bench-ctrdrbg-uuid` for benchmarking UUID generation using the AES-CTR-DRBG with the Google UUID package.
+
+### Changed
+- **debt:** Enhanced documentation for [`x/crypto/prng`](../x/crypto/prng).
+  - Updated and expanded GoDoc comments across all public and internal types and functions.
+  - Improved usage examples and configuration guidance for the `prng` package.
+  - Increased consistency and symmetry with the `ctrdrbg` package documentation.
+  - Clarified package guarantees and recommended usage patterns.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.38.0] - 2025-07-14
 
 ### Added
@@ -783,7 +809,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.38.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.39.0...HEAD
+[1.39.0]: https://github.com/sixafter/nanoid/compare/v1.38.0...v1.39.0
 [1.38.0]: https://github.com/sixafter/nanoid/compare/v1.37.0...v1.38.0
 [1.37.0]: https://github.com/sixafter/nanoid/compare/v1.36.0...v1.37.0
 [1.36.0]: https://github.com/sixafter/nanoid/compare/v1.35.0...v1.36.0

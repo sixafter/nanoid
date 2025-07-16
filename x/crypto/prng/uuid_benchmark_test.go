@@ -82,7 +82,7 @@ func BenchmarkUUID_v4_Default_Parallel(b *testing.B) {
 // This measures scalability and contention as goroutines increase.
 func BenchmarkUUID_v4_Default_Concurrent(b *testing.B) {
 	uuid.SetRand(nil)
-	for _, gr := range []int{4, 8, 16, 32, 64, 128, 256} {
+	for _, gr := range []int{2, 4, 8, 16, 32, 64, 128, 256} {
 		b.Run("Goroutines_"+itoa(gr), func(b *testing.B) {
 			benchConcurrent(b, func() { _ = uuid.New() }, gr)
 		})
@@ -121,7 +121,7 @@ func BenchmarkUUID_v4_CSPRNG_Parallel(b *testing.B) {
 func BenchmarkUUID_v4_CSPRNG_Concurrent(b *testing.B) {
 	uuid.SetRand(Reader)
 	defer uuid.SetRand(nil)
-	for _, gr := range []int{4, 8, 16, 32, 64, 128, 256} {
+	for _, gr := range []int{2, 4, 8, 16, 32, 64, 128, 256} {
 		b.Run("Goroutines_"+itoa(gr), func(b *testing.B) {
 			benchConcurrent(b, func() { _ = uuid.New() }, gr)
 		})
