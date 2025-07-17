@@ -67,8 +67,8 @@ func init() {
 
 		// Eagerly test the pool initialization to ensure that any catastrophic
 		// failure is caught immediately, not deferred to the first use.
-		//item := pools[i].Get()
-		//pools[i].Put(item)
+		item := pools[i].Get()
+		pools[i].Put(item)
 	}
 
 	Reader = &reader{pools: pools}
