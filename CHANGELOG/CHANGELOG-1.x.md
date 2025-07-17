@@ -28,7 +28,7 @@ Date format: `YYYY-MM-DD`
 ### Deprecated
 ### Removed
 ### Fixed
-- **defect:** Addressed issue in shared `sync.Pool` logic where the index was off by 1, causing unexpected behavior when shards are greater than 1.
+- **defect:** Fixed issue [64](https://github.com/sixafter/nanoid/issues/64) in shard `sync.Pool` logic where the index was off by 1, causing unexpected behavior when shards are greater than 1.
 
 ### Security
 

@@ -302,3 +302,71 @@ func Test_CTRDRBG_Personalization_Changes_Stream(t *testing.T) {
 
 	is.False(bytes.Equal(buf1, buf2), "Personalization should affect output")
 }
+
+// Test_CTRDRBG_Read_Shards verifies that a single call to Read only accesses
+// one shard pool out of many, regardless of the pool count. It does not
+// assert *which* shard is selected, as shardIndex is intentionally random.
+//
+// This test is table-driven: it runs the check with a variety of pool counts
+// to ensure correct behavior at boundaries and typical values.
+func Test_CTRDRBG_Read_Shards(t *testing.T) {
+	t.Parallel()
+
+	// Define table of test cases with different pool (shard) counts.
+	testCases := []struct {
+		name       string
+		shardCount int
+	}{
+		{"SinglePool", 1},
+		{"TwoPools", 2},
+		{"EightPools", 8},
+		{"SixteenPools", 16},
+	}
+
+	for _, tc := range testCases {
+		tc := tc // capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			is := assert.New(t)
+
+			// hit[i] will be set true if pool[i] is accessed
+			hit := make([]bool, tc.shardCount)
+
+			// Create sync.Pool array, each tracking access via hit[i]
+			pools := make([]*sync.Pool, tc.shardCount)
+			for i := 0; i < tc.shardCount; i++ {
+				id := i
+				pools[i] = &sync.Pool{
+					New: func() any {
+						// Record that this shard was used.
+						hit[id] = true
+						cfg := DefaultConfig()
+						d, _ := newDRBG(&cfg)
+						return d
+					},
+				}
+			}
+
+			r := &reader{
+				pools: pools,
+			}
+
+			buf := make([]byte, 32)
+			_, err := r.Read(buf)
+			is.NoError(err)
+
+			// Ensure exactly one shard was accessed.
+			used := -1
+			for i, v := range hit {
+				if v {
+					if used != -1 {
+						t.Fatalf("multiple pools were accessed: %d and %d", used, i)
+					}
+					used = i
+				}
+			}
+			is.NotEqual(-1, used, "no pool was used")
+			t.Logf("Selected shard: %d (shardCount=%d)", used, tc.shardCount)
+		})
+	}
+}
