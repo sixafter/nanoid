@@ -67,7 +67,7 @@ func init() {
 
 		// Eagerly test the pool initialization to ensure that any catastrophic
 		// failure is caught immediately, not deferred to the first use.
-		item := pools[i].Get()
+		item := pools[i].Get().(*drbg)
 		pools[i].Put(item)
 	}
 
