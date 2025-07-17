@@ -19,9 +19,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestPRNG_Read validates that a single call to Read fills the buffer with random (non-zero) data.
+// Test_PRNG_Read validates that a single call to Read fills the buffer with random (non-zero) data.
 // It ensures the Reader returns the expected number of bytes and that output is not all zeros.
-func TestPRNG_Read(t *testing.T) {
+func Test_PRNG_Read(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
@@ -43,9 +43,9 @@ func TestPRNG_Read(t *testing.T) {
 	is.False(allZeros, "Buffer should not be all zeros")
 }
 
-// TestPRNG_ReadZeroBytes ensures that reading into a zero-length slice is a no-op:
+// Test_PRNG_ReadZeroBytes ensures that reading into a zero-length slice is a no-op:
 // it should return immediately with no error and report zero bytes read.
-func TestPRNG_ReadZeroBytes(t *testing.T) {
+func Test_PRNG_ReadZeroBytes(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
@@ -58,9 +58,9 @@ func TestPRNG_ReadZeroBytes(t *testing.T) {
 	is.Equal(0, n, "Reading zero-length buffer should return 0")
 }
 
-// TestPRNG_ReadMultipleTimes confirms that consecutive Read calls
+// Test_PRNG_ReadMultipleTimes confirms that consecutive Read calls
 // produce different outputs, ensuring the PRNG does not repeat data.
-func TestPRNG_ReadMultipleTimes(t *testing.T) {
+func Test_PRNG_ReadMultipleTimes(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
@@ -80,9 +80,9 @@ func TestPRNG_ReadMultipleTimes(t *testing.T) {
 	is.False(bytes.Equal(buf1, buf2), "Consecutive reads should differ")
 }
 
-// TestPRNG_ReadWithDifferentBufferSizes tests Read with a variety of buffer sizes,
+// Test_PRNG_ReadWithDifferentBufferSizes tests Read with a variety of buffer sizes,
 // ensuring the Reader works correctly across a range of input slice lengths.
-func TestPRNG_ReadWithDifferentBufferSizes(t *testing.T) {
+func Test_PRNG_ReadWithDifferentBufferSizes(t *testing.T) {
 	t.Parallel()
 
 	sizes := []int{1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048}
@@ -112,10 +112,10 @@ func TestPRNG_ReadWithDifferentBufferSizes(t *testing.T) {
 	}
 }
 
-// TestPRNG_Concurrency verifies the thread safety of the Reader by launching
+// Test_PRNG_Concurrency verifies the thread safety of the Reader by launching
 // many concurrent goroutines that perform Read operations in parallel.
 // It asserts that all goroutines succeed and that output buffers are not all identical.
-func TestPRNG_Concurrency(t *testing.T) {
+func Test_PRNG_Concurrency(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
@@ -157,9 +157,9 @@ func TestPRNG_Concurrency(t *testing.T) {
 	}
 }
 
-// TestPRNG_Stream checks that the Reader can handle large requests (e.g., 1 MiB)
+// Test_PRNG_Stream checks that the Reader can handle large requests (e.g., 1 MiB)
 // via io.ReadFull, and that the returned buffer contains non-zero (random) data.
-func TestPRNG_Stream(t *testing.T) {
+func Test_PRNG_Stream(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
@@ -182,9 +182,9 @@ func TestPRNG_Stream(t *testing.T) {
 	is.False(allZeros, "Stream buffer should not be all zeros")
 }
 
-// TestPRNG_ReadUnique verifies that two consecutive Read calls to the Reader
+// Test_PRNG_ReadUnique verifies that two consecutive Read calls to the Reader
 // fill buffers with different random data, reinforcing correct PRNG behavior.
-func TestPRNG_ReadUnique(t *testing.T) {
+func Test_PRNG_ReadUnique(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
@@ -202,9 +202,9 @@ func TestPRNG_ReadUnique(t *testing.T) {
 	is.False(bytes.Equal(b1, b2), "Consecutive reads should produce unique data")
 }
 
-// TestPRNG_NewReader ensures NewReader returns a non-nil Reader instance
+// Test_PRNG_NewReader ensures NewReader returns a non-nil Reader instance
 // and that the Reader can fill a buffer with random, non-zero bytes.
-func TestPRNG_NewReader(t *testing.T) {
+func Test_PRNG_NewReader(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
@@ -227,9 +227,9 @@ func TestPRNG_NewReader(t *testing.T) {
 	is.False(allZeros, "NewReader buffer should not be all zeros")
 }
 
-// TestPRNG_ReadAll reads a large buffer in a single call to ensure the Reader
+// Test_PRNG_ReadAll reads a large buffer in a single call to ensure the Reader
 // can fill arbitrary-length slices and returns random, non-zero data.
-func TestPRNG_ReadAll(t *testing.T) {
+func Test_PRNG_ReadAll(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
@@ -251,10 +251,10 @@ func TestPRNG_ReadAll(t *testing.T) {
 	is.False(allZeros, "ReadAll buffer should not be all zeros")
 }
 
-// TestPRNG_ReadConsistency performs multiple reads of the same size
+// Test_PRNG_ReadConsistency performs multiple reads of the same size
 // and checks that all buffers are filled and differ from each other,
 // verifying both completeness and randomness of output.
-func TestPRNG_ReadConsistency(t *testing.T) {
+func Test_PRNG_ReadConsistency(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
@@ -290,10 +290,10 @@ func TestPRNG_ReadConsistency(t *testing.T) {
 	}
 }
 
-// TestPRNG_AsyncRekey validates the asynchronous rekeying mechanism of the PRNG implementation.
+// Test_PRNG_AsyncRekey validates the asynchronous rekeying mechanism of the PRNG implementation.
 // It configures a low MaxBytesPerKey to force rekeying, writes enough data to trigger it,
 // and then checks that a new cipher is used and usage counter is reset, all within a timeout.
-func TestPRNG_AsyncRekey(t *testing.T) {
+func Test_PRNG_AsyncRekey(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
@@ -332,5 +332,73 @@ func TestPRNG_AsyncRekey(t *testing.T) {
 		case <-wait.C:
 			t.Fatal("Timed out waiting for asyncRekey to complete")
 		}
+	}
+}
+
+// Test_PRNG_Read_Shards verifies that a single call to Read only accesses
+// one shard pool out of many, regardless of the pool count. It does not
+// assert *which* shard is selected, as shardIndex is intentionally random.
+//
+// This test is table-driven: it runs the check with a variety of pool counts
+// to ensure correct behavior at boundaries and typical values.
+func Test_PRNG_Read_Shards(t *testing.T) {
+	t.Parallel()
+
+	// Define table of test cases with different pool (shard) counts.
+	testCases := []struct {
+		name       string
+		shardCount int
+	}{
+		{"SinglePool", 1},
+		{"TwoPools", 2},
+		{"EightPools", 8},
+		{"SixteenPools", 16},
+	}
+
+	for _, tc := range testCases {
+		tc := tc // capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			is := assert.New(t)
+
+			// hit[i] will be set true if pool[i] is accessed
+			hit := make([]bool, tc.shardCount)
+
+			// Create sync.Pool array, each tracking access via hit[i]
+			pools := make([]*sync.Pool, tc.shardCount)
+			for i := 0; i < tc.shardCount; i++ {
+				id := i
+				pools[i] = &sync.Pool{
+					New: func() any {
+						// Record that this shard was used.
+						hit[id] = true
+						cfg := DefaultConfig()
+						d, _ := newPRNG(&cfg)
+						return d
+					},
+				}
+			}
+
+			r := &reader{
+				pools: pools,
+			}
+
+			buf := make([]byte, 32)
+			_, err := r.Read(buf)
+			is.NoError(err)
+
+			// Ensure exactly one shard was accessed.
+			used := -1
+			for i, v := range hit {
+				if v {
+					if used != -1 {
+						t.Fatalf("multiple pools were accessed: %d and %d", used, i)
+					}
+					used = i
+				}
+			}
+			is.NotEqual(-1, used, "no pool was used")
+			t.Logf("Selected shard: %d (shardCount=%d)", used, tc.shardCount)
+		})
 	}
 }
