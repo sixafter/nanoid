@@ -215,9 +215,10 @@ func (r *reader) Read(b []byte) (int, error) {
 	}
 
 	// Determine the shard index based on the number of pools available.
-	shard := len(r.pools) - 1
-	if shard > 1 {
-		shard = shardIndex(shard)
+	n := len(r.pools)
+	shard := 0
+	if n > 1 {
+		shard = shardIndex(n)
 	}
 
 	// Step 2: Borrow an instance of the internal deterministic random bit generator from the pool.
