@@ -41,31 +41,31 @@ fuzz: ## Run each Go fuzz test individually (10s per test)
 bench: ## Execute benchmark tests for NanoID
 	@rm -f cpu.out
 	@rm -f mem.out
-	$(GO_TEST) -bench=. -benchmem -memprofile=mem.out -cpuprofile=cpu.out
+	$(GO_TEST) -bench=. -run=^$$ -benchmem -memprofile=mem.out -cpuprofile=cpu.out
 
 .PHONY: bench-csprng
 bench-csprng: ## Execute benchmark tests for CSPRNG (raw bytes).
 	@rm -f x/crypto/prng/cpu.out
 	@rm -f x/crypto/prng/mem.out
-	$(GO_TEST) -bench='^BenchmarkPRNG_' -benchmem -memprofile=x/crypto/prng/mem.out -cpuprofile=x/crypto/prng/cpu.out ./x/crypto/prng
+	$(GO_TEST) -bench='^BenchmarkPRNG_' -run=^$$ -benchmem -memprofile=x/crypto/prng/mem.out -cpuprofile=x/crypto/prng/cpu.out ./x/crypto/prng
 
 .PHONY: bench-csprng-uuid
 bench-csprng-uuid: ## Execute benchmark tests for using the CSPRNG to generate UUIDs using Google's uuid package.
 	@rm -f x/crypto/prng/cpu.out
 	@rm -f x/crypto/prng/mem.out
-	$(GO_TEST) -bench='^BenchmarkUUID_' -benchmem -memprofile=x/crypto/prng/mem.out -cpuprofile=x/crypto/prng/cpu.out ./x/crypto/prng
+	$(GO_TEST) -bench='^BenchmarkUUID_' -run=^$$ -benchmem -memprofile=x/crypto/prng/mem.out -cpuprofile=x/crypto/prng/cpu.out ./x/crypto/prng
 
 .PHONY: bench-ctrdrbg
 bench-ctrdrbg: ## Execute benchmark tests for AES-CTR-DRBG (raw bytes).
 	@rm -f x/crypto/ctrdrbg/cpu.out
 	@rm -f x/crypto/ctrdrbg/mem.out
-	$(GO_TEST) -bench='^BenchmarkDRBG_' -benchmem -memprofile=x/crypto/ctrdrbg/mem.out -cpuprofile=x/crypto/ctrdrbg/cpu.out ./x/crypto/ctrdrbg
+	$(GO_TEST) -bench='^BenchmarkDRBG_' -run=^$$ -benchmem -memprofile=x/crypto/ctrdrbg/mem.out -cpuprofile=x/crypto/ctrdrbg/cpu.out ./x/crypto/ctrdrbg
 
 .PHONY: bench-ctrdrbg-uuid
 bench-ctrdrbg-uuid: ## Execute benchmark tests for using the AES-CTR-DRBG to generate UUIDs using Google's uuid package.
 	@rm -f x/crypto/ctrdrbg/cpu.out
 	@rm -f x/crypto/ctrdrbg/mem.out
-	$(GO_TEST) -bench='^BenchmarkUUID_' -benchmem -memprofile=x/crypto/ctrdrbg/mem.out -cpuprofile=x/crypto/ctrdrbg/cpu.out ./x/crypto/ctrdrbg
+	$(GO_TEST) -bench='^BenchmarkUUID_' -run=^$$ -benchmem -memprofile=x/crypto/ctrdrbg/mem.out -cpuprofile=x/crypto/ctrdrbg/cpu.out ./x/crypto/ctrdrbg
 
 .PHONY: clean
 clean: ## Remove previous build

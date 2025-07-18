@@ -16,7 +16,7 @@ func (r *reader) syncPoolGetPut() {
 	r.pools[0].Put(dr)
 }
 
-func BenchmarkDRBG_Concurrent_SyncPool_Baseline(b *testing.B) {
+func BenchmarkDRBG_SyncPool_Baseline_Concurrent(b *testing.B) {
 	rdr, _ := NewReader()
 	goroutineCounts := []int{2, 4, 8, 16, 32, 64, 128}
 	if r, ok := rdr.(*reader); ok {
@@ -36,10 +36,9 @@ func BenchmarkDRBG_Concurrent_SyncPool_Baseline(b *testing.B) {
 	}
 }
 
-func BenchmarkDRBG_ReadSerial(b *testing.B) {
-	bufferSizes := []int{8, 16, 21, 32, 64, 100, 256, 512, 1000, 4096, 16384}
+func BenchmarkDRBG_Read_Serial(b *testing.B) {
+	bufferSizes := []int{16, 32, 64, 256, 512, 4096, 16384}
 	for _, size := range bufferSizes {
-		size := size
 		b.Run(fmt.Sprintf("Serial_Read_%dBytes", size), func(b *testing.B) {
 			buffer := make([]byte, size)
 			b.ReportAllocs()
@@ -54,12 +53,11 @@ func BenchmarkDRBG_ReadSerial(b *testing.B) {
 	}
 }
 
-func BenchmarkDRBG_ReadConcurrent(b *testing.B) {
-	bufferSizes := []int{16, 21, 32, 64, 100, 256, 512, 1000, 4096, 16384}
+func BenchmarkDRBG_Read_Concurrent(b *testing.B) {
+	bufferSizes := []int{16, 32, 64, 256, 512, 4096, 16384}
 	goroutineCounts := []int{2, 4, 8, 16, 32, 64, 128}
 	for _, size := range bufferSizes {
 		for _, gc := range goroutineCounts {
-			size, gc := size, gc
 			b.Run(fmt.Sprintf("Concurrent_Read_%dBytes_%dGoroutines", size, gc), func(b *testing.B) {
 				buffer := make([]byte, size)
 				b.SetParallelism(gc)
@@ -78,10 +76,9 @@ func BenchmarkDRBG_ReadConcurrent(b *testing.B) {
 	}
 }
 
-func BenchmarkDRBG_ReadSequentialLargeSizes(b *testing.B) {
-	largeBufferSizes := []int{4096, 10000, 16384, 65536, 1048576}
+func BenchmarkDRBG_Read_LargeSizes_Sequential(b *testing.B) {
+	largeBufferSizes := []int{4096, 16384, 65536, 1048576}
 	for _, size := range largeBufferSizes {
-		size := size
 		b.Run(fmt.Sprintf("Serial_Read_Large_%dBytes", size), func(b *testing.B) {
 			buffer := make([]byte, size)
 			b.ReportAllocs()
@@ -96,12 +93,11 @@ func BenchmarkDRBG_ReadSequentialLargeSizes(b *testing.B) {
 	}
 }
 
-func BenchmarkDRBG_ReadConcurrentLargeSizes(b *testing.B) {
-	largeBufferSizes := []int{4096, 10000, 16384, 65536, 1048576}
+func BenchmarkDRBG_Read_LargeSizes_Concurrent(b *testing.B) {
+	largeBufferSizes := []int{4096, 16384, 65536, 1048576}
 	goroutineCounts := []int{2, 4, 8, 16, 32, 64, 128}
 	for _, size := range largeBufferSizes {
 		for _, gc := range goroutineCounts {
-			size, gc := size, gc
 			b.Run(fmt.Sprintf("Concurrent_Read_Large_%dBytes_%dGoroutines", size, gc), func(b *testing.B) {
 				buffer := make([]byte, size)
 				b.SetParallelism(gc)
@@ -120,12 +116,11 @@ func BenchmarkDRBG_ReadConcurrentLargeSizes(b *testing.B) {
 	}
 }
 
-func BenchmarkDRBG_ReadVariableSizes(b *testing.B) {
-	variableBufferSizes := []int{8, 16, 21, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096}
+func BenchmarkDRBG_Read_VariableSizes(b *testing.B) {
+	variableBufferSizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048, 4096}
 	for _, size := range variableBufferSizes {
-		size := size
 		b.Run(fmt.Sprintf("Serial_Read_Variable_%dBytes", size), func(b *testing.B) {
-			buffer := make([]byte, size)
+			buffer := make([]byte, size) // Allocate once
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -138,14 +133,13 @@ func BenchmarkDRBG_ReadVariableSizes(b *testing.B) {
 	}
 }
 
-func BenchmarkDRBG_ReadConcurrentVariableSizes(b *testing.B) {
-	variableBufferSizes := []int{8, 16, 21, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096}
+func BenchmarkDRBG_Read_VariableSizes_Concurrent(b *testing.B) {
+	variableBufferSizes := []int{16, 32, 64, 128, 256, 512, 1024, 2048, 4096}
 	goroutineCounts := []int{2, 4, 8, 16, 32, 64, 128}
 	for _, size := range variableBufferSizes {
 		for _, gc := range goroutineCounts {
-			size, gc := size, gc
 			b.Run(fmt.Sprintf("Concurrent_Read_Variable_%dBytes_%dGoroutines", size, gc), func(b *testing.B) {
-				buffer := make([]byte, size)
+				buffer := make([]byte, size) // Allocate once per benchmark run
 				b.SetParallelism(gc)
 				b.ReportAllocs()
 				b.ResetTimer()
@@ -162,13 +156,12 @@ func BenchmarkDRBG_ReadConcurrentVariableSizes(b *testing.B) {
 	}
 }
 
-func BenchmarkDRBG_ReadExtremeSizes(b *testing.B) {
+func BenchmarkDRBG_Read_ExtremeSizes(b *testing.B) {
 	extremeBufferSizes := []int{10485760, 52428800, 104857600} // 10MB, 50MB, 100MB
 	for _, size := range extremeBufferSizes {
-		size := size
 		// Serial
 		b.Run(fmt.Sprintf("Serial_Read_Extreme_%dBytes", size), func(b *testing.B) {
-			buffer := make([]byte, size)
+			buffer := make([]byte, size) // Allocate once
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -181,9 +174,8 @@ func BenchmarkDRBG_ReadExtremeSizes(b *testing.B) {
 		// Concurrent
 		goroutineCounts := []int{2, 4, 8, 16, 32, 64, 128}
 		for _, gc := range goroutineCounts {
-			gc := gc
 			b.Run(fmt.Sprintf("Concurrent_Read_Extreme_%dBytes_%dGoroutines", size, gc), func(b *testing.B) {
-				buffer := make([]byte, size)
+				buffer := make([]byte, size) // Allocate once per benchmark
 				b.SetParallelism(gc)
 				b.ReportAllocs()
 				b.ResetTimer()

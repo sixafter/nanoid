@@ -18,13 +18,13 @@ func TestConfig_DefaultConfig(t *testing.T) {
 	is := assert.New(t)
 
 	cfg := DefaultConfig()
-	is.Equal(32, cfg.KeySize, "KeySize should default to 32 (AES-256)")
+	is.Equal(KeySize256, cfg.KeySize, "KeySize should default to 32 (AES-256)")
 	is.Equal(uint64(1<<30), cfg.MaxBytesPerKey, "MaxBytesPerKey should default to 1GiB")
 	is.Equal(3, cfg.MaxInitRetries, "MaxInitRetries should default to 3")
 	is.Equal(5, cfg.MaxRekeyAttempts, "MaxRekeyAttempts should default to 5")
 	is.Equal(2*time.Second, cfg.MaxRekeyBackoff, "MaxRekeyBackoff should default to 2s")
 	is.Equal(100*time.Millisecond, cfg.RekeyBackoff, "RekeyBackoff should default to 100ms")
-	is.True(cfg.EnableKeyRotation, "EnableKeyRotation should default to true")
+	is.False(cfg.EnableKeyRotation, "EnableKeyRotation should default to false")
 	is.Nil(cfg.Personalization, "Personalization should default to nil")
 }
 
@@ -34,8 +34,8 @@ func TestConfig_WithKeySize(t *testing.T) {
 	is := assert.New(t)
 
 	cfg := DefaultConfig()
-	WithKeySize(16)(&cfg)
-	is.Equal(16, cfg.KeySize, "WithKeySize should override KeySize")
+	WithKeySize(KeySize128)(&cfg)
+	is.Equal(KeySize128, cfg.KeySize, "WithKeySize should override KeySize")
 }
 
 // TestConfig_WithMaxBytesPerKey verifies that WithMaxBytesPerKey correctly overrides the MaxBytesPerKey field.
@@ -150,7 +150,7 @@ func TestConfig_CombinedOptions(t *testing.T) {
 
 	cfg := DefaultConfig()
 	opts := []Option{
-		WithKeySize(24),
+		WithKeySize(KeySize192),
 		WithMaxBytesPerKey(1024),
 		WithMaxInitRetries(2),
 		WithMaxRekeyAttempts(8),
@@ -162,7 +162,7 @@ func TestConfig_CombinedOptions(t *testing.T) {
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-	is.Equal(24, cfg.KeySize)
+	is.Equal(KeySize192, cfg.KeySize)
 	is.Equal(uint64(1024), cfg.MaxBytesPerKey)
 	is.Equal(2, cfg.MaxInitRetries)
 	is.Equal(8, cfg.MaxRekeyAttempts)

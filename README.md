@@ -57,10 +57,10 @@ Please see the [godoc](https://pkg.go.dev/github.com/sixafter/nanoid) for detail
   - The Nano ID generator satisfies the `io.Reader` interface, allowing it to be used interchangeably with any `io.Reader` implementations. 
   - Developers can utilize the Nano ID generator in contexts such as streaming data processing, pipelines, and other I/O-driven operations.
 - **FIPS‑140 Mode Compatible**: Designed to run in FIPS‑140 validated environments using only Go standard library crypto. 
-  - For FIPS‑140 compatible random number generation, use the [x/crypto/ctrdrbg](x/crypto/ctrdrbg) module.
+  - For FIPS‑140 compatible random number generation, use the [x/crypto/ctrdrbg](x/crypto/ctrdrbg) package.
   - See [FIPS‑140.md](FIPS-140.md) for details and deployment guidance.
 
-Please see the [nanoid-cli](https://github.com/sixafter/nanoid-cli) for a command-line interface (CLI) that uses this package to generate NanoIDs.
+Please see the [nanoid-cli](https://github.com/sixafter/nanoid-cli) for a command-line interface (CLI) that uses this module to generate Nano IDs.
 
 ---
 
@@ -74,23 +74,23 @@ from the [releases page](https://github.com/sixafter/nanoid/releases) along with
 signature:
 
 ```sh
-# Replace <version> with the release version you downloaded, e.g., 1.32.0
+# Fetch the latest release tag from GitHub API (e.g., "v1.41.0")
+TAG=$(curl -s https://api.github.com/repos/sixafter/nanoid/releases/latest | jq -r .tag_name)
 
+# Remove leading "v" for filenames (e.g., "v1.41.0" -> "1.41.0")
+VERSION=${TAG#v}
+
+# Verify the release tarball
 cosign verify-blob \
   --key https://raw.githubusercontent.com/sixafter/nanoid/main/cosign.pub \
-  --signature nanoid-<version>.tar.gz.sig \
-  nanoid-<version>.tar.gz
+  --signature nanoid-${VERSION}.tar.gz.sig \
+  nanoid-${VERSION}.tar.gz
 
-# Example with version 1.32.0:
-cosign verify-blob \
-  --key https://raw.githubusercontent.com/sixafter/nanoid/main/cosign.pub \
-  --signature nanoid-1.32.0.tar.gz.sig \
-  nanoid-1.32.0.tar.gz
-```
+# Download checksums.txt and its signature from the latest release assets
+curl -LO https://github.com/sixafter/nanoid/releases/download/${TAG}/checksums.txt
+curl -LO https://github.com/sixafter/nanoid/releases/download/${TAG}/checksums.txt.sig
 
-The checksums are also signed (`checksums.txt` and `checksums.txt.sig`), verify with:
-
-```sh
+# Verify checksums.txt with cosign
 cosign verify-blob \
   --key https://raw.githubusercontent.com/sixafter/nanoid/main/cosign.pub \
   --signature checksums.txt.sig \

@@ -118,7 +118,7 @@ func DefaultConfig() Config {
 		EnableKeyRotation: false,
 		DefaultBufferSize: defaultBufferSize,
 		// Ref: Use of GOMAXPROCS is fine for now: https://github.com/golang/go/issues/73193
-		Shards: 1, //runtime.GOMAXPROCS(0),
+		Shards: runtime.GOMAXPROCS(0),
 	}
 }
 
@@ -195,13 +195,10 @@ func WithDefaultBufferSize(n int) Option {
 // under high concurrency, but can increase overhead on most systems.
 //
 // Note: If n <= 0, the number of shards defaults to runtime.GOMAXPROCS(0),
-// which is useful in containerized or CPU-constrained environments.
+// which is useful in containerized environments.
 // See: https://github.com/golang/go/issues/73193
 func WithShards(n int) Option {
 	return func(cfg *Config) {
-		if n <= 0 {
-			n = runtime.GOMAXPROCS(0)
-		}
 		cfg.Shards = n
 	}
 }

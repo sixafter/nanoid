@@ -16,6 +16,30 @@ import (
 	"time"
 )
 
+// KeySize represents the valid AES key lengths supported by AES-CTR-DRBG.
+//
+// It enforces compile-time type safety for AES key selection and helps
+// prevent accidental misuse of invalid key lengths. Only KeySize128, KeySize192, and KeySize256
+// are permitted values for cryptographic configuration.
+//
+// Usage:
+//
+//	// Configure for AES-256 (32 bytes)
+//	cfg := ctrdrbg.DefaultConfig()
+//	cfg.KeySize = ctrdrbg.KeySize256
+type KeySize int
+
+const (
+	// KeySize128 specifies AES-128 (16-byte key).
+	KeySize128 KeySize = 16
+
+	// KeySize192 specifies AES-192 (24-byte key).
+	KeySize192 KeySize = 24
+
+	// KeySize256 specifies AES-256 (32-byte key).
+	KeySize256 KeySize = 32
+)
+
 // Config defines the tunable parameters for AES-CTR-DRBG instances and the DRBG pool.
 //
 // It supports fine-grained control over key size, key rotation, rekeying policies,
@@ -66,15 +90,15 @@ type Config struct {
 	// If set to zero, a default value of 1 GiB (1 << 30) is used.
 	MaxBytesPerKey uint64
 
-	// KeySize is the AES key length in bytes (16, 24, or 32).
+	// KeySize specifies the AES key length to use for this DRBG instance.
 	//
-	// Valid values:
-	//   - 16 (AES-128)
-	//   - 24 (AES-192)
-	//   - 32 (AES-256)
+	// Acceptable values:
+	//   - KeySize128 (16 bytes, AES-128)
+	//   - KeySize192 (24 bytes, AES-192)
+	//   - KeySize256 (32 bytes, AES-256)
 	//
-	// Default: 32 (AES-256).
-	KeySize int
+	// Default: KeySize256 (AES-256, 32 bytes).
+	KeySize KeySize
 
 	// MaxRekeyAttempts specifies the number of attempts to perform asynchronous rekeying.
 	//
@@ -114,12 +138,20 @@ type Config struct {
 
 // Default configuration constants for AES-CTR-DRBG.
 const (
-	defaultKeySize      = 32                     // Default AES key size (32 bytes for AES-256)
-	defaultMaxBytes     = 1 << 30                // Default max bytes per key (1 GiB)
-	defaultInitRetries  = 3                      // Default max initialization retries
-	defaultRekeyRetries = 5                      // Default max rekey attempts
-	defaultMaxBackoff   = 2 * time.Second        // Default max backoff for rekey (2 seconds)
-	defaultRekeyBackoff = 100 * time.Millisecond // Default initial rekey backoff (100 ms)
+	// Default max bytes per key (1 GiB)
+	defaultMaxBytes = 1 << 30
+
+	// Default max initialization retries
+	defaultInitRetries = 3
+
+	// Default max rekey attempts
+	defaultRekeyRetries = 5
+
+	// Default max backoff for rekey (2 seconds)
+	defaultMaxBackoff = 2 * time.Second
+
+	// Default initial rekey backoff (100 ms)
+	defaultRekeyBackoff = 100 * time.Millisecond
 )
 
 // DefaultConfig returns a Config struct populated with production-safe, recommended defaults.
@@ -139,17 +171,17 @@ const (
 //	cfg := ctrdrbg.DefaultConfig()
 func DefaultConfig() Config {
 	return Config{
-		KeySize:           defaultKeySize,
+		KeySize:           KeySize256,
 		MaxBytesPerKey:    defaultMaxBytes,
 		MaxInitRetries:    defaultInitRetries,
 		MaxRekeyAttempts:  defaultRekeyRetries,
 		MaxRekeyBackoff:   defaultMaxBackoff,
 		RekeyBackoff:      defaultRekeyBackoff,
-		EnableKeyRotation: true,
+		EnableKeyRotation: false,
 		Personalization:   nil,
 		UseZeroBuffer:     false,
 		DefaultBufferSize: 0,
-		Shards:            1,
+		Shards:            runtime.GOMAXPROCS(0),
 	}
 }
 
@@ -165,10 +197,10 @@ func DefaultConfig() Config {
 //	)
 type Option func(*Config)
 
-// WithKeySize returns an Option that sets the AES key length in bytes.
+// WithKeySize returns an Option that sets the AES key length using the KeySize enum.
 //
-// Acceptable values: 16 (AES-128), 24 (AES-192), 32 (AES-256).
-func WithKeySize(n int) Option { return func(cfg *Config) { cfg.KeySize = n } }
+// Acceptable values are KeySize128, KeySize192, or KeySize256.
+func WithKeySize(k KeySize) Option { return func(cfg *Config) { cfg.KeySize = k } }
 
 // WithMaxBytesPerKey returns an Option that sets the maximum output (in bytes) per key before rekeying.
 //
@@ -237,7 +269,7 @@ func WithDefaultBufferSize(n int) Option {
 // under high concurrency, but can increase overhead on most systems.
 //
 // Note: If n <= 0, the number of shards defaults to runtime.GOMAXPROCS(0),
-// which is useful in containerized or CPU-constrained environments.
+// which is useful in containerized environments.
 // See: https://github.com/golang/go/issues/73193
 func WithShards(n int) Option {
 	return func(cfg *Config) {

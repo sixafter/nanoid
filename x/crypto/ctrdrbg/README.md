@@ -9,15 +9,51 @@ This package is suitable for any application that needs strong cryptographic ass
 The package uses only Go standard library crypto primitives (`crypto/aes` and `crypto/cipher`), making it safe for use in FIPS 140-validated Go runtimes.  
 No third-party, homegrown, or experimental ciphers are used.
 
+---
+
 ## Features
 
-- **Deterministic Random Bit Generation:** Implements AES-CTR-DRBG as specified in [NIST SP 800-90A, Revision 1](https://csrc.nist.gov/pubs/sp/800/90/a/r1/final).
-- **FIPS‑140 Mode Compatible:** Designed to run in FIPS‑140 validated environments using only Go standard library crypto.
-    - For details and deployment guidance, see [FIPS‑140.md](../../../FIPS-140.md).
-- **Stateless and Concurrent:** Safe for concurrent use and supports stateless operation with independent DRBG instances.
-- **Customizable Entropy:** Accepts user-provided entropy and personalization strings for deterministic output.
-- **io.Reader Interface:** Satisfies the `io.Reader` interface for drop-in compatibility with Go packages expecting secure random bytes.
-- **No External Dependencies:** Lightweight implementation; depends only on the Go standard library.
+- **NIST SP 800-90A AES-CTR-DRBG Implementation:** Implements the Deterministic Random Bit Generator (DRBG) construction defined in [NIST SP 800-90A, Revision 1](https://csrc.nist.gov/pubs/sp/800/90/a/r1/final), using the AES block cipher in counter (CTR) mode.
+  - Supports 128-, 192-, and 256-bit AES keys, with correct counter and state management as specified by the standard.
+- **FIPS 140-2 Alignment:** Designed to operate in FIPS 140-2 validated environments and compatible with Go’s FIPS 140 mode (`GODEBUG=fips140=on`).
+  - Uses only cryptographic primitives from the Go standard library.
+  - For platform-specific guidance and deployment instructions, see [FIPS‑140.md](../../../FIPS-140.md).
+- **Stateless and Concurrent Operation:** Each DRBG instance is safe for concurrent use and fully encapsulates its cryptographic state. 
+  - The design supports independent operation across multiple instances, enabling scalable use in high-concurrency environments.
+- **Configurable Entropy and Personalization:** Accepts externally supplied entropy sources and personalization strings, enabling domain separation and deterministic output for compliance with best practices and advanced use cases.
+- **io.Reader Compatibility:** Fully satisfies Go’s `io.Reader` interface, allowing seamless integration with packages and APIs expecting a secure random source.
+- **No External Dependencies:** Depends solely on the Go standard library, ensuring a lightweight and portable implementation.
+- **UUID Generation Source:** Can be used as the `io.Reader` source for UUID generation with the [`google/uuid`](https://pkg.go.dev/github.com/google/uuid) package and similar libraries, providing cryptographically secure, deterministic UUIDs using AES-CTR-DRBG.
+
+---
+
+### NIST SP 800-90A AES-CTR-DRBG: Specification Mapping
+
+| NIST SP 800-90A Requirement                                                                 | Implementation Reference                                   | Construction Step                                                                                           |
+|---------------------------------------------------------------------------------------------|-----------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| **1. Instantiate: Acquire entropy and set initial state (`Key` and `V`)**                   | `newDRBG()` uses `io.ReadFull(rand.Reader, ...)`          | - Entropy input of `KeySize + 16` bytes is split into key and counter (V)                                  |
+|                                                                                             |                                                           | - Personalization string (if provided) XORs into seed                                                      |
+|                                                                                             |                                                           | - AES cipher constructed using key                                                                         |
+|                                                                                             |                                                           | - Initial counter (V) set from entropy                                                                     |
+| **2. Generate: For each output block, increment counter and encrypt**                        | `fillBlocks()` with `incV(v)` and `st.block.Encrypt(...)` | - For each 16-byte output block:                                                                           |
+|                                                                                             |                                                           |   - Increment counter (V) (big-endian)                                                                     |
+|                                                                                             |                                                           |   - Encrypt V using AES-CTR (AES block cipher in counter mode)                                             |
+|                                                                                             |                                                           |   - Write result to output buffer                                                                          |
+| **3. Update State After Generation**                                                        | `Read()` and `fillBlocks()` copy updated counter to state | - After output, updated counter (V) is copied back to DRBG instance                                        |
+|                                                                                             |                                                           | - Mutex ensures exclusive access to counter                                                                |
+| **4. Rekey/Reseed (Optional/Configurable):**                                                | `asyncRekey()` and usage logic                            | - Supports automatic rekeying after configurable number of bytes generated (`MaxBytesPerKey`)               |
+|                                                                                             |                                                           | - New entropy acquired for new key and V                                                                   |
+|                                                                                             |                                                           | - State atomically swapped; usage counter reset                                                            |
+| **5. Personalization Support (Optional):**                                                  | `newDRBG()` and rekey use personalization                 | - Personalization string incorporated at instantiation and rekey                                            |
+| **6. Edge Cases and Robustness:**                                                           | Test suite; zero/overflow logic                           | - Zero-length reads are no-ops                                                                             |
+|                                                                                             |                                                           | - Counter overflow (wrap) is supported                                                                     |
+|                                                                                             |                                                           | - Large and unaligned read sizes are supported                                                             |
+| **7. Error Handling:**                                                                      | Error returns/panics for entropy/cipher errors            | - Instantiation returns error or panics if entropy/cipher initialization fails                             |
+|                                                                                             |                                                           | - Rekey silently continues with prior state if entropy is unavailable                                      |
+| **8. Concurrency:**                                                                         | Mutexes and per-instance state                            | - Mutex on counter ensures thread safety per DRBG instance                                                 |
+|                                                                                             |                                                           | - Pooling enables concurrent DRBG use                                                                      |
+| **9. Interface and Integration:**                                                           | `io.Reader` interface                                     | - DRBG implements `io.Reader` for use with standard Go APIs                                                |
+| **10. No External Dependencies:**                                                           | Go standard library only                                  | - Implementation relies solely on standard Go cryptography primitives                                      |
 
 ---
 
@@ -67,7 +103,7 @@ import (
 
 func main() {
 	// Example: AES-256 (32 bytes) key
-	r, err := ctrdrbg.NewReader(ctrdrbg.WithKeySize(32))
+	r, err := ctrdrbg.NewReader(ctrdrbg.WithKeySize(ctrdrbg.KeySize256))
 	if err != nil {
 		log.Fatalf("failed to create ctrdrbg.Reader: %v", err)
 	}
@@ -96,7 +132,7 @@ import (
 func main() {
 	r, err := ctrdrbg.NewReader(
 		ctrdrbg.WithPersonalization([]byte("service-id-1")),
-		ctrdrbg.WithKeySize(32), // AES-256
+		ctrdrbg.WithKeySize(ctrdrbg.KeySize256), // AES-256
 	)
 	if err != nil {
 		log.Fatalf("failed to create ctrdrbg.Reader: %v", err)
@@ -111,304 +147,217 @@ func main() {
 }
 ```
 
-### Safe for FIPS 140 Mode
-
-- The DRBG is implemented strictly using Go's standard library crypto.
-- Fully compatible with Go’s [`GODEBUG=fips140=on`](https://go.dev/doc/security/fips140) runtime enforcement.
-- No external or non-validated algorithms are used at any time.
-
----
-
-## Architecture
-
-- **DRBG Instance:** Each DRBG is independently seeded and maintains its own internal state (Key, V).
-- **AES-CTR Mode:** All random data is generated using AES in CTR mode, following NIST requirements.
-- **Personalization:** Personalization string is incorporated at initialization for added uniqueness.
-- **Concurrency:** The package is safe for concurrent use across goroutines.
-
 ---
 
 ## Performance Benchmarks
 
 ### Raw Random Byte Generation
 
-Performance Benchmarks for various read sizes using the `ctrdrbg.Reader`.
-
-* Throughput: ~69.28 `ns/op`
-* Memory Usage: 0 `B/op`
-* Allocations: 0 `allocs/op`
-
-These benchmarks demonstrate the package's focus on minimizing latency, memory usage, and allocation overhead, making it suitable for high-performance applications.
-
+These `ctrdrbg.Reader` benchmarks demonstrate the package's focus on minimizing latency, memory usage, and allocation overhead, making it suitable for high-performance applications.
 
 <details>
   <summary>Expand to see results</summary>
 
 ```shell
 make bench-ctrdrbg
-go test -bench='^BenchmarkDRBG_' -benchmem -memprofile=x/crypto/ctrdrbg/mem.out -cpuprofile=x/crypto/ctrdrbg/cpu.out ./x/crypto/ctrdrbg
+go test -bench='^BenchmarkDRBG_' -run=^$ -benchmem -memprofile=x/crypto/ctrdrbg/mem.out -cpuprofile=x/crypto/ctrdrbg/cpu.out ./x/crypto/ctrdrbg
 goos: darwin
 goarch: arm64
 pkg: github.com/sixafter/nanoid/x/crypto/ctrdrbg
 cpu: Apple M4 Max
-BenchmarkDRBG_Concurrent_SyncPool_Baseline/G2-16 	1000000000	         0.5867 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_Concurrent_SyncPool_Baseline/G4-16 	1000000000	         0.5950 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_Concurrent_SyncPool_Baseline/G8-16 	1000000000	         0.5726 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_Concurrent_SyncPool_Baseline/G16-16         	1000000000	         0.5398 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_Concurrent_SyncPool_Baseline/G32-16         	1000000000	         0.5341 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_Concurrent_SyncPool_Baseline/G64-16         	1000000000	         0.5224 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_Concurrent_SyncPool_Baseline/G128-16        	1000000000	         0.5194 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadSerial/Serial_Read_8Bytes-16            	41356254	        27.57 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadSerial/Serial_Read_16Bytes-16           	66431233	        17.86 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadSerial/Serial_Read_21Bytes-16           	38076753	        31.59 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadSerial/Serial_Read_32Bytes-16           	51806107	        23.11 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadSerial/Serial_Read_64Bytes-16           	37704330	        31.80 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadSerial/Serial_Read_100Bytes-16          	21041049	        57.55 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadSerial/Serial_Read_256Bytes-16          	12830982	        93.89 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadSerial/Serial_Read_512Bytes-16          	 7029285	       171.3 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadSerial/Serial_Read_1000Bytes-16         	 3602702	       332.5 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadSerial/Serial_Read_4096Bytes-16         	  955296	      1261 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadSerial/Serial_Read_16384Bytes-16        	  240126	      4990 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_16Bytes_2Goroutines-16         	24605625	        70.69 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_16Bytes_4Goroutines-16         	23419946	        73.89 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_16Bytes_8Goroutines-16         	23912062	        74.76 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_16Bytes_16Goroutines-16        	25121748	        67.82 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_16Bytes_32Goroutines-16        	26564932	        67.71 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_16Bytes_64Goroutines-16        	27518595	        64.93 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_16Bytes_128Goroutines-16       	28097067	        65.17 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_21Bytes_2Goroutines-16         	16891406	       190.9 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_21Bytes_4Goroutines-16         	16116306	        98.83 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_21Bytes_8Goroutines-16         	15318064	       186.3 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_21Bytes_16Goroutines-16        	15804871	        96.53 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_21Bytes_32Goroutines-16        	16165725	        93.25 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_21Bytes_64Goroutines-16        	15918681	        87.24 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_21Bytes_128Goroutines-16       	16833019	       186.5 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_32Bytes_2Goroutines-16         	23454793	        81.23 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_32Bytes_4Goroutines-16         	22897376	        76.48 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_32Bytes_8Goroutines-16         	22688366	        69.01 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_32Bytes_16Goroutines-16        	24935323	        69.72 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_32Bytes_32Goroutines-16        	26483926	        67.85 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_32Bytes_64Goroutines-16        	27455266	        64.92 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_32Bytes_128Goroutines-16       	27119690	        62.87 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_64Bytes_2Goroutines-16         	24394726	        79.77 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_64Bytes_4Goroutines-16         	26096364	        77.13 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_64Bytes_8Goroutines-16         	25666962	        73.22 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_64Bytes_16Goroutines-16        	23711256	        70.61 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_64Bytes_32Goroutines-16        	27163968	        66.91 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_64Bytes_64Goroutines-16        	26312206	        66.13 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_64Bytes_128Goroutines-16       	25379367	        66.04 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_100Bytes_2Goroutines-16        	19304656	        81.00 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_100Bytes_4Goroutines-16        	19495551	        80.82 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_100Bytes_8Goroutines-16        	20357168	        79.74 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_100Bytes_16Goroutines-16       	19713253	        79.61 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_100Bytes_32Goroutines-16       	20250174	        74.99 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_100Bytes_64Goroutines-16       	19995680	        78.52 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_100Bytes_128Goroutines-16      	20529811	        80.44 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_256Bytes_2Goroutines-16        	11332866	       146.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_256Bytes_4Goroutines-16        	11900329	       138.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_256Bytes_8Goroutines-16        	11857389	       138.0 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_256Bytes_16Goroutines-16       	11628859	       136.0 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_256Bytes_32Goroutines-16       	12352996	       135.4 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_256Bytes_64Goroutines-16       	12126044	       137.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_256Bytes_128Goroutines-16      	12430214	       134.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_512Bytes_2Goroutines-16        	10687228	       154.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_512Bytes_4Goroutines-16        	10312039	       151.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_512Bytes_8Goroutines-16        	11452233	       147.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_512Bytes_16Goroutines-16       	11786670	       130.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_512Bytes_32Goroutines-16       	12293763	       153.0 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_512Bytes_64Goroutines-16       	11624494	       138.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_512Bytes_128Goroutines-16      	12017239	       156.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_1000Bytes_2Goroutines-16       	11941149	       135.1 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_1000Bytes_4Goroutines-16       	12125616	       130.7 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_1000Bytes_8Goroutines-16       	11931241	       152.3 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_1000Bytes_16Goroutines-16      	11713725	       141.3 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_1000Bytes_32Goroutines-16      	12344746	       132.0 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_1000Bytes_64Goroutines-16      	11962581	       143.8 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_1000Bytes_128Goroutines-16     	12175143	       142.0 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_4096Bytes_2Goroutines-16       	 5850606	       216.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_4096Bytes_4Goroutines-16       	 7575766	       196.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_4096Bytes_8Goroutines-16       	 7576767	       195.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_4096Bytes_16Goroutines-16      	 7287967	       207.3 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_4096Bytes_32Goroutines-16      	 7672298	       216.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_4096Bytes_64Goroutines-16      	 7684561	       210.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_4096Bytes_128Goroutines-16     	 7592994	       208.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_16384Bytes_2Goroutines-16      	 1492654	       757.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_16384Bytes_4Goroutines-16      	 1551319	       748.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_16384Bytes_8Goroutines-16      	 1545484	       707.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_16384Bytes_16Goroutines-16     	 1637460	       794.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_16384Bytes_32Goroutines-16     	 1565677	       826.0 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_16384Bytes_64Goroutines-16     	 1522772	       745.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrent/Concurrent_Read_16384Bytes_128Goroutines-16    	 1547283	       829.8 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadSequentialLargeSizes/Serial_Read_Large_4096Bytes-16       	  794491	      1294 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadSequentialLargeSizes/Serial_Read_Large_10000Bytes-16      	  389359	      3069 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadSequentialLargeSizes/Serial_Read_Large_16384Bytes-16      	  235744	      4999 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadSequentialLargeSizes/Serial_Read_Large_65536Bytes-16      	   59410	     20097 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadSequentialLargeSizes/Serial_Read_Large_1048576Bytes-16    	    3661	    324805 ns/op	       1 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_4096Bytes_2Goroutines-16         	 6672326	       189.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_4096Bytes_4Goroutines-16         	 7079473	       213.4 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_4096Bytes_8Goroutines-16         	 7138963	       182.3 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_4096Bytes_16Goroutines-16        	 7135531	       202.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_4096Bytes_32Goroutines-16        	 7374717	       220.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_4096Bytes_64Goroutines-16        	 6309536	       214.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_4096Bytes_128Goroutines-16       	 6509306	       204.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_10000Bytes_2Goroutines-16        	 2249860	       557.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_10000Bytes_4Goroutines-16        	 2256259	       511.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_10000Bytes_8Goroutines-16        	 2539240	       474.0 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_10000Bytes_16Goroutines-16       	 2873290	       498.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_10000Bytes_32Goroutines-16       	 2558970	       495.0 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_10000Bytes_64Goroutines-16       	 2613232	       506.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_10000Bytes_128Goroutines-16      	 2499842	       470.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_16384Bytes_2Goroutines-16        	 1492027	       868.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_16384Bytes_4Goroutines-16        	 1414190	       887.3 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_16384Bytes_8Goroutines-16        	 1660220	       771.0 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_16384Bytes_16Goroutines-16       	 1705810	       729.3 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_16384Bytes_32Goroutines-16       	 1535983	       893.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_16384Bytes_64Goroutines-16       	 1623381	       716.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_16384Bytes_128Goroutines-16      	 1646668	       692.0 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_65536Bytes_2Goroutines-16        	  459470	      2692 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_65536Bytes_4Goroutines-16        	  477390	      2722 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_65536Bytes_8Goroutines-16        	  509078	      2520 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_65536Bytes_16Goroutines-16       	  483771	      2710 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_65536Bytes_32Goroutines-16       	  498073	      2879 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_65536Bytes_64Goroutines-16       	  479391	      2888 ns/op	       1 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_65536Bytes_128Goroutines-16      	  502183	      2824 ns/op	       1 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_1048576Bytes_2Goroutines-16      	   29029	     43505 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_1048576Bytes_4Goroutines-16      	   29434	     42218 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_1048576Bytes_8Goroutines-16      	   28771	     40847 ns/op	       2 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_1048576Bytes_16Goroutines-16     	   28894	     40501 ns/op	       4 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_1048576Bytes_32Goroutines-16     	   32516	     39658 ns/op	       3 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_1048576Bytes_64Goroutines-16     	   30337	     40232 ns/op	      14 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentLargeSizes/Concurrent_Read_Large_1048576Bytes_128Goroutines-16    	   31057	     39979 ns/op	      15 B/op	       0 allocs/op
-BenchmarkDRBG_ReadVariableSizes/Serial_Read_Variable_8Bytes-16                                	40272176	        29.22 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadVariableSizes/Serial_Read_Variable_16Bytes-16                               	65559736	        18.44 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadVariableSizes/Serial_Read_Variable_21Bytes-16                               	35809492	        33.69 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadVariableSizes/Serial_Read_Variable_24Bytes-16                               	35501340	        33.12 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadVariableSizes/Serial_Read_Variable_32Bytes-16                               	51358869	        23.32 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadVariableSizes/Serial_Read_Variable_48Bytes-16                               	42948087	        27.86 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadVariableSizes/Serial_Read_Variable_64Bytes-16                               	36682944	        32.46 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadVariableSizes/Serial_Read_Variable_128Bytes-16                              	22665475	        52.60 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadVariableSizes/Serial_Read_Variable_256Bytes-16                              	12645388	        97.12 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadVariableSizes/Serial_Read_Variable_512Bytes-16                              	 6916808	       173.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadVariableSizes/Serial_Read_Variable_1024Bytes-16                             	 3620143	       332.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadVariableSizes/Serial_Read_Variable_2048Bytes-16                             	 1845120	       648.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadVariableSizes/Serial_Read_Variable_4096Bytes-16                             	  936307	      1291 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_8Bytes_2Goroutines-16      	20338738	        82.19 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_8Bytes_4Goroutines-16      	21369930	        78.94 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_8Bytes_8Goroutines-16      	20435473	        79.23 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_8Bytes_16Goroutines-16     	20460459	        78.37 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_8Bytes_32Goroutines-16     	20304883	        78.62 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_8Bytes_64Goroutines-16     	21448855	        74.44 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_8Bytes_128Goroutines-16    	21768312	        78.61 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_16Bytes_2Goroutines-16     	25935174	        75.68 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_16Bytes_4Goroutines-16     	23076331	        74.60 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_16Bytes_8Goroutines-16     	23677356	        70.63 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_16Bytes_16Goroutines-16    	24741459	        68.71 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_16Bytes_32Goroutines-16    	27184737	        62.53 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_16Bytes_64Goroutines-16    	28358011	        63.99 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_16Bytes_128Goroutines-16   	27622189	        63.87 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_21Bytes_2Goroutines-16     	16098954	       100.4 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_21Bytes_4Goroutines-16     	16030456	        98.94 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_21Bytes_8Goroutines-16     	12072583	       185.8 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_21Bytes_16Goroutines-16    	16511914	        96.88 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_21Bytes_32Goroutines-16    	16747729	       183.2 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_21Bytes_64Goroutines-16    	16346972	        95.14 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_21Bytes_128Goroutines-16   	16267012	        98.29 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_24Bytes_2Goroutines-16     	15657304	       190.3 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_24Bytes_4Goroutines-16     	15460786	        99.60 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_24Bytes_8Goroutines-16     	15668736	       187.6 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_24Bytes_16Goroutines-16    	15204483	        97.79 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_24Bytes_32Goroutines-16    	15880639	        95.20 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_24Bytes_64Goroutines-16    	16000852	       170.4 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_24Bytes_128Goroutines-16   	16305999	        91.99 ns/op	      16 B/op	       1 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_32Bytes_2Goroutines-16     	22960354	        78.92 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_32Bytes_4Goroutines-16     	23220020	        76.69 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_32Bytes_8Goroutines-16     	22819490	        75.81 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_32Bytes_16Goroutines-16    	26700981	        65.82 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_32Bytes_32Goroutines-16    	26463655	        64.15 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_32Bytes_64Goroutines-16    	27179196	        66.66 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_32Bytes_128Goroutines-16   	27110244	        62.94 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_48Bytes_2Goroutines-16     	21672531	        81.17 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_48Bytes_4Goroutines-16     	22630531	        73.97 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_48Bytes_8Goroutines-16     	24540880	        72.76 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_48Bytes_16Goroutines-16    	22656826	        71.90 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_48Bytes_32Goroutines-16    	26505790	        68.72 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_48Bytes_64Goroutines-16    	26689104	        65.79 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_48Bytes_128Goroutines-16   	27369868	        63.89 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_64Bytes_2Goroutines-16     	22562204	        79.54 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_64Bytes_4Goroutines-16     	24310504	        73.86 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_64Bytes_8Goroutines-16     	23567419	        71.38 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_64Bytes_16Goroutines-16    	25485416	        68.81 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_64Bytes_32Goroutines-16    	26559909	        68.60 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_64Bytes_64Goroutines-16    	26792042	        62.38 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_64Bytes_128Goroutines-16   	27030907	        65.40 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_128Bytes_2Goroutines-16    	11948868	       151.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_128Bytes_4Goroutines-16    	11782282	       148.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_128Bytes_8Goroutines-16    	11398888	       148.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_128Bytes_16Goroutines-16   	11631193	       146.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_128Bytes_32Goroutines-16   	12177382	       145.4 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_128Bytes_64Goroutines-16   	12876951	       142.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_128Bytes_128Goroutines-16  	12929379	       141.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_256Bytes_2Goroutines-16    	10390746	       144.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_256Bytes_4Goroutines-16    	11094285	       140.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_256Bytes_8Goroutines-16    	12036021	       137.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_256Bytes_16Goroutines-16   	12056655	       136.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_256Bytes_32Goroutines-16   	12299145	       118.4 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_256Bytes_64Goroutines-16   	12289383	       134.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_256Bytes_128Goroutines-16  	12372164	       134.4 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_512Bytes_2Goroutines-16    	11239603	       152.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_512Bytes_4Goroutines-16    	10941400	       150.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_512Bytes_8Goroutines-16    	11149155	       132.3 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_512Bytes_16Goroutines-16   	11680039	       157.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_512Bytes_32Goroutines-16   	11701561	       139.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_512Bytes_64Goroutines-16   	11836663	       140.0 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_512Bytes_128Goroutines-16  	11662245	       157.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_1024Bytes_2Goroutines-16   	11722641	       149.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_1024Bytes_4Goroutines-16   	11204637	       146.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_1024Bytes_8Goroutines-16   	11648162	       151.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_1024Bytes_16Goroutines-16  	10546617	       151.8 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_1024Bytes_32Goroutines-16  	10446212	       155.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_1024Bytes_64Goroutines-16  	11780808	       153.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_1024Bytes_128Goroutines-16 	12127719	       152.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_2048Bytes_2Goroutines-16   	11497666	       139.3 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_2048Bytes_4Goroutines-16   	11602941	       107.3 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_2048Bytes_8Goroutines-16   	12177105	       128.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_2048Bytes_16Goroutines-16  	11557608	       122.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_2048Bytes_32Goroutines-16  	12385678	       120.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_2048Bytes_64Goroutines-16  	11743467	       124.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_2048Bytes_128Goroutines-16 	11852905	       115.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_4096Bytes_2Goroutines-16   	 6338384	       189.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_4096Bytes_4Goroutines-16   	 5815082	       178.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_4096Bytes_8Goroutines-16   	 6920331	       179.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_4096Bytes_16Goroutines-16  	 6441996	       196.0 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_4096Bytes_32Goroutines-16  	 7082898	       181.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_4096Bytes_64Goroutines-16  	 7199071	       223.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadConcurrentVariableSizes/Concurrent_Read_Variable_4096Bytes_128Goroutines-16 	 7184109	       214.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Serial_Read_Extreme_10485760Bytes-16                           	     324	   3642148 ns/op	      14 B/op	       0 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_10485760Bytes_2Goroutines-16           	    3103	    375278 ns/op	      14 B/op	       0 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_10485760Bytes_4Goroutines-16           	    3159	    373398 ns/op	      16 B/op	       0 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_10485760Bytes_8Goroutines-16           	    2980	    366157 ns/op	      34 B/op	       0 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_10485760Bytes_16Goroutines-16          	    2726	    373430 ns/op	      43 B/op	       0 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_10485760Bytes_32Goroutines-16          	    3158	    372897 ns/op	      55 B/op	       0 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_10485760Bytes_64Goroutines-16          	    2869	    380115 ns/op	     147 B/op	       1 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_10485760Bytes_128Goroutines-16         	    2949	    368705 ns/op	     187 B/op	       1 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Serial_Read_Extreme_52428800Bytes-16                           	      56	  18037516 ns/op	      73 B/op	       0 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_52428800Bytes_2Goroutines-16           	     568	   1860397 ns/op	      64 B/op	       0 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_52428800Bytes_4Goroutines-16           	     561	   1895792 ns/op	      95 B/op	       0 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_52428800Bytes_8Goroutines-16           	     542	   1885216 ns/op	     186 B/op	       1 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_52428800Bytes_16Goroutines-16          	     531	   1899703 ns/op	     206 B/op	       1 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_52428800Bytes_32Goroutines-16          	     571	   1856677 ns/op	     376 B/op	       3 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_52428800Bytes_64Goroutines-16          	     588	   1880466 ns/op	     578 B/op	       5 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_52428800Bytes_128Goroutines-16         	     576	   1884183 ns/op	     730 B/op	       9 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Serial_Read_Extreme_104857600Bytes-16                          	      31	  35947733 ns/op	     133 B/op	       0 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_2Goroutines-16          	     326	   3780643 ns/op	     116 B/op	       0 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_4Goroutines-16          	     292	   3726583 ns/op	     182 B/op	       1 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_8Goroutines-16          	     286	   3618397 ns/op	     339 B/op	       2 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_16Goroutines-16         	     304	   3571114 ns/op	     409 B/op	       3 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_32Goroutines-16         	     320	   3582016 ns/op	     595 B/op	       5 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_64Goroutines-16         	     312	   3610114 ns/op	     971 B/op	       9 allocs/op
-BenchmarkDRBG_ReadExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_128Goroutines-16        	     313	   3619726 ns/op	    1232 B/op	      16 allocs/op
+BenchmarkDRBG_SyncPool_Baseline_Concurrent/G2-16  	1000000000	         0.6145 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDRBG_SyncPool_Baseline_Concurrent/G4-16  	1000000000	         0.6139 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDRBG_SyncPool_Baseline_Concurrent/G8-16  	1000000000	         0.5979 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDRBG_SyncPool_Baseline_Concurrent/G16-16 	1000000000	         0.5801 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDRBG_SyncPool_Baseline_Concurrent/G32-16 	1000000000	         0.5580 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDRBG_SyncPool_Baseline_Concurrent/G64-16 	1000000000	         0.5529 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDRBG_SyncPool_Baseline_Concurrent/G128-16         	1000000000	         0.5536 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDRBG_Read_Serial/Serial_Read_16Bytes-16           	35978232	        32.05 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Serial/Serial_Read_32Bytes-16           	32421807	        36.94 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Serial/Serial_Read_64Bytes-16           	25152178	        47.63 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Serial/Serial_Read_256Bytes-16          	10319107	       116.6 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Serial/Serial_Read_512Bytes-16          	 5849815	       204.6 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Serial/Serial_Read_4096Bytes-16         	  818616	      1469 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Serial/Serial_Read_16384Bytes-16        	  210074	      5657 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_16Bytes_2Goroutines-16         	19930326	        60.06 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_16Bytes_4Goroutines-16         	20700004	        69.24 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_16Bytes_8Goroutines-16         	20524894	        72.93 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_16Bytes_16Goroutines-16        	19770985	        77.23 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_16Bytes_32Goroutines-16        	20264736	        76.93 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_16Bytes_64Goroutines-16        	20141832	        78.78 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_16Bytes_128Goroutines-16       	19272348	        78.76 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_32Bytes_2Goroutines-16         	19453017	        75.79 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_32Bytes_4Goroutines-16         	19573448	        75.58 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_32Bytes_8Goroutines-16         	19479385	        79.94 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_32Bytes_16Goroutines-16        	19759102	        81.23 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_32Bytes_32Goroutines-16        	19332841	        80.46 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_32Bytes_64Goroutines-16        	20000319	        82.66 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_32Bytes_128Goroutines-16       	19738478	        77.21 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_64Bytes_2Goroutines-16         	19972384	        63.20 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_64Bytes_4Goroutines-16         	19738965	        71.55 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_64Bytes_8Goroutines-16         	19914256	        75.55 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_64Bytes_16Goroutines-16        	19793854	        82.11 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_64Bytes_32Goroutines-16        	19620238	        79.38 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_64Bytes_64Goroutines-16        	19988215	        82.49 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_64Bytes_128Goroutines-16       	19596702	        80.33 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_256Bytes_2Goroutines-16        	11146946	       142.6 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_256Bytes_4Goroutines-16        	11029047	       149.3 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_256Bytes_8Goroutines-16        	11073008	       148.6 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_256Bytes_16Goroutines-16       	11125928	       149.0 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_256Bytes_32Goroutines-16       	11119866	       148.8 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_256Bytes_64Goroutines-16       	11108440	       148.8 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_256Bytes_128Goroutines-16      	11207768	       150.8 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_512Bytes_2Goroutines-16        	11245017	       148.1 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_512Bytes_4Goroutines-16        	11143082	       151.9 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_512Bytes_8Goroutines-16        	11175612	       142.3 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_512Bytes_16Goroutines-16       	11041831	       150.1 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_512Bytes_32Goroutines-16       	11197646	       147.4 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_512Bytes_64Goroutines-16       	10933528	       148.6 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_512Bytes_128Goroutines-16      	10971085	       149.7 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_4096Bytes_2Goroutines-16       	 7863334	       217.8 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_4096Bytes_4Goroutines-16       	 7918147	       212.4 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_4096Bytes_8Goroutines-16       	 7838018	       218.2 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_4096Bytes_16Goroutines-16      	 7789429	       215.2 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_4096Bytes_32Goroutines-16      	 7673707	       216.7 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_4096Bytes_64Goroutines-16      	 7541233	       212.3 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_4096Bytes_128Goroutines-16     	 7396773	       216.8 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_16384Bytes_2Goroutines-16      	 1558494	       839.1 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_16384Bytes_4Goroutines-16      	 1654434	       773.7 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_16384Bytes_8Goroutines-16      	 1497637	       845.4 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_16384Bytes_16Goroutines-16     	 1555300	       849.7 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_16384Bytes_32Goroutines-16     	 1550515	       854.0 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_16384Bytes_64Goroutines-16     	 1567885	       852.4 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_Concurrent/Concurrent_Read_16384Bytes_128Goroutines-16    	 1763186	       852.7 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Sequential/Serial_Read_Large_4096Bytes-16      	  749710	      1471 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Sequential/Serial_Read_Large_16384Bytes-16     	  209536	      5668 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Sequential/Serial_Read_Large_65536Bytes-16     	   52368	     22670 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Sequential/Serial_Read_Large_1048576Bytes-16   	    3211	    371099 ns/op	      31 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_4096Bytes_2Goroutines-16         	 7764166	       212.6 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_4096Bytes_4Goroutines-16         	 7356000	       213.9 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_4096Bytes_8Goroutines-16         	 7275108	       222.1 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_4096Bytes_16Goroutines-16        	 7252506	       218.5 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_4096Bytes_32Goroutines-16        	 7222454	       215.2 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_4096Bytes_64Goroutines-16        	 7152732	       218.2 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_4096Bytes_128Goroutines-16       	 7141456	       218.1 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_16384Bytes_2Goroutines-16        	 1531964	       854.0 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_16384Bytes_4Goroutines-16        	 1552718	       858.3 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_16384Bytes_8Goroutines-16        	 1506757	       858.0 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_16384Bytes_16Goroutines-16       	 1512374	       857.3 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_16384Bytes_32Goroutines-16       	 1511331	       820.3 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_16384Bytes_64Goroutines-16       	 1612539	       849.2 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_16384Bytes_128Goroutines-16      	 1528228	       850.0 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_65536Bytes_2Goroutines-16        	  500517	      2869 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_65536Bytes_4Goroutines-16        	  512047	      2874 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_65536Bytes_8Goroutines-16        	  509761	      2870 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_65536Bytes_16Goroutines-16       	  505234	      2870 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_65536Bytes_32Goroutines-16       	  502057	      2868 ns/op	      17 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_65536Bytes_64Goroutines-16       	  512407	      2872 ns/op	      17 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_65536Bytes_128Goroutines-16      	  511006	      2862 ns/op	      18 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_1048576Bytes_2Goroutines-16      	   30416	     40926 ns/op	      19 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_1048576Bytes_4Goroutines-16      	   29584	     41068 ns/op	      19 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_1048576Bytes_8Goroutines-16      	   30120	     40628 ns/op	      21 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_1048576Bytes_16Goroutines-16     	   30799	     40167 ns/op	      20 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_1048576Bytes_32Goroutines-16     	   30522	     40132 ns/op	      26 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_1048576Bytes_64Goroutines-16     	   30514	     40283 ns/op	      32 B/op	       1 allocs/op
+BenchmarkDRBG_Read_LargeSizes_Concurrent/Concurrent_Read_Large_1048576Bytes_128Goroutines-16    	   30471	     40819 ns/op	      34 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes/Serial_Read_Variable_16Bytes-16                                	36082304	        32.17 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes/Serial_Read_Variable_32Bytes-16                                	32125682	        37.40 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes/Serial_Read_Variable_64Bytes-16                                	24775365	        48.45 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes/Serial_Read_Variable_128Bytes-16                               	17034656	        70.31 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes/Serial_Read_Variable_256Bytes-16                               	10265596	       117.5 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes/Serial_Read_Variable_512Bytes-16                               	 5841603	       207.6 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes/Serial_Read_Variable_1024Bytes-16                              	 3145809	       389.3 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes/Serial_Read_Variable_2048Bytes-16                              	 1635278	       734.1 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes/Serial_Read_Variable_4096Bytes-16                              	  824144	      1439 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_16Bytes_2Goroutines-16     	19780939	        71.41 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_16Bytes_4Goroutines-16     	20381500	        67.59 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_16Bytes_8Goroutines-16     	20477874	        75.09 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_16Bytes_16Goroutines-16    	20288347	        75.80 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_16Bytes_32Goroutines-16    	20593477	        77.60 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_16Bytes_64Goroutines-16    	20457668	        75.27 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_16Bytes_128Goroutines-16   	20431212	        79.42 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_32Bytes_2Goroutines-16     	19519957	        65.37 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_32Bytes_4Goroutines-16     	19662943	        78.61 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_32Bytes_8Goroutines-16     	20034865	        81.71 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_32Bytes_16Goroutines-16    	19871482	        80.56 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_32Bytes_32Goroutines-16    	19597688	        80.79 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_32Bytes_64Goroutines-16    	19745366	        77.70 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_32Bytes_128Goroutines-16   	19542010	        83.02 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_64Bytes_2Goroutines-16     	19661346	        68.48 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_64Bytes_4Goroutines-16     	19675839	        68.37 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_64Bytes_8Goroutines-16     	19936645	        82.51 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_64Bytes_16Goroutines-16    	19774161	        82.56 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_64Bytes_32Goroutines-16    	19321026	        79.97 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_64Bytes_64Goroutines-16    	19652545	        81.72 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_64Bytes_128Goroutines-16   	19722231	        82.27 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_128Bytes_2Goroutines-16    	11073192	       150.7 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_128Bytes_4Goroutines-16    	11234876	       149.1 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_128Bytes_8Goroutines-16    	11159658	       152.5 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_128Bytes_16Goroutines-16   	11113580	       147.7 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_128Bytes_32Goroutines-16   	11135155	       137.3 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_128Bytes_64Goroutines-16   	11183436	       142.3 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_128Bytes_128Goroutines-16  	11162668	       152.7 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_256Bytes_2Goroutines-16    	11070301	       155.6 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_256Bytes_4Goroutines-16    	11087118	       141.5 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_256Bytes_8Goroutines-16    	11032106	       151.9 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_256Bytes_16Goroutines-16   	11073544	       149.5 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_256Bytes_32Goroutines-16   	11151897	       147.9 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_256Bytes_64Goroutines-16   	11212866	       149.5 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_256Bytes_128Goroutines-16  	11343543	       130.3 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_512Bytes_2Goroutines-16    	11545977	       148.8 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_512Bytes_4Goroutines-16    	11439361	       147.2 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_512Bytes_8Goroutines-16    	11266935	       142.0 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_512Bytes_16Goroutines-16   	11478356	       144.3 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_512Bytes_32Goroutines-16   	11434555	       151.0 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_512Bytes_64Goroutines-16   	11345871	       150.2 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_512Bytes_128Goroutines-16  	11290964	       148.2 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_1024Bytes_2Goroutines-16   	12070354	       121.5 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_1024Bytes_4Goroutines-16   	12104995	       146.1 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_1024Bytes_8Goroutines-16   	12161227	       137.8 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_1024Bytes_16Goroutines-16  	12072469	       141.2 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_1024Bytes_32Goroutines-16  	12044836	       141.1 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_1024Bytes_64Goroutines-16  	12096656	       139.3 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_1024Bytes_128Goroutines-16 	12044241	       142.0 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_2048Bytes_2Goroutines-16   	11881642	       125.3 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_2048Bytes_4Goroutines-16   	11984848	       128.3 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_2048Bytes_8Goroutines-16   	11853602	       128.7 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_2048Bytes_16Goroutines-16  	11718697	       130.4 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_2048Bytes_32Goroutines-16  	11718024	       127.8 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_2048Bytes_64Goroutines-16  	11453346	       129.7 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_2048Bytes_128Goroutines-16 	11259843	       131.1 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_4096Bytes_2Goroutines-16   	 7103044	       226.6 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_4096Bytes_4Goroutines-16   	 7005378	       207.7 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_4096Bytes_8Goroutines-16   	 6989464	       218.4 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_4096Bytes_16Goroutines-16  	 7004456	       211.4 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_4096Bytes_32Goroutines-16  	 6948662	       219.7 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_4096Bytes_64Goroutines-16  	 6894457	       221.5 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_VariableSizes_Concurrent/Concurrent_Read_Variable_4096Bytes_128Goroutines-16 	 6860554	       218.2 ns/op	      16 B/op	       1 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Serial_Read_Extreme_10485760Bytes-16                            	     300	   3863741 ns/op	     177 B/op	       1 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_10485760Bytes_2Goroutines-16            	    3008	    377219 ns/op	     109 B/op	       1 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_10485760Bytes_4Goroutines-16            	    3184	    383339 ns/op	     110 B/op	       1 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_10485760Bytes_8Goroutines-16            	    3146	    380488 ns/op	     123 B/op	       1 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_10485760Bytes_16Goroutines-16           	    3118	    382533 ns/op	     126 B/op	       1 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_10485760Bytes_32Goroutines-16           	    3108	    385038 ns/op	     153 B/op	       2 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_10485760Bytes_64Goroutines-16           	    3084	    390198 ns/op	     261 B/op	       2 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_10485760Bytes_128Goroutines-16          	    3098	    383550 ns/op	     261 B/op	       3 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Serial_Read_Extreme_52428800Bytes-16                            	      58	  19113881 ns/op	     850 B/op	       2 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_52428800Bytes_2Goroutines-16            	     501	   2336128 ns/op	     391 B/op	       3 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_52428800Bytes_4Goroutines-16            	     525	   2286823 ns/op	     438 B/op	       3 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_52428800Bytes_8Goroutines-16            	     514	   2300128 ns/op	     478 B/op	       3 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_52428800Bytes_16Goroutines-16           	     531	   2232886 ns/op	     531 B/op	       4 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_52428800Bytes_32Goroutines-16           	     507	   2093149 ns/op	     643 B/op	       5 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_52428800Bytes_64Goroutines-16           	     543	   2037698 ns/op	     859 B/op	       8 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_52428800Bytes_128Goroutines-16          	     592	   1958397 ns/op	    1037 B/op	      12 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Serial_Read_Extreme_104857600Bytes-16                           	      28	  37986455 ns/op	    1528 B/op	       3 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_2Goroutines-16           	     236	   4963334 ns/op	     656 B/op	       4 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_4Goroutines-16           	     212	   4827528 ns/op	     784 B/op	       5 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_8Goroutines-16           	     214	   4748568 ns/op	     870 B/op	       6 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_16Goroutines-16          	     280	   4192354 ns/op	     859 B/op	       6 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_32Goroutines-16          	     264	   4003759 ns/op	    1062 B/op	       9 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_64Goroutines-16          	     292	   4063700 ns/op	    1177 B/op	      12 allocs/op
+BenchmarkDRBG_Read_ExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_128Goroutines-16         	     298	   4044003 ns/op	    1445 B/op	      19 allocs/op
 PASS
-ok  	github.com/sixafter/nanoid/x/crypto/ctrdrbg	424.104s
+ok  	github.com/sixafter/nanoid/x/crypto/ctrdrbg	318.239s
 ```
 
 </details>
@@ -418,47 +367,50 @@ ok  	github.com/sixafter/nanoid/x/crypto/ctrdrbg	424.104s
 Here's a summary of the benchmark results comparing the default random reader for Google's [UUID](https://pkg.go.dev/github.com/google/uuid) package and the ctrdrbg-based UUID generation:
 
 | Benchmark Scenario                         | Default ns/op | CTRDRBG ns/op | % Faster (ns/op) | Default B/op | CTRDRBG B/op | Default allocs/op | CTRDRBG allocs/op |
-|--------------------------------------------|--------------:|--------------:|-----------------:|-------------:|-------------:|------------------:|------------------:|
-| v4 Serial                                 |     176.0     |     31.84     |     81.9%        |      16      |     16       |      1            |      1            |
-| v4 Parallel                               |     460.7     |      7.85     |     98.3%        |      16      |     16       |      1            |      1            |
-| v4 Concurrent (4 goroutines)              |     471.1     |     10.25     |     97.8%        |      16      |     16       |      1            |      1            |
-| v4 Concurrent (8 goroutines)              |     480.0     |      7.63     |     98.4%        |      16      |     16       |      1            |      1            |
-| v4 Concurrent (16 goroutines)             |     448.3     |      5.86     |     98.7%        |      16      |     16       |      1            |      1            |
-| v4 Concurrent (32 goroutines)             |     509.5     |      5.89     |     98.8%        |      16      |     16       |      1            |      1            |
-| v4 Concurrent (64 goroutines)             |     509.3     |      5.92     |     98.8%        |      16      |     16       |      1            |      1            |
-| v4 Concurrent (128 goroutines)            |     515.5     |      5.86     |     98.9%        |      16      |     16       |      1            |      1            |
-| v4 Concurrent (256 goroutines)            |     513.8     |      5.96     |     98.8%        |      16      |     16       |      1            |      1            |
+|--------------------------------------------|---------------:|---------------:|------------------:|--------------:|--------------:|-------------------:|-------------------:|
+| v4 Serial                                   |         178.4  |         45.90 |           74.3%   |          16   |          32   |                 1  |                 2  |
+| v4 Parallel                                 |         462.2  |         12.49 |           97.3%   |          16   |          32   |                 1  |                 2  |
+| v4 Concurrent (2 goroutines)                |         413.4  |         26.07 |           93.7%   |          16   |          32   |                 1  |                 2  |
+| v4 Concurrent (4 goroutines)                |         427.0  |         16.45 |           96.1%   |          16   |          32   |                 1  |                 2  |
+| v4 Concurrent (8 goroutines)                |         480.9  |         12.87 |           97.3%   |          16   |          32   |                 1  |                 2  |
+| v4 Concurrent (16 goroutines)               |         455.6  |         10.39 |           97.7%   |          16   |          32   |                 1  |                 2  |
+| v4 Concurrent (32 goroutines)               |         514.6  |         10.38 |           98.0%   |          16   |          32   |                 1  |                 2  |
+| v4 Concurrent (64 goroutines)               |         526.1  |         10.39 |           98.0%   |          16   |          32   |                 1  |                 2  |
+| v4 Concurrent (128 goroutines)              |         513.7  |         10.59 |           97.9%   |          16   |          32   |                 1  |                 2  |
+| v4 Concurrent (256 goroutines)              |         516.5  |         10.71 |           97.9%   |          16   |          32   |                 1  |                 2  |
 
 <details>
   <summary>Expand to see results</summary>
 
   ```shell
- make bench-ctrdrbg-uuid
-go test -bench='^BenchmarkUUID_' -benchmem -memprofile=x/crypto/ctrdrbg/mem.out -cpuprofile=x/crypto/ctrdrbg/cpu.out ./x/crypto/ctrdrbg
+make bench-ctrdrbg-uuid
+go test -bench='^BenchmarkUUID_' -run=^$ -benchmem -memprofile=x/crypto/ctrdrbg/mem.out -cpuprofile=x/crypto/ctrdrbg/cpu.out ./x/crypto/ctrdrbg
 goos: darwin
 goarch: arm64
 pkg: github.com/sixafter/nanoid/x/crypto/ctrdrbg
 cpu: Apple M4 Max
-BenchmarkUUID_v4_Default_Serial-16        	 6100108	       176.0 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_Default_Parallel-16      	 2648044	       460.7 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_Default_Concurrent/Goroutines_4-16         	 2529234	       471.1 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_Default_Concurrent/Goroutines_8-16         	 2481907	       480.0 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_Default_Concurrent/Goroutines_16-16        	 2672932	       448.3 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_Default_Concurrent/Goroutines_32-16        	 2332858	       509.5 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_Default_Concurrent/Goroutines_64-16        	 2362628	       509.3 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_Default_Concurrent/Goroutines_128-16       	 2354358	       515.5 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_Default_Concurrent/Goroutines_256-16       	 2295604	       513.8 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_CTRDRBG_Serial-16                          	36376542	        31.84 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_CTRDRBG_Parallel-16                        	131925153	         7.848 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_CTRDRBG_Concurrent/Goroutines_4-16         	100000000	        10.25 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_CTRDRBG_Concurrent/Goroutines_8-16         	155344178	         7.628 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_CTRDRBG_Concurrent/Goroutines_16-16        	203604535	         5.862 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_CTRDRBG_Concurrent/Goroutines_32-16        	202456543	         5.892 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_CTRDRBG_Concurrent/Goroutines_64-16        	200709396	         5.921 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_CTRDRBG_Concurrent/Goroutines_128-16       	205246484	         5.864 ns/op	      16 B/op	       1 allocs/op
-BenchmarkUUID_v4_CTRDRBG_Concurrent/Goroutines_256-16       	200157261	         5.961 ns/op	      16 B/op	       1 allocs/op
+BenchmarkUUID_v4_Default_Serial-16        	 6459616	       178.4 ns/op	      16 B/op	       1 allocs/op
+BenchmarkUUID_v4_Default_Parallel-16      	 2645497	       462.2 ns/op	      16 B/op	       1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_2-16         	 2896381	       413.4 ns/op	      16 B/op	       1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_4-16         	 2863237	       427.0 ns/op	      16 B/op	       1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_8-16         	 2484550	       480.9 ns/op	      16 B/op	       1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_16-16        	 2611302	       455.6 ns/op	      16 B/op	       1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_32-16        	 2309664	       514.6 ns/op	      16 B/op	       1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_64-16        	 2321017	       526.1 ns/op	      16 B/op	       1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_128-16       	 2334637	       513.7 ns/op	      16 B/op	       1 allocs/op
+BenchmarkUUID_v4_Default_Concurrent/Goroutines_256-16       	 2308024	       516.5 ns/op	      16 B/op	       1 allocs/op
+BenchmarkUUID_v4_CTRDRBG_Serial-16                          	25304576	        45.90 ns/op	      32 B/op	       2 allocs/op
+BenchmarkUUID_v4_CTRDRBG_Parallel-16                        	106977922	        12.49 ns/op	      32 B/op	       2 allocs/op
+BenchmarkUUID_v4_CTRDRBG_Concurrent/Goroutines_2-16         	45092438	        26.07 ns/op	      32 B/op	       2 allocs/op
+BenchmarkUUID_v4_CTRDRBG_Concurrent/Goroutines_4-16         	74931704	        16.45 ns/op	      32 B/op	       2 allocs/op
+BenchmarkUUID_v4_CTRDRBG_Concurrent/Goroutines_8-16         	95511933	        12.87 ns/op	      32 B/op	       2 allocs/op
+BenchmarkUUID_v4_CTRDRBG_Concurrent/Goroutines_16-16        	100000000	        10.39 ns/op	      32 B/op	       2 allocs/op
+BenchmarkUUID_v4_CTRDRBG_Concurrent/Goroutines_32-16        	100000000	        10.38 ns/op	      32 B/op	       2 allocs/op
+BenchmarkUUID_v4_CTRDRBG_Concurrent/Goroutines_64-16        	100000000	        10.39 ns/op	      32 B/op	       2 allocs/op
+BenchmarkUUID_v4_CTRDRBG_Concurrent/Goroutines_128-16       	100000000	        10.59 ns/op	      32 B/op	       2 allocs/op
+BenchmarkUUID_v4_CTRDRBG_Concurrent/Goroutines_256-16       	100000000	        10.71 ns/op	      32 B/op	       2 allocs/op
 PASS
-ok  	github.com/sixafter/nanoid/x/crypto/ctrdrbg	30.286s
+ok  	github.com/sixafter/nanoid/x/crypto/ctrdrbg	29.324s
   ```
 </details>
 

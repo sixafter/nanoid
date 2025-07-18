@@ -19,6 +19,7 @@ optimized performance.
     * See the benchmark results [here](#uuid-generation).
 * **Efficient Resource Management:** Uses a `sync.Pool` to manage PRNG instances, reducing the overhead on `crypto/rand.Reader`. 
 * **Extensible API:** Allows users to create and manage custom PRNG instances via `NewReader`.
+- **UUID Generation Source:** Can be used as the `io.Reader` source for UUID generation with the [`google/uuid`](https://pkg.go.dev/github.com/google/uuid) package and similar libraries, providing cryptographically secure, deterministic UUIDs using AES-CTR-DRBG.
 
 ---
 
@@ -90,13 +91,7 @@ func main() {
 
 ### Raw Random Byte Generation
 
-Performance Benchmarks for various read sizes using the `prng.Reader`.
-
-* Throughput: ~3.77 `ns/op`
-* Memory Usage: 0 `B/op`
-* Allocations: 0 `allocs/op`
-
-These benchmarks demonstrate the package's focus on minimizing latency, memory usage, and allocation overhead, making it suitable for high-performance applications.
+These `prng.Reader` benchmarks demonstrate the package's focus on minimizing latency, memory usage, and allocation overhead, making it suitable for high-performance applications.
 
 <details>
   <summary>Expand to see results</summary>
