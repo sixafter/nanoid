@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	mrand "math/rand/v2"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -36,6 +37,23 @@ import (
 //	}
 //	fmt.Printf("Read %d bytes of random data: %x\n", n, buffer)
 var Reader io.Reader
+
+// Interface defines the contract for a ChaCha20-based cryptographically secure PRNG source.
+//
+// Implementations satisfy io.Reader and provide access to the non-secret, immutable
+// configuration in effect for the PRNG pool or instance.
+//
+// All methods are safe for concurrent use unless otherwise noted.
+//
+// The Config() method returns a copy of the PRNG configuration, allowing callers to
+// inspect operational settings without risk of secret or mutable state exposure.
+type Interface interface {
+	io.Reader
+
+	// Config returns a copy of the PRNG configuration for this source.
+	// The returned Config omits any secrets or internal runtime state.
+	Config() Config
+}
 
 // init sets up the package‐level Reader by creating a new pooled PRNG instance.
 // It is invoked automatically at program startup (package initialization).
@@ -85,7 +103,8 @@ func init() {
 // minimizes allocations and contention on crypto/rand while ensuring
 // each goroutine can obtain a fresh or recycled PRNG instance quickly.
 type reader struct {
-	pools []*sync.Pool
+	config *Config
+	pools  []*sync.Pool
 }
 
 // NewReader constructs and returns an io.Reader that produces cryptographically secure
@@ -112,11 +131,18 @@ type reader struct {
 //	    // handle error
 //	}
 //	fmt.Printf("Read %d bytes: %x\n", n, buf)
-func NewReader(opts ...Option) (io.Reader, error) {
+func NewReader(opts ...Option) (Interface, error) {
 	// Step 1: Start with a default configuration and apply each functional option to allow caller customization.
 	cfg := DefaultConfig()
 	for _, opt := range opts {
 		opt(&cfg)
+	}
+
+	// If n <= 0, the number of shards defaults to runtime.GOMAXPROCS(0),
+	// which is useful in containerized environments.
+	// See: https://github.com/golang/go/issues/73193
+	if cfg.Shards <= 0 {
+		cfg.Shards = runtime.GOMAXPROCS(0)
 	}
 
 	// Step 2: Construct a sync.Pool for managing reusable prng instances.
@@ -163,7 +189,19 @@ func NewReader(opts ...Option) (io.Reader, error) {
 	}
 
 	// Step 5: Return a new reader that wraps the initialized pool. This is safe for concurrent use.
-	return &reader{pools: pools}, nil
+	return &reader{
+		pools:  pools,
+		config: &cfg,
+	}, nil
+}
+
+// Config returns a copy of the PRNG's configuration settings.
+//
+// The returned configuration describes the PRNG’s static parameters as set during initialization.
+// No secret values, seeds, or internal state are included. The returned Config is a safe copy
+// for inspection, logging, or diagnostics, and cannot be used to alter the PRNG’s behavior.
+func (r *reader) Config() Config {
+	return *r.config
 }
 
 // shardIndex selects a pseudo-random shard index in the range [0, n) using

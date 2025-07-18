@@ -15,6 +15,24 @@ Date format: `YYYY-MM-DD`
 ### Deprecated
 ### Removed
 ### Fixed
+
+### 
+
+---
+## [1.41.0] - 2025-07-18
+
+### Added
+- **feature:** Added `Config()` method to both `prng` and `ctrdrbg` implementations to retrieve the current configuration of the generator.
+
+### Changed
+- **debt:** Updated documentation to reflect consistency across `prng` and `ctrdrbg` implementations.
+- **debt:** Updated documentation to clarify FIPS-140 usage and compliance.
+
+### Deprecated
+### Removed
+### Fixed
+- **defect**: Guarantee unique cryptographic stream per [`ctrdrbg.Reader`](../x/crypto/ctrdrbg) instance by persisting and synchronizing internal counter state across all `Read` operations.
+
 ### Security
 
 ---
@@ -824,7 +842,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.40.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.41.0...HEAD
+[1.41.0]: https://github.com/sixafter/nanoid/compare/v1.40.0...v1.41.0
 [1.40.0]: https://github.com/sixafter/nanoid/compare/v1.39.0...v1.40.0
 [1.39.0]: https://github.com/sixafter/nanoid/compare/v1.38.0...v1.39.0
 [1.38.0]: https://github.com/sixafter/nanoid/compare/v1.37.0...v1.38.0

@@ -402,3 +402,40 @@ func Test_PRNG_Read_Shards(t *testing.T) {
 		})
 	}
 }
+
+func Test_PRNG_Reader_Config(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	// Custom, non-default config to verify values round-trip
+	want := Config{
+		MaxBytesPerKey:    42,
+		MaxInitRetries:    7,
+		MaxRekeyAttempts:  8,
+		MaxRekeyBackoff:   5 * time.Second,
+		RekeyBackoff:      1 * time.Second,
+		EnableKeyRotation: true,
+		UseZeroBuffer:     true,
+		DefaultBufferSize: 128,
+		Shards:            4,
+	}
+
+	// Construct via functional options
+	r, err := NewReader(
+		WithMaxBytesPerKey(want.MaxBytesPerKey),
+		WithMaxInitRetries(want.MaxInitRetries),
+		WithMaxRekeyAttempts(want.MaxRekeyAttempts),
+		WithMaxRekeyBackoff(want.MaxRekeyBackoff),
+		WithRekeyBackoff(want.RekeyBackoff),
+		WithEnableKeyRotation(want.EnableKeyRotation),
+		WithZeroBuffer(want.UseZeroBuffer),
+		WithDefaultBufferSize(want.DefaultBufferSize),
+		WithShards(want.Shards),
+	)
+	is.NoError(err)
+
+	got := r.Config()
+
+	// All fields must match (deep comparison)
+	is.Equal(want, got, "Config() should return the config passed to NewReader")
+}
