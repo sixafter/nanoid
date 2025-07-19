@@ -57,7 +57,7 @@ Please see the [godoc](https://pkg.go.dev/github.com/sixafter/nanoid) for detail
   - The Nano ID generator satisfies the `io.Reader` interface, allowing it to be used interchangeably with any `io.Reader` implementations. 
   - Developers can utilize the Nano ID generator in contexts such as streaming data processing, pipelines, and other I/O-driven operations.
 - **FIPS‑140 Mode Compatible**: Designed to run in FIPS‑140 validated environments using only Go standard library crypto. 
-  - For FIPS‑140 compatible random number generation, use the [x/crypto/ctrdrbg](x/crypto/ctrdrbg) package.
+  - For FIPS‑140 compatible random number generation, use the [aes-ctr-drbg](https://github.com/sixafter/aes-ctr-drbg) module.
   - See [FIPS‑140.md](FIPS-140.md) for details and deployment guidance.
 
 Please see the [nanoid-cli](https://github.com/sixafter/nanoid-cli) for a command-line interface (CLI) that uses this module to generate Nano IDs.
@@ -69,9 +69,7 @@ Please see the [nanoid-cli](https://github.com/sixafter/nanoid-cli) for a comman
 [Cosign](https://github.com/sigstore/cosign) is used to sign releases for integrity verification.
 
 To verify the integrity of the `nanoid` source, first download the target version and its signature file 
-from the [releases page](https://github.com/sixafter/nanoid/releases) along with its `.sig` file; e.g., 
-`nanoid-1.32.0.tar.gz` and `nanoid-1.32.0.tar.gz.sig`. Then run the following command to verify the 
-signature:
+from the [releases page](https://github.com/sixafter/nanoid/releases) and then run the following commands:
 
 ```sh
 # Fetch the latest release tag from GitHub API (e.g., "v1.41.0")
