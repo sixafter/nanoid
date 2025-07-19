@@ -55,18 +55,6 @@ bench-csprng-uuid: ## Execute benchmark tests for using the CSPRNG to generate U
 	@rm -f x/crypto/prng/mem.out
 	$(GO_TEST) -bench='^BenchmarkUUID_' -run=^$$ -benchmem -memprofile=x/crypto/prng/mem.out -cpuprofile=x/crypto/prng/cpu.out ./x/crypto/prng
 
-.PHONY: bench-ctrdrbg
-bench-ctrdrbg: ## Execute benchmark tests for AES-CTR-DRBG (raw bytes).
-	@rm -f x/crypto/ctrdrbg/cpu.out
-	@rm -f x/crypto/ctrdrbg/mem.out
-	$(GO_TEST) -bench='^BenchmarkDRBG_' -run=^$$ -benchmem -memprofile=x/crypto/ctrdrbg/mem.out -cpuprofile=x/crypto/ctrdrbg/cpu.out ./x/crypto/ctrdrbg
-
-.PHONY: bench-ctrdrbg-uuid
-bench-ctrdrbg-uuid: ## Execute benchmark tests for using the AES-CTR-DRBG to generate UUIDs using Google's uuid package.
-	@rm -f x/crypto/ctrdrbg/cpu.out
-	@rm -f x/crypto/ctrdrbg/mem.out
-	$(GO_TEST) -bench='^BenchmarkUUID_' -run=^$$ -benchmem -memprofile=x/crypto/ctrdrbg/mem.out -cpuprofile=x/crypto/ctrdrbg/cpu.out ./x/crypto/ctrdrbg
-
 .PHONY: clean
 clean: ## Remove previous build
 	$(GO_CLEAN) ./...
