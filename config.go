@@ -17,7 +17,6 @@ import (
 // It is used with the Function Options pattern.
 type ConfigOptions struct {
 	// RandReader is the source of randomness used for generating IDs.
-	// By default, it uses x/crypto/prng/Reader, which provides cryptographically secure random bytes.
 	RandReader io.Reader
 
 	// Alphabet is the set of characters used to generate the Nano ID.

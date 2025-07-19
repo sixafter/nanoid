@@ -1,0 +1,222 @@
+# Copyright (c) 2024 Six After, Inc.
+#
+# This source code is licensed under the Apache 2.0 License found in the
+# LICENSE file in the root directory of this source tree.
+
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=jcroql
+version: 2
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-alpha"
+
+# Ref: https://goreleaser.com/customization/builds/
+project_name: prng-chacha
+
+builds:
+  # Ref: https://goreleaser.com/errors/no-main/#if-you-are-building-a-library
+  - skip: true
+
+# Ref: https://goreleaser.com/customization/changelog/
+changelog:
+  # Sorts the changelog by the commit's messages.
+  # Could either be asc, desc or empty
+  # Empty means 'no sorting', it'll use the output of `git log` as is.
+  sort: asc
+
+  # Changelog generation implementation to use.
+  #
+  # Valid options are:
+  # - `git`: uses `git log`;
+  # - `github`: uses the compare GitHub API, appending the author username to the changelog.
+  # - `gitlab`: uses the compare GitLab API, appending the author name and email to the changelog (requires a personal access token).
+  # - `gitea`: uses the compare Gitea API, appending the author username to the changelog.
+  # - `github-native`: uses the GitHub release notes generation API, disables the groups feature.
+  #
+  # Default: 'git'.
+  use: github
+
+  # Format to use for commit formatting.
+  #
+  # Templates: allowed.
+  #
+  # Default:
+  #    if 'git': '{{ .SHA }} {{ .Message }}'
+  #   otherwise: '{{ .SHA }}: {{ .Message }} ({{ with .AuthorUsername }}@{{ . }}{{ else }}{{ .AuthorName }} <{{ .AuthorEmail }}>{{ end }})'.
+  #
+  # Extra template fields:
+  # - `SHA`: the commit SHA1
+  # - `Message`: the first line of the commit message, otherwise known as commit subject
+  # - `AuthorName`: the author full name (considers mailmap if 'git')
+  # - `AuthorEmail`: the author email (considers mailmap if 'git')
+  # - `AuthorUsername`: github/gitlab/gitea username - not available if 'git'
+  #
+  # Usage with 'git': Since: v2.8.
+  format: "{{.SHA}}: {{.Message}} (@{{.AuthorUsername}})"
+
+  # Max commit hash length to use in the changelog.
+  #
+  # 0: use whatever the changelog implementation gives you
+  # -1: remove the commit hash from the changelog
+  # any other number: max length.
+  abbrev: 0
+
+  filters:
+    # Commit messages matching the regexp listed here will be the only ones
+    # added to the changelog
+    #
+    # If include is not-empty, exclude will be ignored.
+    #
+    # Matches are performed against the first line of the commit message only,
+    # prefixed with the commit SHA1, usually in the form of
+    # `<abbrev-commit>[:] <title-commit>`.
+    include:
+      - "(?i)^feature:"
+      - "(?i)^defect:"
+      - "(?i)^debt:"
+      - "(?i)^risk:"
+
+  # Group commits messages by given regex and title.
+  # Order value defines the order of the groups.
+  # Providing no regex means all commits will be grouped under the default group.
+  #
+  # Matches are performed against the first line of the commit message only,
+  # prefixed with the commit SHA1, usually in the form of
+  # `<abbrev-commit>[:] <title-commit>`.
+  # Groups are disabled when using github-native, as it already groups things by itself.
+  # Regex use RE2 syntax as defined here: https://github.com/google/re2/wiki/Syntax.
+  groups:
+    - title: "🎉 Features"
+      regexp: '(?i)^.*?feature(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: "🐛 Defects"
+      regexp: '(?i)^.*?defect(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: "🛠 Technical Debt"
+      regexp: '(?i)^.*?debt(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: "🚀 Technical Risk"
+      regexp: '(?i)^.*?risk(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Others
+      order: 999
+
+# Ref: https://goreleaser.com/customization/checksums/
+checksum:
+  name_template: 'checksums.txt'
+
+# Ref: https://goreleaser.com/customization/sign/
+signs:
+  - id: source
+    cmd: cosign
+    stdin: '{{ .Env.COSIGN_PASSWORD }}'
+    output: true
+    artifacts: source
+    args:
+      - sign-blob
+      - --yes
+      - --key
+      - env://COSIGN_PRIVATE_KEY
+      - '--output-certificate=${certificate}'
+      - '--output-signature=${signature}'
+      - '${artifact}'
+
+  - id: checksums
+    cmd: cosign
+    stdin: '{{ .Env.COSIGN_PASSWORD }}'
+    output: true
+    artifacts: checksum
+    args:
+      - sign-blob
+      - --yes
+      - --key
+      - env://COSIGN_PRIVATE_KEY
+      - '--output-certificate=${certificate}'
+      - '--output-signature=${signature}'
+      - '${artifact}'
+
+# Ref: https://goreleaser.com/customization/source/
+source:
+  # Whether this pipe is enabled or not.
+  enabled: true
+
+  # Name template of the final archive.
+  #
+  # Default: '{{ .ProjectName }}-{{ .Version }}'.
+  # Templates: allowed.
+  name_template: "{{ .ProjectName }}-{{ .Version }}"
+
+  # Format of the archive.
+  #
+  # Valid formats are: tar, tgz, tar.gz, and zip.
+  #
+  # Default: 'tar.gz'.
+  format: tar.gz
+
+  # Prefix.
+  # String to prepend to each filename in the archive.
+  #
+  # Templates: allowed.
+  prefix_template: "{{ .ProjectName }}-{{ .Version }}/"
+
+  # You can add additional files if needed, or omit for default behavior.
+  # files:
+  #   - LICENSE
+  #   - README.md
+  # files:
+  #   - LICENSE
+  #   - README.md
+  #   - CHANGELOG/CHANGELOG*
+  #   - go.mod
+  #   - go.sum
+  #   - "*.go"
+  #   - "x/**/*"
+  #   - "vendor/**/*"
+
+# Ref: https://goreleaser.com/customization/sbom/
+sboms:
+  - # ID of the sbom config, must be unique.
+    #
+    # Default: 'default'.
+    id: default
+
+    # Which artifacts to catalog.
+    #
+    # Valid options are:
+    # - any:        let the SBOM tool decide which artifacts available in
+    #               the cwd should be cataloged
+    # - source:     source archive
+    # - package:    Linux packages (deb, rpm, apk, etc)
+    # - installer:  Windows MSI installers (Pro only)
+    # - diskimage:  macOS DMG disk images (Pro only)
+    # - archive:    archives from archive pipe
+    # - binary:     binaries output from the build stage
+    #
+    # Default: 'archive'.
+    artifacts: source
+
+    # IDs of the artifacts to catalog.
+    #
+    # If `artifacts` is "source" or "any" then this fields has no effect.
+    # ids:
+    #   - src
+
+# Ref: https://goreleaser.com/customization/release/
+release:
+  # Repo in which the release will be created.
+  # Default: extracted from the origin remote URL or empty if its private hosted.
+  github:
+    owner: sixafter
+    name: prng-chacha
+
+  # You can change the name of the release.
+  #
+  # Default: '{{.Tag}}' ('{{.PrefixedTag}}' on Pro).
+  # Templates: allowed.
+  name_template: 'v{{ .Version }}'
+
+  # Footer for the release body.
+  #
+  # Templates: allowed.
+  footer: |
+    **Full Changelog**: [CHANGELOG](https://github.com/sixafter/prng-chacha/tree/main/CHANGELOG/CHANGELOG-1.x.md)

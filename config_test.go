@@ -9,7 +9,7 @@ import (
 	"math/bits"
 	"testing"
 
-	"github.com/sixafter/nanoid/x/crypto/prng"
+	"github.com/sixafter/prng-chacha"
 	"github.com/stretchr/testify/assert"
 )
 
