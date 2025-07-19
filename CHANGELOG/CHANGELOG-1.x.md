@@ -15,8 +15,19 @@ Date format: `YYYY-MM-DD`
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
 
-### 
+---
+## [1.42.0] - 2025-07-18
+
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+- **defect:** Update `goreleaser` configuration to use the author's username in the changelog.
+
+### Security
 
 ---
 ## [1.41.0] - 2025-07-18
@@ -842,7 +853,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.41.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.42.0...HEAD
+[1.42.0]: https://github.com/sixafter/nanoid/compare/v1.41.0...v1.42.0
 [1.41.0]: https://github.com/sixafter/nanoid/compare/v1.40.0...v1.41.0
 [1.40.0]: https://github.com/sixafter/nanoid/compare/v1.39.0...v1.40.0
 [1.39.0]: https://github.com/sixafter/nanoid/compare/v1.38.0...v1.39.0
