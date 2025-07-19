@@ -18,6 +18,19 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.43.0] - 2025-07-19
+
+### Added
+### Changed
+- **debt:** Moved the `x/crypto/prng` package to the [prng-chacha](https://github.com/sixafter/prng-chacha) repository.
+  - This change allows for more focused development and maintenance of the `PRNG-CHACHA` implementation, separating it from the Nano ID project.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.43.0] - 2025-07-18
 
 ### Added
@@ -866,7 +879,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.43.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.44.0...HEAD
+[1.44.0]: https://github.com/sixafter/nanoid/compare/v1.43.0...v1.44.0
 [1.43.0]: https://github.com/sixafter/nanoid/compare/v1.42.0...v1.43.0
 [1.42.0]: https://github.com/sixafter/nanoid/compare/v1.41.0...v1.42.0
 [1.41.0]: https://github.com/sixafter/nanoid/compare/v1.40.0...v1.41.0

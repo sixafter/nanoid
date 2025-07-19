@@ -1,15 +1,42 @@
-# prng: Cryptographically Secure Pseudo-Random Number Generator (CSPRNG)
+# prng-chacha
 
-## Overview
+[![Go Report Card](https://goreportcard.com/badge/github.com/sixafter/prng-chacha)](https://goreportcard.com/report/github.com/sixafter/prng-chacha)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
+[![Go](https://img.shields.io/github/go-mod/go-version/sixafter/prng-chacha)](https://img.shields.io/github/go-mod/go-version/sixafter/prng-chacha)
+[![Go Reference](https://pkg.go.dev/badge/github.com/sixafter/prng-chacha.svg)](https://pkg.go.dev/github.com/sixafter/prng-chacha)
 
-The `prng` package provides a high-performance, cryptographically secure pseudo-random number generator (CSPRNG) 
-that implements the `io.Reader` interface. Designed for concurrent use, it leverages the ChaCha20 cipher stream 
-to efficiently generate random bytes.
+---
+
+## Status
+
+### Build & Test
+
+[![CI](https://github.com/sixafter/prng-chacha/workflows/ci/badge.svg)](https://github.com/sixafter/prng-chacha/actions)
+[![GitHub issues](https://img.shields.io/github/issues/sixafter/prng-chacha)](https://github.com/sixafter/prng-chacha/issues)
+
+### Quality
+
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=six-after_prng-chacha&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=six-after_prng-chacha)
+![CodeQL](https://github.com/sixafter/prng-chacha/actions/workflows/codeql-analysis.yaml/badge.svg)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=six-after_prng-chacha&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=six-after_prng-chacha)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/sixafter/prng-chacha/badge)](https://scorecard.dev/viewer/?uri=github.com/sixafter/prng-chacha)
+
+### Package and Deploy
+
+[![Release](https://github.com/sixafter/prng-chacha/workflows/release/badge.svg)](https://github.com/sixafter/prng-chacha/actions)
+
+---
+## Overview 
+
+The `prng` package provides a high-performance, cryptographically secure pseudo-random number generator (CSPRNG) that implements the `io.Reader` interface. Designed for concurrent use, it leverages the ChaCha20 cipher stream to efficiently generate random bytes.
 
 Technically, this PRNG is not pseudo-random but is cryptographically random.
 
-The package includes a global `Reader` and a `sync.Pool` to manage PRNG instances, ensuring low contention and 
-optimized performance.
+The package includes a global `Reader` and a `sync.Pool` to manage PRNG instances, ensuring low contention and optimized performance.
+
+Please see the [godoc](https://pkg.go.dev/github.com/sixafter/prng-chacha) for detailed documentation.
+
+---
 
 ## Features
 
@@ -19,17 +46,57 @@ optimized performance.
     * See the benchmark results [here](#uuid-generation).
 * **Efficient Resource Management:** Uses a `sync.Pool` to manage PRNG instances, reducing the overhead on `crypto/rand.Reader`. 
 * **Extensible API:** Allows users to create and manage custom PRNG instances via `NewReader`.
-- **UUID Generation Source:** Can be used as the `io.Reader` source for UUID generation with the [`google/uuid`](https://pkg.go.dev/github.com/google/uuid) package and similar libraries, providing cryptographically secure, deterministic UUIDs using AES-CTR-DRBG.
+- **UUID Generation Source:** Can be used as the `io.Reader` source for UUID generation with the [`google/uuid`](https://pkg.go.dev/github.com/google/uuid) package and similar libraries, providing cryptographically secure, deterministic UUIDs using PRNG-CHACHA.
+
+---
+
+## Verify with Cosign
+
+[Cosign](https://github.com/sigstore/cosign) is used to sign releases for integrity verification.
+
+To verify the integrity of the release tarball, you can use Cosign to check the signature against the public key.
+
+```sh
+# Fetch the latest release tag from GitHub API (e.g., "v1.41.0")
+TAG=$(curl -s https://api.github.com/repos/sixafter/prng-chacha/releases/latest | jq -r .tag_name)
+
+# Remove leading "v" for filenames (e.g., "v1.41.0" -> "1.41.0")
+VERSION=${TAG#v}
+
+# Verify the release tarball
+cosign verify-blob \
+  --key https://raw.githubusercontent.com/sixafter/prng-chacha/main/cosign.pub \
+  --signature prng-chacha-${VERSION}.tar.gz.sig \
+  prng-chacha-${VERSION}.tar.gz
+
+# Download checksums.txt and its signature from the latest release assets
+curl -LO https://github.com/sixafter/prng-chacha/releases/download/${TAG}/checksums.txt
+curl -LO https://github.com/sixafter/prng-chacha/releases/download/${TAG}/checksums.txt.sig
+
+# Verify checksums.txt with cosign
+cosign verify-blob \
+  --key https://raw.githubusercontent.com/sixafter/prng-chacha/main/cosign.pub \
+  --signature checksums.txt.sig \
+  checksums.txt
+```
+
+If valid, Cosign will output:
+
+```shell
+Verified OK
+```
 
 ---
 
 ## Installation
 
-To install the package, run the following command:
-
 ```bash
-go get -u github.com/sixafter/nanoid/x/crypto/prng
+go get -u github.com/sixafter/prng-chacha
 ```
+
+---
+
+## Usage
 
 ## Usage
 
@@ -41,7 +108,7 @@ package main
 import (
   "fmt"
   
-  "github.com/sixafter/nanoid/x/crypto/prng"
+  "github.com/sixafter/sixafter/prng-chacha"
 )
 
 func main() {
@@ -63,7 +130,7 @@ import (
   "fmt"
 
   "github.com/google/uuid"
-  "github.com/sixafter/nanoid/x/crypto/prng"
+  "github.com/sixafter/sixafter/prng-chacha"
 )
 
 func main() {
@@ -98,10 +165,9 @@ These `prng.Reader` benchmarks demonstrate the package's focus on minimizing lat
 
 ```shell
 make bench-csprng
-go test -bench='^BenchmarkPRNG_' -benchmem -memprofile=x/crypto/prng/mem.out -cpuprofile=x/crypto/prng/cpu.out ./x/crypto/prng
 goos: darwin
 goarch: arm64
-pkg: github.com/sixafter/nanoid/x/crypto/prng
+pkg: github.com/sixafter/prng-chacha
 cpu: Apple M4 Max
 BenchmarkPRNG_Concurrent_SyncPool_Baseline/G2-16 	1000000000	         0.5689 ns/op	       0 B/op	       0 allocs/op
 BenchmarkPRNG_Concurrent_SyncPool_Baseline/G4-16 	1000000000	         0.5723 ns/op	       0 B/op	       0 allocs/op
@@ -360,7 +426,7 @@ BenchmarkPRNG_ReadExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_32Goroutin
 BenchmarkPRNG_ReadExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_64Goroutines-16         	     285	   4124672 ns/op	     833 B/op	      11 allocs/op
 BenchmarkPRNG_ReadExtremeSizes/Concurrent_Read_Extreme_104857600Bytes_128Goroutines-16        	     284	   4138645 ns/op	    1123 B/op	      18 allocs/op
 PASS
-ok  	github.com/sixafter/nanoid/x/crypto/prng	377.422s
+ok  	github.com/sixafter/prng-chacha	377.422s
 ```
 </details>
 
@@ -385,10 +451,10 @@ Here's a summary of the benchmark results comparing the default random reader fo
 
 ```shell
 make bench-uuid
-go test -bench='^BenchmarkUUID_' -benchmem -memprofile=x/crypto/prng/mem.out -cpuprofile=x/crypto/prng/cpu.out ./x/crypto/prng
+
 goos: darwin
 goarch: arm64
-pkg: github.com/sixafter/nanoid/x/crypto/prng
+pkg: github.com/sixafter/prng-chacha
 cpu: Apple M4 Max
 BenchmarkUUID_v4_Default_Serial-16        	 6239547	       183.6 ns/op	      16 B/op	       1 allocs/op
 BenchmarkUUID_v4_Default_Parallel-16      	 2614206	       457.2 ns/op	      16 B/op	       1 allocs/op
@@ -409,10 +475,18 @@ BenchmarkUUID_v4_CSPRNG_Concurrent/Goroutines_64-16         	208636114	         
 BenchmarkUUID_v4_CSPRNG_Concurrent/Goroutines_128-16        	212263852	         5.705 ns/op	      16 B/op	       1 allocs/op
 BenchmarkUUID_v4_CSPRNG_Concurrent/Goroutines_256-16        	204421857	         5.794 ns/op	      16 B/op	       1 allocs/op
 PASS
-ok  	github.com/sixafter/nanoid/x/crypto/prng	31.142s
+ok  	github.com/sixafter/prng-chacha	31.142s
 ```
 </details>
 
+---
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING](CONTRIBUTING.md)
+
+---
+
 ## License
 
-This project is licensed under the [Apache 2.0 License](https://choosealicense.com/licenses/apache-2.0/). See [LICENSE](../../../LICENSE) file.
+This project is licensed under the [Apache 2.0 License](https://choosealicense.com/licenses/apache-2.0/). See [LICENSE](LICENSE) file.

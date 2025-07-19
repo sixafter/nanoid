@@ -12,7 +12,7 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
-	"github.com/sixafter/nanoid/x/crypto/prng"
+	"github.com/sixafter/prng-chacha"
 )
 
 var (
