@@ -1,13 +1,11 @@
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/google/uuid v1.6.0
-## explicit
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
-# github.com/sixafter/prng-chacha v1.0.1
-## explicit; go 1.24
+# github.com/sixafter/prng-chacha v1.2.0
+## explicit; go 1.25
 github.com/sixafter/prng-chacha
 # github.com/stretchr/objx v0.5.2
 ## explicit; go 1.20
@@ -15,14 +13,14 @@ github.com/sixafter/prng-chacha
 ## explicit; go 1.17
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/assert/yaml
-# golang.org/x/crypto v0.40.0
+# golang.org/x/crypto v0.41.0
 ## explicit; go 1.23.0
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/internal/alias
-# golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
-## explicit; go 1.22.0
+# golang.org/x/exp v0.0.0-20250813145105-42675adae3e6
+## explicit; go 1.24.0
 golang.org/x/exp/constraints
-# golang.org/x/sys v0.34.0
+# golang.org/x/sys v0.35.0
 ## explicit; go 1.23.0
 golang.org/x/sys/cpu
 # gopkg.in/yaml.v3 v3.0.1
