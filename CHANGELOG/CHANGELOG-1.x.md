@@ -18,6 +18,18 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.47.0] - 2025-09-01
+
+### Added
+### Changed
+- **debt:** Upgraded [prng-chacha](https://github.com/sixafter/prng-chacha) to [v1.3.0](https://github.com/sixafter/prng-chacha/releases/tag/v1.3.0).
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
 ## [1.46.0] - 2025-09-01
 
 ### Added
@@ -904,7 +916,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.46.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.47.0...HEAD
+[1.47.0]: https://github.com/sixafter/nanoid/compare/v1.46.0...v1.47.0
 [1.46.0]: https://github.com/sixafter/nanoid/compare/v1.45.0...v1.46.0
 [1.45.0]: https://github.com/sixafter/nanoid/compare/v1.44.0...v1.45.0
 [1.44.0]: https://github.com/sixafter/nanoid/compare/v1.43.0...v1.44.0

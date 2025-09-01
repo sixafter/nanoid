@@ -4,9 +4,11 @@ github.com/davecgh/go-spew/spew
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
-# github.com/sixafter/prng-chacha v1.2.0
+# github.com/sixafter/prng-chacha v1.3.0
 ## explicit; go 1.25
 github.com/sixafter/prng-chacha
+# github.com/stretchr/objx v0.5.2
+## explicit; go 1.20
 # github.com/stretchr/testify v1.11.1
 ## explicit; go 1.17
 github.com/stretchr/testify/assert
