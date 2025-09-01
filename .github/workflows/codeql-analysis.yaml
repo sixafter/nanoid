@@ -1,4 +1,4 @@
-# Copyright (c) 2024 Six After, Inc
+# Copyright (c) 2024-2025 Six After, Inc
 #
 # This source code is licensed under the Apache 2.0 License found in the
 # LICENSE file in the root directory of this source tree.
@@ -48,7 +48,6 @@ jobs:
     steps:
       - name: Preamble
         run: |
-          whoami
           echo github ref $GITHUB_REF
           echo workflow $GITHUB_WORKFLOW
           echo home $HOME
@@ -62,7 +61,7 @@ jobs:
 
       # Ref: https://github.com/actions/checkout
       - name: Checkout Source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
