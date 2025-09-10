@@ -64,7 +64,7 @@ const (
 
 func init() {
 	var err error
-	Generator, err = NewGenerator()
+	Generator, err = NewGenerator(WithAutoRandReader())
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize Generator: %v", err))
 	}
