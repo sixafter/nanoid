@@ -27,8 +27,13 @@ deps: ## Get the dependencies and vendor
 	@./scripts/go-deps.sh
 
 .PHONY: test
-test: ## Execute unit tests
+test: ## Execute unit tests (default and FIPS mode)
+	@echo "==> Running tests (default mode)"
 	$(GO_TEST) -v ./...
+
+	@echo ""
+	@echo "==> Running tests (FIPS mode: GODEBUG=fips140=on)"
+	GODEBUG=fips140=on $(GO_TEST) -v ./...
 
 .PHONY: fuzz
 fuzz: ## Run each Go fuzz test individually (10s per test)
