@@ -6,11 +6,15 @@
 package nanoid
 
 import (
+	"crypto/fips140"
 	"io"
 	"math"
 	"math/bits"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/sixafter/aes-ctr-drbg"
+	"github.com/sixafter/prng-chacha"
 )
 
 // ConfigOptions holds the configurable options for the Interface.
@@ -200,6 +204,18 @@ func WithRandReader(reader io.Reader) Option {
 func WithLengthHint(hint uint16) Option {
 	return func(c *ConfigOptions) {
 		c.LengthHint = hint
+	}
+}
+
+// WithAutoRandReader selects a secure reader at runtime:
+// AES-CTR-DRBG if FIPS-150 is enabled, otherwise ChaCha20 DRBG.
+func WithAutoRandReader() Option {
+	return func(c *ConfigOptions) {
+		if fips140.Enabled() {
+			c.RandReader = ctrdrbg.Reader
+		} else {
+			c.RandReader = prng.Reader
+		}
 	}
 }
 

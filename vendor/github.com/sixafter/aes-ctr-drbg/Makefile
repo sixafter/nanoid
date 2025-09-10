@@ -17,7 +17,7 @@ GO_MOD=$(GO_CMD) mod
 GO_LINT_CMD=golangci-lint run
 GO_WORK=$(GO_CMD) work
 GO_WORK_FILE := ./go.work
-FUZZTIME ?= 15s
+FUZZTIME ?= 25s
 
 .PHONY: all
 all: deps vendor update vendor tidy clean test
@@ -32,16 +32,22 @@ test: ## Execute unit tests
 
 .PHONY: fuzz
 fuzz: ## Run each Go fuzz test individually (10s per test)
-	@for fuzz in FuzzNewWithLength FuzzCustomAlphabet FuzzCustomGenerator FuzzRead; do \
+	@for fuzz in Fuzz_Reader_Read Fuzz_Reader_Concurrent Fuzz_NewReader_AllOptions Fuzz_NewReader_Personalization Fuzz_NewReader_Buffers; do \
 		echo "===> Fuzzing $$fuzz"; \
-		$(GO_TEST) -v -run=^$$ -fuzz=$$fuzz -fuzztime=$(FUZZTIME) || exit $$?; \
+		$(GO_TEST) -v -fuzz=$$fuzz -fuzztime=$(FUZZTIME) || exit $$?; \
 	done
 
 .PHONY: bench
-bench: ## Execute benchmark tests for NanoID
+bench: ## Execute benchmark tests for AES-CTR-DRBG (raw bytes).
 	@rm -f cpu.out
 	@rm -f mem.out
-	$(GO_TEST) -bench=. -run=^$$ -benchmem -memprofile=mem.out -cpuprofile=cpu.out
+	$(GO_TEST) -bench='^BenchmarkDRBG_' -run=^$$ -benchmem -memprofile=mem.out -cpuprofile=cpu.out .
+
+.PHONY: bench-uuid
+bench-uuid: ## Execute benchmark tests for using the AES-CTR-DRBG to generate UUIDs using Google's uuid package.
+	@rm -f cpu.out
+	@rm -f mem.out
+	$(GO_TEST) -bench='^BenchmarkUUID_' -run=^$$ -benchmem -memprofile=mem.out -cpuprofile=cpu.out .
 
 .PHONY: clean
 clean: ## Remove previous build
