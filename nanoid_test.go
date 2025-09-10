@@ -1039,7 +1039,7 @@ func (e *errorReader) Read(_ []byte) (int, error) {
 }
 
 // TestGenerator_Config tests the Config method to ensure it returns the correct configuration.
-func TestGenerator_GConfig(t *testing.T) {
+func TestGenerator_Config(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 

@@ -21,6 +21,8 @@ var (
 
 	// RandReader is the default random number generator used for generating IDs.
 	RandReader = prng.Reader
+
+	_ Interface = (*generator)(nil)
 )
 
 const (
