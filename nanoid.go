@@ -21,6 +21,8 @@ var (
 
 	// RandReader is the default random number generator used for generating IDs.
 	RandReader = prng.Reader
+
+	_ Interface = (*generator)(nil)
 )
 
 const (
@@ -456,11 +458,6 @@ func (g *generator) Read(p []byte) (int, error) {
 		n += size
 	}
 	return n, nil
-}
-
-// GetConfig returns the current configuration of the generator.
-func (g *generator) GetConfig() Config {
-	return g.config
 }
 
 // newASCII generates a new Nano ID using the configured ASCII alphabet.
