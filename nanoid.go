@@ -458,11 +458,6 @@ func (g *generator) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-// GetConfig returns the current configuration of the generator.
-func (g *generator) GetConfig() Config {
-	return g.config
-}
-
 // newASCII generates a new Nano ID using the configured ASCII alphabet.
 //
 // This method fills the provided byte slice `idBuffer` with a random sequence of

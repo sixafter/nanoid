@@ -20,7 +20,7 @@ GO_WORK_FILE := ./go.work
 FUZZTIME ?= 20s
 
 .PHONY: all
-all: clean test
+all: deps vendor update vendor tidy clean test
 
 .PHONY: deps
 deps: ## Get the dependencies and vendor

@@ -1038,8 +1038,8 @@ func (e *errorReader) Read(_ []byte) (int, error) {
 	return 0, errors.New("simulated read error")
 }
 
-// TestGenerator_GetConfig tests the GetConfig method to ensure it returns the correct configuration.
-func TestGenerator_GetConfig(t *testing.T) {
+// TestGenerator_Config tests the Config method to ensure it returns the correct configuration.
+func TestGenerator_GConfig(t *testing.T) {
 	t.Parallel()
 	is := assert.New(t)
 
