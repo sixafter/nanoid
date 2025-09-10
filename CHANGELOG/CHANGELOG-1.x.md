@@ -18,6 +18,22 @@ Date format: `YYYY-MM-DD`
 ### Security
 
 ---
+## [1.50.0] - 2025-09-10
+
+### Added
+- **feature:** Added `WithAutoRandReader` option to `Config` to automatically select between the `AES-CTR-DRBG` and `PRNG-CHACHA` implementations based on FIPS-140 mode.
+  - When FIPS-140 mode is [enabled](https://pkg.go.dev/crypto/fips140#Enabled), the [AES-CTR-DRBG](https://github.com/sixafter/aes-ctr-drbg) implementation is used.
+  - When FIPS-140 mode is disabled, the [PRNG-CHACHA](https://github.com/sixafter/prng-chacha) implementation is used.
+  - This option simplifies configuration by automatically selecting the appropriate random number generator based on the security requirements of the environment.
+
+### Changed
+### Deprecated
+### Removed
+### Fixed
+
+### Security
+
+---
 ## [1.49.0] - 2025-09-09
 
 ### Added
@@ -941,7 +957,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.49.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.50.0...HEAD
+[1.50.0]: https://github.com/sixafter/nanoid/compare/v1.49.0...v1.50.0
 [1.49.0]: https://github.com/sixafter/nanoid/compare/v1.48.0...v1.49.0
 [1.48.0]: https://github.com/sixafter/nanoid/compare/v1.47.0...v1.48.0
 [1.47.0]: https://github.com/sixafter/nanoid/compare/v1.46.0...v1.47.0

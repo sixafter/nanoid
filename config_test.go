@@ -6,9 +6,11 @@
 package nanoid
 
 import (
+	"crypto/fips140"
 	"math/bits"
 	"testing"
 
+	ctrdrbg "github.com/sixafter/aes-ctr-drbg"
 	"github.com/sixafter/prng-chacha"
 	"github.com/stretchr/testify/assert"
 )
@@ -44,4 +46,29 @@ func Test_Config(t *testing.T) {
 	is.Equal(prng.Reader, config.RandReader(), "Config.RandReader should be rand.Reader by default")
 	is.NotNil(config.RuneAlphabet(), "Config.RuneAlphabet should not be nil")
 	is.Positive(config.ScalingFactor(), "Config.ScalingFactor should be a positive integer")
+}
+
+// This test is functional and environment-aware:
+// - By default (non-FIPS), we expect the ChaCha20 PRNG.
+// - When run with FIPS enabled (e.g., GODEBUG=fips140=on), we expect AES-CTR-DRBG.
+//
+// Example:
+//
+//	go test -v -run TestWithAutoRandReader_SelectsReader
+//	GODEBUG=fips140=on go test -v -run TestWithAutoRandReader_SelectsReader
+func TestWithAutoRandReader_SelectsReader(t *testing.T) {
+	t.Parallel()
+	is := assert.New(t)
+
+	var cfg ConfigOptions
+	opt := WithAutoRandReader()
+	opt(&cfg)
+
+	if fips140.Enabled() {
+		is.Equal(ctrdrbg.Reader, cfg.RandReader, "when FIPS is enabled, AES-CTR-DRBG must be selected")
+		is.NotEqual(prng.Reader, cfg.RandReader, "when FIPS is enabled, ChaCha20 DRBG must NOT be selected")
+	} else {
+		is.Equal(prng.Reader, cfg.RandReader, "when FIPS is disabled, ChaCha20 DRBG must be selected")
+		is.NotEqual(ctrdrbg.Reader, cfg.RandReader, "when FIPS is disabled, AES-CTR-DRBG must NOT be selected")
+	}
 }

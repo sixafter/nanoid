@@ -6,11 +6,15 @@
 package nanoid
 
 import (
+	"crypto/fips140"
 	"io"
 	"math"
 	"math/bits"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/sixafter/aes-ctr-drbg"
+	"github.com/sixafter/prng-chacha"
 )
 
 // ConfigOptions holds the configurable options for the Interface.
@@ -200,6 +204,35 @@ func WithRandReader(reader io.Reader) Option {
 func WithLengthHint(hint uint16) Option {
 	return func(c *ConfigOptions) {
 		c.LengthHint = hint
+	}
+}
+
+// WithAutoRandReader selects a secure random source at runtime based on
+// the system’s FIPS (Federal Information Processing Standards) compliance mode.
+// If FIPS 140-3 mode is enabled, it uses an AES-CTR-DRBG implementation;
+// otherwise, it defaults to a ChaCha20-based DRBG.
+//
+// This allows the Nano ID generator to comply with cryptographic requirements
+// in regulated environments while defaulting to a high-performance CSPRNG
+// (ChaCha20) for general use.
+//
+// Internally, it relies on the Go standard library’s runtime flag detection
+// via crypto/fips140.Enabled(), which reflects the value of the
+// environment variable GODEBUG=fips140=on|only.
+//
+// Returns:
+//   - Option: A configuration option that sets the RandReader field of ConfigOptions.
+//
+// Usage Example:
+//
+//	generator, err := nanoid.NewGenerator(nanoid.WithAutoRandReader())
+func WithAutoRandReader() Option {
+	return func(c *ConfigOptions) {
+		if fips140.Enabled() {
+			c.RandReader = ctrdrbg.Reader
+		} else {
+			c.RandReader = prng.Reader
+		}
 	}
 }
 
