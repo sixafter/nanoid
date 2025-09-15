@@ -4,10 +4,10 @@ github.com/davecgh/go-spew/spew
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
-# github.com/sixafter/aes-ctr-drbg v1.8.0
+# github.com/sixafter/aes-ctr-drbg v1.9.0
 ## explicit; go 1.25
 github.com/sixafter/aes-ctr-drbg
-# github.com/sixafter/prng-chacha v1.4.0
+# github.com/sixafter/prng-chacha v1.5.0
 ## explicit; go 1.25
 github.com/sixafter/prng-chacha
 # github.com/stretchr/objx v0.5.2
