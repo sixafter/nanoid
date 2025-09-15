@@ -67,8 +67,7 @@ Please see the [nanoid-cli](https://github.com/sixafter/nanoid-cli) for a comman
 
 [Cosign](https://github.com/sigstore/cosign) is used to sign releases for integrity verification.
 
-To verify the integrity of the `nanoid` source, first download the target version and its signature file 
-from the [releases page](https://github.com/sixafter/nanoid/releases) and then run the following commands:
+To verify the integrity of the release, you can use Cosign to check the signature and checksums. Follow these steps:
 
 ```sh
 # Fetch the latest release tag from GitHub API (e.g., "v1.51.0")
