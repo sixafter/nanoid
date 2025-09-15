@@ -14,6 +14,7 @@
 
 [![CI](https://github.com/sixafter/aes-ctr-drbg/workflows/ci/badge.svg)](https://github.com/sixafter/aes-ctr-drbg/actions)
 [![GitHub issues](https://img.shields.io/github/issues/sixafter/aes-ctr-drbg)](https://github.com/sixafter/aes-ctr-drbg/issues)
+![GitHub last commit](https://img.shields.io/github/last-commit/sixafter/aes-ctr-drbg)
 
 ### Quality
 
@@ -108,10 +109,10 @@ For a detailed mapping between the implementation and NIST SP 800-90A requiremen
 To verify the integrity of the release tarball, you can use Cosign to check the signature and checksums. Follow these steps:
 
 ```sh
-# Fetch the latest release tag from GitHub API (e.g., "v1.8.0")
+# Fetch the latest release tag from GitHub API (e.g., "v1.9.0")
 TAG=$(curl -s https://api.github.com/repos/sixafter/aes-ctr-drbg/releases/latest | jq -r .tag_name)
 
-# Remove leading "v" for filenames (e.g., "v1.8.0" -> "1.8.0")
+# Remove leading "v" for filenames (e.g., "v1.9.0" -> "1.9.0")
 VERSION=${TAG#v}
 
 # Verify the release tarball
