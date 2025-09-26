@@ -93,10 +93,9 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar-
 
       # Ref: https://github.com/SonarSource/sonarqube-scan-action
+      # Ref: https://github.com/SonarSource/sonarqube-scan-action/releases/tag/v6.0.0
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v6
-        with:
-          projectBaseDir: ./
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_USER: ${{ github.actor }}
