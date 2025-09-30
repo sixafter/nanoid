@@ -17,6 +17,21 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
+
+---
+## [1.52.0] - 2025-09-30
+
+### Added
+### Changed
+- **debt:** Upgraded [PRNG-CHACHA](https://github.com/sixafter/prng-chacha) to latest stable version.
+- **debt:** Upgraded [AES-CTR-DRBG](https://github.com/sixafter/aes-ctr-drbg) to latest stable version.
+- **debt:** Upgraded dependencies to their latest stable versions.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
 ---
 ## [1.51.0] - 2025-09-15
 
@@ -971,7 +986,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.51.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.52.0...HEAD
+[1.52.0]: https://github.com/sixafter/nanoid/compare/v1.51.0...v1.52.0
 [1.51.0]: https://github.com/sixafter/nanoid/compare/v1.50.0...v1.51.0
 [1.50.0]: https://github.com/sixafter/nanoid/compare/v1.49.0...v1.50.0
 [1.49.0]: https://github.com/sixafter/nanoid/compare/v1.48.0...v1.49.0
