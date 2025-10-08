@@ -85,11 +85,41 @@ type Config struct {
 
 // Default configuration constants for ChaCha20-PRNG.
 const (
-	maxRekeyAttempts  = 5                      // Default max rekey attempts
-	rekeyBackoff      = 100 * time.Millisecond // Default initial rekey backoff (100 ms)
-	maxRekeyBackoff   = 2 * time.Second        // Default max backoff for rekey (2 seconds)
-	maxBytesPerKey    = 1 << 30                // Default max bytes per key (1 GiB)
-	defaultBufferSize = 64                     // Default internal buffer size for XOR operations
+	// maxRekeyAttempts is the default maximum number of attempts to perform
+	// an asynchronous rekey operation before giving up.
+	//
+	// Rekey attempts are retried with exponential backoff (bounded by
+	// maxRekeyBackoff). Increasing this value makes the implementation more
+	// persistent when transient failures occur during key rotation.
+	maxRekeyAttempts = 5
+
+	// rekeyBackoff is the default initial backoff duration used when retrying
+	// failed rekey operations.
+	//
+	// The backoff doubles on each subsequent failure until the duration is
+	// clamped by maxRekeyBackoff. This value is small by default to allow
+	// quick recovery while avoiding tight busy loops.
+	rekeyBackoff = 100 * time.Millisecond
+
+	// maxRekeyBackoff is the maximum backoff duration for exponential rekey retries.
+	//
+	// Backoff grows from rekeyBackoff up to this ceiling. This protects systems
+	// from unbounded retry delays while still allowing backoff escalation.
+	maxRekeyBackoff = 2 * time.Second
+
+	// maxBytesPerKey is the default maximum number of output bytes produced
+	// per key/nonce pair before triggering an automatic rekey.
+	//
+	// Enforcing a maximum output window per key provides forward secrecy
+	// properties by limiting the amount of data encrypted with a single key.
+	// The default is 1 GiB.
+	maxBytesPerKey = 1 << 30
+
+	// defaultBufferSize is the default size (in bytes) of the internal zero-filled
+	// buffer used when UseZeroBuffer is enabled for XORKeyStream operations.
+	//
+	// This value offers a modest, cache-friendly buffer for common read sizes.
+	defaultBufferSize = 64
 )
 
 // DefaultConfig returns a Config struct populated with production-safe, recommended defaults.
@@ -117,7 +147,8 @@ func DefaultConfig() Config {
 		UseZeroBuffer:     false,
 		EnableKeyRotation: false,
 		DefaultBufferSize: defaultBufferSize,
-		// Ref: Use of GOMAXPROCS is fine for now: https://github.com/golang/go/issues/73193
+		// Use of GOMAXPROCS is CPU limit-aware.
+		// Ref: https://github.com/golang/go/issues/73193
 		Shards: runtime.GOMAXPROCS(0),
 	}
 }

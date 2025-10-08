@@ -131,27 +131,29 @@ func initShardPools(cfg Config) ([]*sync.Pool, error) {
 						return d
 					}
 				}
-				// If all attempts fail, panic (either for fatal startup or to be caught below).
-				panic(fmt.Sprintf("ctrdrbg pool init failed after %d retries: %v", capturedCfg.MaxInitRetries, err))
+				// If all attempts fail here, we return nil. The eager initialization below
+				// performs the same construction and will surface a concrete error to the caller.
+				return nil
 			},
 		}
 
 		// Eagerly test pool initialization to ensure catastrophic failures are caught immediately,
-		// not deferred until first use. If New panics, recover and convert it to an error.
-		var panicErr error
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					panicErr = fmt.Errorf("ctrdrbg pool initialization failed: %v", r)
-				}
-			}()
-			item := pools[i].Get()
-			pools[i].Put(item)
-		}()
+		// not deferred until first use. Attempt construction directly and return an error on failure.
+		var (
+			warm *drbg
+			err  error
+		)
+		for r := 0; r < capturedCfg.MaxInitRetries; r++ {
+			if warm, err = newDRBG(&capturedCfg); err == nil {
+				pools[i].Put(warm)
+				err = nil
+				break
+			}
+		}
 
-		// If initialization panicked, return error immediately.
-		if panicErr != nil {
-			return nil, panicErr
+		// If initialization failed, return error immediately.
+		if err != nil {
+			return nil, fmt.Errorf("ctrdrbg pool initialization failed after %d retries: %v", capturedCfg.MaxInitRetries, err)
 		}
 	}
 
@@ -1006,9 +1008,9 @@ func newDRBG(cfg *Config) (*drbg, error) {
 // wrapping both as needed if their lengths exceed the seed length. This process is per NIST SP 800-90A.
 //
 // Parameters:
-//   - seed:              The entropy seed buffer to be mixed into (usually key+V).
-//   - personalization:   Optional domain-separation string; XOR-ed into the seed.
-//   - additionalInput:   Optional caller-supplied input; further XOR-ed into the seed.
+//   - seed: The entropy seed buffer to be mixed into (usually key+V).
+//   - personalization: Optional domain-separation string; XOR-ed into the seed.
+//   - additionalInput: Optional caller-supplied input; further XOR-ed into the seed.
 //
 // Each byte of personalization and additionalInput is XOR-ed into seed at the corresponding
 // index, wrapping with modulo if necessary.
@@ -1107,7 +1109,7 @@ func (d *drbg) asyncRekey() {
 //
 // The counter (V) is treated as a 128-bit unsigned integer in big-endian representation.
 // Each call increments the counter by one, wrapping as appropriate. This function
-// is used for advancing the DRBG keystream per SP 800-90A section on counter mode.
+// is used for advancing the DRBG keystream per SP 800-90A section on counter-mode.
 // Not concurrency safe; caller must synchronize if used from multiple goroutines.
 //
 // Parameters:
