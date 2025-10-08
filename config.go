@@ -236,24 +236,69 @@ func WithAutoRandReader() Option {
 	}
 }
 
-// runtimeConfig holds the runtime configuration for the Nano ID generator.
-// It is immutable after initialization.
+// runtimeConfig defines the immutable runtime parameters used by the Nano ID generator.
+//
+// It encapsulates all precomputed values derived from the user-provided configuration,
+// such as alphabet characteristics, entropy requirements, and scaling multipliers.
+// Once initialized, instances of runtimeConfig are treated as read-only and safe for
+// concurrent access by multiple generator instances.
 type runtimeConfig struct {
-	randReader       io.Reader // 16 bytes
-	byteAlphabet     []byte    // 24 bytes
-	runeAlphabet     []rune    // 24 bytes
-	mask             uint      // 8 bytes
-	bitsNeeded       uint      // 8 bytes
-	bytesNeeded      uint      // 8 bytes
-	bufferSize       int       // 8 bytes
-	bufferMultiplier int       // 8 bytes
-	scalingFactor    int       // 8 bytes
-	baseMultiplier   int       // 8 bytes
-	maxBytesPerRune  int       // 8 bytes
-	alphabetLen      uint16    // 2 bytes
-	lengthHint       uint16    // 2 bytes
-	isASCII          bool      // 1 byte
-	isPowerOfTwo     bool      // 1 byte
+	// randReader provides the source of randomness used to generate IDs.
+	// Typically a cryptographically secure source such as crypto/rand.Reader.
+	randReader io.Reader
+
+	// byteAlphabet contains the alphabet encoded as bytes for fast lookup
+	// when generating ASCII-based IDs.
+	byteAlphabet []byte
+
+	// runeAlphabet holds the alphabet as runes, allowing full Unicode support
+	// when non-ASCII alphabets are used.
+	runeAlphabet []rune
+
+	// mask is the bitmask applied to random bytes to constrain values within
+	// the alphabet length for efficient uniform selection.
+	mask uint
+
+	// bitsNeeded represents the number of bits of entropy required to select
+	// a single character from the alphabet.
+	bitsNeeded uint
+
+	// bytesNeeded defines the number of random bytes consumed to generate one ID.
+	bytesNeeded uint
+
+	// bufferSize specifies the size of the internal random buffer used when
+	// reading entropy in bulk for performance.
+	bufferSize int
+
+	// bufferMultiplier controls how many times the buffer may be reused before
+	// refilling from the random source, optimizing throughput for short IDs.
+	bufferMultiplier int
+
+	// scalingFactor defines a scaling coefficient used to calculate how many
+	// random bytes are required relative to the target ID length.
+	scalingFactor int
+
+	// baseMultiplier is a precomputed factor used to adjust scaling under
+	// non–power-of-two alphabets for uniform distribution.
+	baseMultiplier int
+
+	// maxBytesPerRune specifies the maximum number of bytes required to encode
+	// a single rune from the alphabet, relevant for mixed-width alphabets.
+	maxBytesPerRune int
+
+	// alphabetLen stores the total number of characters in the effective alphabet.
+	alphabetLen uint16
+
+	// lengthHint provides the default or expected length for generated IDs,
+	// aiding in preallocation and throughput optimization.
+	lengthHint uint16
+
+	// isASCII indicates whether the alphabet is composed entirely of ASCII characters.
+	isASCII bool
+
+	// isPowerOfTwo marks whether the alphabet length is a power of two,
+	// allowing bitmask optimizations for uniform selection.
+	isPowerOfTwo bool
 }
 
 func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {

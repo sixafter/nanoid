@@ -38,20 +38,29 @@ import (
 //	fmt.Printf("Read %d bytes of random data: %x\n", n, buffer)
 var Reader io.Reader
 
-// Interface defines the contract for a ChaCha20-based cryptographically secure PRNG source.
+// Interface defines the contract for a ChaCha20-based cryptographically secure
+// pseudorandom number generator (PRNG).
 //
-// Implementations satisfy io.Reader and provide access to the non-secret, immutable
-// configuration in effect for the PRNG pool or instance.
+// Implementations of Interface provide a thread-safe source of cryptographically
+// strong random bytes derived from the ChaCha20 stream cipher. Each implementation
+// must also satisfy the io.Reader interface, making it compatible with standard
+// Go APIs that consume randomness (e.g., encoding, crypto, and token generation).
 //
 // All methods are safe for concurrent use unless otherwise noted.
 //
-// The Config() method returns a copy of the PRNG configuration, allowing callers to
-// inspect operational settings without risk of secret or mutable state exposure.
+// The Config method allows callers to retrieve a copy of the immutable,
+// non-secret configuration associated with the PRNG instance. This enables
+// inspection of operational parameters—such as nonce, pool size, or reseed
+// interval—without exposing any sensitive key material or mutable internal state.
 type Interface interface {
 	io.Reader
 
-	// Config returns a copy of the PRNG configuration for this source.
-	// The returned Config omits any secrets or internal runtime state.
+	// Config returns a copy of the PRNG configuration in effect for this source.
+	//
+	// The returned Config contains only non-secret, immutable parameters and
+	// omits any runtime state or cryptographic keys. Callers may safely inspect
+	// the returned value to determine operational behavior without risk of
+	// secret exposure or race conditions.
 	Config() Config
 }
 
@@ -148,7 +157,7 @@ func NewReader(opts ...Option) (Interface, error) {
 	// Step 2: Construct a sync.Pool for managing reusable prng instances.
 	// The pool's New function attempts to construct a new *prng,
 	// retrying up to cfg.MaxInitRetries times in case of failure (e.g., low entropy).
-	// If all attempts fail, the function panics—making the error immediately visible to the developer.
+	// If all attempts fail, the function returns nil, which is caught during eager initialization below.
 	pools := make([]*sync.Pool, cfg.Shards)
 	for i := range pools {
 		cfg := cfg // Capture the current configuration for this shard
@@ -163,28 +172,26 @@ func NewReader(opts ...Option) (Interface, error) {
 						return p
 					}
 				}
-				// If initialization fails after all retries, panic.
-				panic(fmt.Sprintf("prng pool init failed after %d retries: %v", cfg.MaxInitRetries, err))
+				// If initialization fails after all retries, return nil instead of panicking.
+				// The eager initialization step below will detect and return this as an error.
+				return nil
 			},
 		}
 
 		// Step 3: Eagerly test the pool initialization to ensure that any catastrophic
 		// failure is caught immediately, not deferred to the first use.
-		// This triggers pool.New, which may panic on failure. The panic is recovered and stored as an error.
-		var panicErr error
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					panicErr = fmt.Errorf("prng pool initialization failed: %v", r)
-				}
-			}()
-			item := pools[i].Get().(*prng)
+		// This triggers pool.New, which may return nil on failure. Any nil value is converted to an error.
+		var initErr error
+		item := pools[i].Get()
+		if item == nil {
+			initErr = fmt.Errorf("prng pool initialization failed after %d retries", cfg.MaxInitRetries)
+		} else {
 			pools[i].Put(item)
-		}()
+		}
 
-		// Step 4: If initialization failed with a panic, return it as an error.
-		if panicErr != nil {
-			return nil, panicErr
+		// Step 4: If initialization failed, return it as an error.
+		if initErr != nil {
+			return nil, initErr
 		}
 	}
 

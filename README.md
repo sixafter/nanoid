@@ -45,7 +45,7 @@ Please see the [godoc](https://pkg.go.dev/github.com/sixafter/nanoid) for detail
 - **Customizable**: 
   - Define your own set of characters for ID generation with a minimum length of 2 characters and maximum length of 256 characters.
   - Define your own random number generator.
-  - Unicode and ASCII alphabets supported.
+  - Unicode and ASCII alphabets are supported.
 - **Concurrency Safe**: Designed to be safe for use in concurrent environments.
 - **High Performance**: Optimized with buffer pooling to minimize allocations and enhance speed.
 - **Optimized for Low Allocations**: Carefully structured to minimize heap allocations, reducing memory overhead and improving cache locality. This optimization is crucial for applications where performance and resource usage are critical.
@@ -70,10 +70,10 @@ Please see the [nanoid-cli](https://github.com/sixafter/nanoid-cli) for a comman
 To verify the integrity of the release, you can use Cosign to check the signature and checksums. Follow these steps:
 
 ```sh
-# Fetch the latest release tag from GitHub API (e.g., "v1.51.0")
+# Fetch the latest release tag from GitHub API (e.g., "v1.53.0")
 TAG=$(curl -s https://api.github.com/repos/sixafter/nanoid/releases/latest | jq -r .tag_name)
 
-# Remove leading "v" for filenames (e.g., "v1.51.0" -> "1.51.0")
+# Remove leading "v" for filenames (e.g., "v1.53.0" -> "1.53.0")
 VERSION=${TAG#v}
 
 # Verify the release tarball
@@ -230,7 +230,7 @@ func main() {
 	// Define a custom alphabet
 	alphabet := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-	// Create a new generator with custom alphabet and length hint
+	// Create a new generator with a custom alphabet and length hint
 	gen, err := nanoid.NewGenerator(
 		nanoid.WithAlphabet(alphabet),
 		nanoid.WithLengthHint(10),
@@ -272,7 +272,7 @@ import (
 )
 
 func main() {
-	// Create a new generator with custom random number generator
+	// Create a new generator with a custom random number generator
 	gen, err := nanoid.NewGenerator(
 		nanoid.WithRandReader(rand.Reader),
 	)
@@ -302,6 +302,16 @@ Generated ID: A8I8K3J0QY
 ---
 
 ## Performance Optimizations
+
+The benchmark summary below highlights the performance optimizations achieved in this implementation of the Nano ID generator. The benchmarks were conducted on an Apple M4 Max CPU with 16 cores, and the results demonstrate significant improvements in latency, throughput, and memory allocations across various configurations.
+
+| Mode                                 | Latency (ns/op) | Throughput (IDs/sec) | Memory (B/op) | Allocs | Notes                       |
+|:-------------------------------------| --------------: | -------------------: | ------------: | -----: | :-------------------------- |
+| **Serial**                         |            74.1 |              ~13.5 M |            24 |      1 | Single-threaded allocation  |
+| **Parallel (16 cores)**            |             5.6 |               ~178 M |            24 |      1 | Near-linear scalability     |
+| **Buffered Read (optimal 3–5 B)** |            25.0 |                ~40 M |             0 |      0 | Fastest buffered config     |
+| **ASCII ID (21 chars)**           |            54.0 |              ~18.5 M |             0 |      0 | Default configuration       |
+| **Unicode ID (21 chars)**         |           125.0 |               ~8.0 M |            48 |      1 | UTF-8 overhead (~2× slower) |
 
 ### Cryptographically Secure Pseudo Random Number Generator (CSPRNG)
 
