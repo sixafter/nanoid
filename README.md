@@ -1,21 +1,27 @@
-# nanoid: A library for generating cryptographically random Nano IDs.
+<img src="docs/nanoid.svg"
+     alt="NanoID Logo"
+     align="right"
+     style="max-width: 240px; min-width: 160px; width: 25%; height: auto; margin-left: 20px;" />
+
+<div role="heading" aria-level="1"
+     style="font-size: 2em; font-weight: 600; line-height: 1.25; margin: 0;">
+  nanoid: Tiny. Secure. Random.
+</div>
+
+<br/>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/sixafter/nanoid)](https://goreportcard.com/report/github.com/sixafter/nanoid)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/sixafter/nanoid)](https://img.shields.io/github/go-mod/go-version/sixafter/nanoid)
 [![Go Reference](https://pkg.go.dev/badge/github.com/sixafter/nanoid.svg)](https://pkg.go.dev/github.com/sixafter/nanoid)
-[![FIPS‑140 Mode Compatible](https://img.shields.io/badge/FIPS‑140--Mode-Compatible-brightgreen)](FIPS‑140.md)
+[![FIPS-140 Mode Compatible](https://img.shields.io/badge/FIPS‑140--Mode-Compatible-brightgreen)](FIPS-140.md)
 
----
+<br clear="right" />
 
 ## Status
 
-### Build & Test
-
 [![CI](https://github.com/sixafter/nanoid/workflows/ci/badge.svg)](https://github.com/sixafter/nanoid/actions)
 [![GitHub issues](https://img.shields.io/github/issues/sixafter/nanoid)](https://github.com/sixafter/nanoid/issues)
-
-### Quality
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=six-after_nano-id&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=six-after_nano-id)
 ![CodeQL](https://github.com/sixafter/nanoid/actions/workflows/codeql-analysis.yaml/badge.svg)
@@ -23,18 +29,13 @@
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10826/badge)](https://www.bestpractices.dev/projects/10826)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/sixafter/nanoid/badge)](https://scorecard.dev/viewer/?uri=github.com/sixafter/nanoid)
 
-### Package and Deploy
-
 [![Release](https://github.com/sixafter/nanoid/workflows/release/badge.svg)](https://github.com/sixafter/nanoid/actions)
 
----
 ## Overview 
 
 A simple, fast, and efficient Go implementation of [Nano ID](https://github.com/ai/nanoid), a tiny, secure, URL-friendly, unique string ID generator. 
 
 Please see the [godoc](https://pkg.go.dev/github.com/sixafter/nanoid) for detailed documentation.
-
----
 
 ## Features
 
@@ -60,8 +61,6 @@ Please see the [godoc](https://pkg.go.dev/github.com/sixafter/nanoid) for detail
   - See [FIPS‑140.md](FIPS-140.md) for details and deployment guidance.
 
 Please see the [nanoid-cli](https://github.com/sixafter/nanoid-cli) for a command-line interface (CLI) that uses this module to generate Nano IDs.
-
----
 
 ## Verify with Cosign
 
@@ -99,8 +98,6 @@ If valid, Cosign will output:
 Verified OK
 ```
 
----
-
 ## Installation
 
 ### Using `go get`
@@ -116,8 +113,6 @@ To use the NanoID package in your Go project, import it as follows:
 ```go
 import "github.com/sixafter/nanoid"
 ```
-
----
 
 ## Usage
 
@@ -298,8 +293,6 @@ func main() {
 ```bash
 Generated ID: A8I8K3J0QY
 ```
-
----
 
 ## Performance Optimizations
 
@@ -521,8 +514,6 @@ ok  	github.com/sixafter/nanoid	199.184s
 * `B/op`: Bytes allocated per operation. Lower values indicate more memory-efficient code.
 * `allocs/op`: Number of memory allocations per operation. Fewer allocations generally lead to better performance.
 
----
-
 ## ID Generation
 
 Nano ID generates unique identifiers based on the following:
@@ -530,8 +521,6 @@ Nano ID generates unique identifiers based on the following:
 1. **Random Byte Generation**: Nano ID generates a sequence of random bytes using a secure random source (e.g., `crypto/rand.Reader`). 
 2. **Mapping to Alphabet**: Each random byte is mapped to a character in a predefined alphabet to form the final ID. 
 3. **Uniform Distribution**: To ensure that each character in the alphabet has an equal probability of being selected, Nano ID employs techniques to avoid bias, especially when the alphabet size isn't a power of two.
-
----
 
 ## Custom Alphabet Constraints
 
@@ -543,19 +532,14 @@ Nano ID generates unique identifiers based on the following:
 3. Character Encoding:
    * Support for ASCII and Unicode: The generator accepts alphabets containing Unicode characters, allowing you to include a wide range of symbols, emojis, or characters from various languages.
 
----
 
 ## Determining Collisions
 
 To determine the practical length for a NanoID for your use cases, see the collision time calculator [here](https://sixafter.github.io/nanoid/).
 
----
-
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING](CONTRIBUTING.md)
-
----
 
 ## License
 
