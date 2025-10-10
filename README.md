@@ -1,12 +1,9 @@
 <img src="docs/nanoid.svg"
      alt="NanoID Logo"
      align="right"
-     style="max-width: 240px; min-width: 160px; width: 25%; height: auto; margin-left: 20px;" />
+     style="max-width: 320px; min-width: 160px; width: 30%; height: auto; margin-left: 20px;" />
 
-<div role="heading" aria-level="1"
-     style="font-size: 2em; font-weight: 600; line-height: 1.25; margin: 0;">
-  nanoid: Tiny. Secure. Random.
-</div>
+<h3><strong>nanoid: Tiny. Secure. Random.</strong></h3>
 
 <br/>
 
