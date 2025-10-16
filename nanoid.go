@@ -170,8 +170,7 @@ func Must() ID {
 }
 
 // MustWithLength generates a new Nano ID of the specified length.
-// It returns the generated ID as a string.
-// If an error occurs during ID generation, it panics.
+// It returns the generated ID as a string. If an error occurs during ID generation, it panics.
 // The 'length' parameter specifies the number of characters in the generated ID.
 // This function simplifies safe initialization of global variables holding pre-generated Nano IDs.
 //
@@ -236,8 +235,8 @@ func Read(b []byte) (n int, err error) {
 //   - options ...Option: A variadic list of Option functions to customize the Interface's configuration.
 //
 // Returns:
-//   - Interface: An instance of the Interface interface configured with the specified options.
-//   - error: An error object if the Interface could not be created due to invalid configuration.
+//   - Interface: An instance of Interface configured with the specified options.
+//   - error: An error object if Interface could not be created due to invalid configuration.
 //
 // Error Conditions:
 //   - ErrInvalidLength: Returned if the provided LengthHint is less than 1.
@@ -435,7 +434,7 @@ func (g *generator) Read(p []byte) (int, error) {
 	}
 
 	if g.config.isASCII {
-		// Fill ASCII directly into client buffer
+		// Fill ASCII directly into the client buffer
 		if err := g.newASCII(len(p), p); err != nil {
 			return 0, err
 		}
@@ -468,7 +467,7 @@ func (g *generator) Read(p []byte) (int, error) {
 // of internal buffer pools.
 //
 // Parameters:
-//   - length:   The number of random ASCII characters to generate.
+//   - length: The number of random ASCII characters to generate.
 //   - idBuffer: The buffer to fill with generated characters.
 //
 // Returns:
@@ -483,7 +482,7 @@ func (g *generator) Read(p []byte) (int, error) {
 //	}
 //	fmt.Println(string(buf))
 func (g *generator) newASCII(length int, idBuffer []byte) error {
-	// --- Parameter validation: Ensure output buffer is large enough. ---
+	// --- Parameter validation: Ensure the output buffer is large enough. ---
 	if len(idBuffer) < length {
 		return fmt.Errorf("buffer too small")
 	}
@@ -492,7 +491,7 @@ func (g *generator) newASCII(length int, idBuffer []byte) error {
 	randomBytesPtr := g.entropyPool.Get().(*[]byte)
 	randomBytes := *randomBytesPtr
 	bufferLen := len(randomBytes)
-	defer g.entropyPool.Put(randomBytesPtr) // Always return buffer to the pool.
+	defer g.entropyPool.Put(randomBytesPtr) // Always return the buffer to the pool.
 
 	// --- Initialize internal state for NanoID generation. ---
 	cursor := 0                                   // Tracks how many characters have been written.
@@ -543,11 +542,11 @@ func (g *generator) newASCII(length int, idBuffer []byte) error {
 // least `length` capacity. No heap allocations occur outside internal buffer pools.
 //
 // Parameters:
-//   - length:   The number of random runes to generate.
+//   - length: The number of random runes to generate.
 //   - idBuffer: The buffer to fill with generated runes.
 //
 // Returns:
-//   - error: An error if the buffer is too small, random source fails, or max attempts are exceeded.
+//   - error: An error if the buffer is too small, the random source fails, or max attempts are exceeded.
 //
 // Example:
 //
@@ -641,7 +640,7 @@ func (g *generator) processRandomBytes(randomBytes []byte, i int) uint {
 		return uint(binary.BigEndian.Uint16(randomBytes[i : i+2]))
 	case 4:
 		// Use 4 bytes to construct a 32-bit unsigned integer in Big Endian order.
-		// Suitable for very large alphabets, and provides a fast path for power-of-two sizing.
+		// Suitable for very large alphabets and provides a fast path for power-of-two sizing.
 		return uint(binary.BigEndian.Uint32(randomBytes[i : i+4]))
 	default:
 		// General case: Combine `bytesNeeded` bytes into a single unsigned integer.

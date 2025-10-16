@@ -245,8 +245,8 @@ func (r *reader) Config() Config {
 //
 // Security and Compliance Notes:
 //   - Reseed is safe for concurrent use and may be called at any time during operation.
-//   - If called while DRBGs are in use, subsequent reads will immediately begin using the newly seeded state.
-//   - This is required for some FIPS and high-assurance applications, and is recommended for recovery from suspected
+//   - If called while DRBGs are in use, subsequent reads immediately begin using the newly seeded state.
+//   - This is required for some FIPS and high-assurance applications and is recommended for recovery from suspected
 //     entropy pool compromise or for regulatory compliance triggers.
 //
 // Example usage:
@@ -322,7 +322,7 @@ func shardIndex(n int) int {
 //	    // handle error
 //	}
 func (r *reader) ReadWithAdditionalInput(b []byte, additionalInput []byte) (int, error) {
-	// Determine number of pools (shards) in the reader for load balancing.
+	// Determine the number of pools (shards) in the reader for load balancing.
 	n := len(r.pools)
 	shard := 0
 	// For multiple shards, select a random shard index for this call.
@@ -439,7 +439,7 @@ type drbg struct {
 	// automatic reseeding should occur before the next output.
 	lastReseedTime time.Time
 
-	// zero is a preallocated slice of zero-filled bytes used for output buffering.
+	// zero is a pre-allocated slice of zero-filled bytes used for output buffering.
 	//
 	// When UseZeroBuffer is enabled in config, this buffer is XOR-ed with
 	// AES-CTR output to efficiently produce random bytes. Sized dynamically as needed.
@@ -449,7 +449,7 @@ type drbg struct {
 	//
 	// All access and mutation of v must occur with this mutex held to ensure:
 	//   - Counter advancement is atomic and non-overlapping across reads
-	//   - Proper persistence of the counter value between consecutive reads
+	//   - Proper persistence of the counter-value between consecutive reads
 	//   - Safe resetting of the counter during key rotation (rekey)
 	vMu sync.Mutex
 
@@ -499,7 +499,7 @@ type drbg struct {
 	// encV is a persistent [16]byte working buffer used as a session-local counter
 	// during output generation.
 	//
-	// On each call to Read, the current counter value (d.v) is copied into encV, which is
+	// On each call to Read, the current counter-value (d.v) is copied into encV, which is
 	// then incremented and used for block generation throughout the request. Only after all
 	// output is produced is encV copied back into d.v, ensuring atomic and consistent counter
 	// advancement. This prevents partial or inconsistent counter updates if Read exits early
@@ -843,7 +843,7 @@ func (d *drbg) fillBlocks(b []byte, st *state, v *[16]byte) {
 //
 // Parameters:
 //   - additionalInput []byte: Optional, caller-supplied entropy or domain-separation material that is cryptographically
-//     combined with system entropy and personalization. May be nil for standard reseeds.
+//     combined with system entropy and personalization. This may be nil for standard reseeds.
 //
 // Returns:
 //   - error: Non-nil if entropy acquisition or state initialization fails; nil on success.
@@ -894,7 +894,7 @@ func (d *drbg) reseed(additionalInput []byte) error {
 //   - additionalInput []byte: Optional per-call entropy or context to further randomize the state; may be nil.
 //
 // Returns:
-//   - *state: Newly derived DRBG state with fresh key, cipher, and counter.
+//   - *state: Newly derived DRBG state with a fresh key, cipher, and counter.
 //   - error: Non-nil if entropy acquisition or cipher construction fails; nil on success.
 func newDRBGState(cfg *Config, additionalInput []byte) (*state, error) {
 	seedLen := cfg.KeySize + 16
@@ -943,7 +943,7 @@ func newDRBGState(cfg *Config, additionalInput []byte) (*state, error) {
 // If entropy acquisition or cipher construction fails, an error is returned and the DRBG is not created.
 //
 // Parameters:
-//   - cfg: *Config — pointer to the DRBG configuration (must be non-nil)
+//   - cfg: *Config — A pointer to the DRBG configuration (must be non-nil)
 //
 // Returns:
 //   - *drbg: newly initialized DRBG instance, ready for use

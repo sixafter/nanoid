@@ -4,10 +4,10 @@ github.com/davecgh/go-spew/spew
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
-# github.com/sixafter/aes-ctr-drbg v1.11.0
+# github.com/sixafter/aes-ctr-drbg v1.12.0
 ## explicit; go 1.25
 github.com/sixafter/aes-ctr-drbg
-# github.com/sixafter/prng-chacha v1.7.0
+# github.com/sixafter/prng-chacha v1.8.0
 ## explicit; go 1.25
 github.com/sixafter/prng-chacha
 # github.com/stretchr/objx v0.5.3
@@ -16,7 +16,7 @@ github.com/sixafter/prng-chacha
 ## explicit; go 1.17
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/assert/yaml
-# golang.org/x/crypto v0.42.0
+# golang.org/x/crypto v0.43.0
 ## explicit; go 1.24.0
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/internal/alias

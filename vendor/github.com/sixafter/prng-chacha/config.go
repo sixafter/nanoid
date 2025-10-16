@@ -76,7 +76,7 @@ type Config struct {
 	// Only relevant if UseZeroBuffer is true. If zero, no preallocation is performed.
 	DefaultBufferSize int
 
-	// Shards controls the number of pools (shards) to use for parallelism.
+	// Shards control the number of pools (shards) to use for parallelism.
 	//
 	// If zero, defaults to runtime.GOMAXPROCS(0).
 	// Increase this to improve throughput under high concurrency.
@@ -223,7 +223,7 @@ func WithDefaultBufferSize(n int) Option {
 
 // WithShards sets the number of independent sync.Pool shards to use.
 // By default, a single shard is used. Sharding may reduce contention
-// under high concurrency, but can increase overhead on most systems.
+// under high concurrency but can increase overhead on most systems.
 //
 // Note: If n <= 0, the number of shards defaults to runtime.GOMAXPROCS(0),
 // which is useful in containerized environments.
