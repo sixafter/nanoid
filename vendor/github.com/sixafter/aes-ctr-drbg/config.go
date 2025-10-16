@@ -19,8 +19,8 @@ import (
 // KeySize represents the valid AES key lengths supported by AES-CTR-DRBG.
 //
 // It enforces compile-time type safety for AES key selection and helps
-// prevent accidental misuse of invalid key lengths. Only KeySize128, KeySize192, and KeySize256
-// are permitted values for cryptographic configuration.
+// prevent accidental misuse of invalid key lengths. Only KeySize128,
+// KeySize192, and KeySize256 are permitted values for cryptographic configuration.
 //
 // Usage:
 //
@@ -137,7 +137,7 @@ type Config struct {
 	// Only relevant if UseZeroBuffer is true. If zero, no preallocation is performed.
 	DefaultBufferSize int
 
-	// Shards controls the number of pools (shards) to use for parallelism.
+	// Shards control the number of pools (shards) to use for parallelism.
 	//
 	// If zero, defaults to runtime.GOMAXPROCS(0).
 	// Increase this to improve throughput under high concurrency.
@@ -164,7 +164,7 @@ type Config struct {
 	// When false (default), the DRBG operates in the normal mode, and reseeding occurs only at
 	// initialization, on demand, or after MaxBytesPerKey is exceeded (if key rotation is enabled).
 	//
-	// Set via Config directly, or by using the WithPredictionResistance functional option.
+	// Set via Config directly or by using the WithPredictionResistance functional option.
 	//
 	// Security rationale:
 	//   - Enables maximal resilience against state compromise and forward/backward prediction attacks.

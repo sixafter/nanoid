@@ -149,7 +149,7 @@ func NewReader(opts ...Option) (Interface, error) {
 
 	// If n <= 0, the number of shards defaults to runtime.GOMAXPROCS(0),
 	// which is useful in containerized environments.
-	// See: https://github.com/golang/go/issues/73193
+	// See https://go.dev/blog/container-aware-gomaxprocs
 	if cfg.Shards <= 0 {
 		cfg.Shards = runtime.GOMAXPROCS(0)
 	}
@@ -206,7 +206,7 @@ func NewReader(opts ...Option) (Interface, error) {
 //
 // The returned configuration describes the PRNG’s static parameters as set during initialization.
 // No secret values, seeds, or internal state are included. The returned Config is a safe copy
-// for inspection, logging, or diagnostics, and cannot be used to alter the PRNG’s behavior.
+// for inspection, logging, or diagnostics and cannot be used to alter the PRNG’s behavior.
 func (r *reader) Config() Config {
 	return *r.config
 }
@@ -351,9 +351,9 @@ func (p *prng) Read(b []byte) (int, error) {
 
 // newPRNG creates and returns a fully initialized prng instance.
 //
-// This function generates a fresh ChaCha20 cipher using a cryptographically secure random key and nonce,
+// This function generates a fresh cipher using a cryptographically secure random key and nonce,
 // securely zeroes out any sensitive seed material, and stores the cipher in an atomic.Value for lock-free
-// access by Read(). If configured, it preallocates a zero buffer for optimized XORKeyStream usage.
+// access by Read(). If configured, it pre-allocates a zero buffer for optimized XORKeyStream usage.
 // Returns an error if cipher setup fails.
 //
 // Parameters:
@@ -363,7 +363,7 @@ func (p *prng) Read(b []byte) (int, error) {
 //   - *prng: A new PRNG instance ready for random output.
 //   - error: A non-nil error if cipher construction fails.
 func newPRNG(config *Config) (*prng, error) {
-	// Generate a fresh ChaCha20 cipher seeded with secure random key and nonce.
+	// Generate a fresh a new cipher seeded with a secure random key and nonce.
 	stream, err := newCipher()
 	if err != nil {
 		// If cipher construction fails, propagate the error to caller.
@@ -398,7 +398,7 @@ func newPRNG(config *Config) (*prng, error) {
 // The function performs the following steps:
 //  1. Allocates fresh buffers for the key and nonce of the correct size.
 //  2. Fills both buffers with cryptographically secure random bytes from crypto/rand.Reader.
-//  3. Constructs a new ChaCha20 stream cipher instance using the generated key and nonce.
+//  3. Constructs a new stream cipher instance using the generated key and nonce.
 //  4. Immediately overwrites (zeroes) the key and nonce buffers in memory to prevent any
 //     sensitive seed material from lingering in process memory.
 //  5. If any step fails (entropy acquisition or cipher construction), returns an error with context.
@@ -463,10 +463,10 @@ func (p *prng) asyncRekey() {
 	}
 
 	for i := 0; i < p.config.MaxRekeyAttempts; i++ {
-		// Capture the currently-active cipher pointer for later zeroization.
+		// Capture the currently active cipher pointer for later zeroization.
 		old = p.cipher.Load().(*chacha20.Cipher)
 
-		// Attempt to create a new ChaCha20 cipher (with new key and nonce).
+		// Attempt to create a new ChaCha20 cipher (with a new key and nonce).
 		stream, err := newCipher()
 		if err == nil {
 			// Store the new cipher atomically.

@@ -19,6 +19,20 @@ Date format: `YYYY-MM-DD`
 
 ---
 
+## [1.54.0] - 2025-10-16
+
+### Added
+### Changed
+- **debt:** Upgraded all dependencies to their latest stable versions.
+- **debt:** Updated documentation and Go-doc comments.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
+
 ## [1.53.0] - 2025-10-08
 
 ### Added

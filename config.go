@@ -193,7 +193,7 @@ func WithRandReader(reader io.Reader) Option {
 // of IDs with similar lengths.
 //
 // Parameters:
-//   - hint uint16: A non-zero unsigned integer representing the anticipated length of the Nano IDs.
+//   - hint uint16: A non-zero unsigned integer representing the expected length of the Nano IDs.
 //
 // Returns:
 //   - Option: A configuration option that applies the length hint to ConfigOptions.
@@ -386,7 +386,7 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 	baseMultiplier := int(math.Ceil(math.Log2(float64(opts.LengthHint) + 2.0)))
 
 	// Determine a scaling factor to adjust the buffer size.
-	// This factor ensures the buffer is sufficiently large to accommodate the randomness needed,
+	// This factor ensures the buffer is large enough to accommodate the randomness needed,
 	// balancing between performance (less frequent random reads) and memory usage.
 	scalingFactor := int(math.Max(3.0, float64(alphabetLen)/math.Pow(float64(opts.LengthHint), 0.6)))
 
