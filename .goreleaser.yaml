@@ -118,7 +118,6 @@ signs:
       - sign-blob
       - --yes
       - --key
-      - --bundle
       - env://COSIGN_PRIVATE_KEY
       - "--bundle=${signature}"
       - '${artifact}'
