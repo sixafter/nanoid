@@ -65,27 +65,46 @@ Please see the [nanoid-cli](https://github.com/sixafter/nanoid-cli) for a comman
 To verify the integrity of the release, you can use Cosign to check the signature and checksums. Follow these steps:
 
 ```sh
-# Fetch the latest release tag from GitHub API (e.g., "v1.53.0")
+# Fetch the latest release tag from GitHub API (e.g., "v1.55.0")
 TAG=$(curl -s https://api.github.com/repos/sixafter/nanoid/releases/latest | jq -r .tag_name)
 
-# Remove leading "v" for filenames (e.g., "v1.53.0" -> "1.53.0")
+# Remove leading "v" for filenames (e.g., "v1.55.0" -> "1.55.0")
 VERSION=${TAG#v}
 
-# Verify the release tarball
+# ---------------------------------------------------------------------
+# Verify the source archive using Sigstore bundles
+# ---------------------------------------------------------------------
+
+# Download the release tarball and its corresponding bundle
+curl -LO https://github.com/sixafter/nanoid/releases/download/${TAG}/nanoid-${VERSION}.tar.gz
+curl -LO https://github.com/sixafter/nanoid/releases/download/${TAG}/nanoid-${VERSION}.tar.gz.bundle.json
+
+# Verify the tarball with Cosign using your published public key
 cosign verify-blob \
   --key https://raw.githubusercontent.com/sixafter/nanoid/main/cosign.pub \
-  --signature nanoid-${VERSION}.tar.gz.sig \
-  nanoid-${VERSION}.tar.gz
+  --bundle nanoid-${VERSION}.tar.gz.bundle.json \
+  prng-chacha-${VERSION}.tar.gz
 
-# Download checksums.txt and its signature from the latest release assets
+# ---------------------------------------------------------------------
+# Verify the checksums manifest using Sigstore bundles
+# ---------------------------------------------------------------------
+
+# Download checksums.txt and its bundle
 curl -LO https://github.com/sixafter/nanoid/releases/download/${TAG}/checksums.txt
-curl -LO https://github.com/sixafter/nanoid/releases/download/${TAG}/checksums.txt.sig
+curl -LO https://github.com/sixafter/nanoid/releases/download/${TAG}/checksums.txt.bundle.json
 
-# Verify checksums.txt with cosign
+# Verify checksums.txt with Cosign using your public key
 cosign verify-blob \
   --key https://raw.githubusercontent.com/sixafter/nanoid/main/cosign.pub \
-  --signature checksums.txt.sig \
+  --bundle checksums.txt.bundle.json \
   checksums.txt
+
+# ---------------------------------------------------------------------
+# Confirm local artifact integrity
+# ---------------------------------------------------------------------
+
+# Compute and validate checksums locally
+shasum -a 256 -c checksums.txt
 ```
 
 If valid, Cosign will output:
