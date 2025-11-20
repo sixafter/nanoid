@@ -57,27 +57,43 @@ Please see the [godoc](https://pkg.go.dev/github.com/sixafter/prng-chacha) for d
 To verify the integrity of the release tarball, you can use Cosign to check the signature against the public key.
 
 ```sh
-# Fetch the latest release tag from GitHub API (e.g., "v1.5.0")
+# Fetch the latest release tag from GitHub API (e.g., "v1.14.0")
 TAG=$(curl -s https://api.github.com/repos/sixafter/prng-chacha/releases/latest | jq -r .tag_name)
 
-# Remove leading "v" for filenames (e.g., "v1.5.0" -> "1.5.0")
+# Remove leading "v" for filenames (e.g., "v1.14.0" -> "1.14.0")
 VERSION=${TAG#v}
 
-# Verify the release tarball
-cosign verify-blob \
-  --key https://raw.githubusercontent.com/sixafter/prng-chacha/main/cosign.pub \
-  --signature prng-chacha-${VERSION}.tar.gz.sig \
-  prng-chacha-${VERSION}.tar.gz
+# ---------------------------------------------------------------------
+# Verify the source archive using Sigstore bundles
+# ---------------------------------------------------------------------
 
-# Download checksums.txt and its signature from the latest release assets
-curl -LO https://github.com/sixafter/prng-chacha/releases/download/${TAG}/checksums.txt
-curl -LO https://github.com/sixafter/prng-chacha/releases/download/${TAG}/checksums.txt.sig
+# Download the release tarball and its signature bundle
+curl -LO "https://github.com/sixafter/prng-chacha/releases/download/${TAG}/prng-chacha-${VERSION}.tar.gz"
+curl -LO "https://github.com/sixafter/prng-chacha/releases/download/${TAG}/prng-chacha-${VERSION}.tar.gz.sigstore.json"
 
-# Verify checksums.txt with cosign
+# Verify the tarball with Cosign using the published public key
 cosign verify-blob \
-  --key https://raw.githubusercontent.com/sixafter/prng-chacha/main/cosign.pub \
-  --signature checksums.txt.sig \
-  checksums.txt
+  --key "https://raw.githubusercontent.com/sixafter/prng-chacha/main/cosign.pub" \
+  --bundle "prng-chacha-${VERSION}.tar.gz.sigstore.json" \
+  "prng-chacha-${VERSION}.tar.gz"
+
+# ---------------------------------------------------------------------
+# Verify the checksums manifest using Sigstore bundles
+# ---------------------------------------------------------------------
+
+curl -LO "https://github.com/sixafter/prng-chacha/releases/download/${TAG}/checksums.txt"
+curl -LO "https://github.com/sixafter/prng-chacha/releases/download/${TAG}/checksums.txt.sigstore.json"
+
+cosign verify-blob \
+  --key "https://raw.githubusercontent.com/sixafter/prng-chacha/main/cosign.pub" \
+  --bundle "checksums.txt.sigstore.json" \
+  "checksums.txt"
+
+# ---------------------------------------------------------------------
+# Confirm local artifact integrity
+# ---------------------------------------------------------------------
+
+shasum -a 256 -c checksums.txt
 ```
 
 If valid, Cosign will output:
@@ -85,6 +101,15 @@ If valid, Cosign will output:
 ```shell
 Verified OK
 ```
+
+---
+
+## Verify Go module
+
+To validate that the Go module archive served by GitHub, go mod download, and the Go
+proxy are all consistent, run the `module-verify` target. This performs a full cross-check
+of the tag archive and module ZIPs to confirm they match byte-for-byte.
+
 
 ---
 
