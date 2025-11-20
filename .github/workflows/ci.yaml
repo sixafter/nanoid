@@ -64,7 +64,7 @@ jobs:
 
       # Ref: https://github.com/golangci/golangci-lint-action
       - name: Lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           args: --timeout=30m --config=.golangci.yaml --issues-exit-code=0
 

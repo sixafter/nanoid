@@ -19,6 +19,25 @@ Date format: `YYYY-MM-DD`
 
 ---
 
+## [1.56.0] - 2025-11-20
+
+### Added
+- **risk**: Added signature verification make target to match the README instructions.
+- **risk:** Added go module verification make target to verify module checksums.
+
+### Changed
+- **debt:** Upgraded all dependencies to their latest stable versions.
+
+### Deprecated
+### Removed
+### Fixed
+- **defect:** Fixed `README.md` instructions for verifying module checksums.
+
+### Security
+- **risk:** Upgraded `golang.org/x/crypto` to `v0.45.0` to address vulnerabilities.
+
+---
+
 ## [1.55.0] - 2025-11-07
 
 ### Added
@@ -1027,8 +1046,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.55.0...HEAD
-[1.55.0]: https://github.com/sixafter/nanoid/compare/v1.54.0...v1.55.0
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.56.0...HEAD
+[1.56.0]: https://github.com/sixafter/nanoid/compare/v1.55.0...v1.56.0
 [1.54.0]: https://github.com/sixafter/nanoid/compare/v1.53.0...v1.54.0
 [1.53.0]: https://github.com/sixafter/nanoid/compare/v1.52.0...v1.53.0
 [1.52.0]: https://github.com/sixafter/nanoid/compare/v1.51.0...v1.52.0
