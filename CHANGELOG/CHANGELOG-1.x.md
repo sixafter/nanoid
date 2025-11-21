@@ -19,6 +19,22 @@ Date format: `YYYY-MM-DD`
 
 ---
 
+## [1.57.0] - 2025-11-21
+
+### Added
+### Changed
+- **debt:** Upgraded all dependencies to their latest stable versions.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+- **risk:** Go module verification accepts a specific version of Go for checksum verification.
+  - Check a specific tag: `TAG=v1.56.0 make module-verify`
+  - Check the latest version: `make module-verify`
+
+---
+
 ## [1.56.0] - 2025-11-20
 
 ### Added
@@ -1046,7 +1062,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.56.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.57.0...HEAD
+[1.57.0]: https://github.com/sixafter/nanoid/compare/v1.56.0...v1.57.0
 [1.56.0]: https://github.com/sixafter/nanoid/compare/v1.55.0...v1.56.0
 [1.54.0]: https://github.com/sixafter/nanoid/compare/v1.53.0...v1.54.0
 [1.53.0]: https://github.com/sixafter/nanoid/compare/v1.52.0...v1.53.0

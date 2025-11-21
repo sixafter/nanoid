@@ -21,6 +21,7 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=six-after_aes-ctr-drbg&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=six-after_aes-ctr-drbg)
 ![CodeQL](https://github.com/sixafter/aes-ctr-drbg/actions/workflows/codeql-analysis.yaml/badge.svg)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=six-after_aes-ctr-drbg&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=six-after_aes-ctr-drbg)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11487/badge)](https://www.bestpractices.dev/projects/11487)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/sixafter/aes-ctr-drbg/badge)](https://scorecard.dev/viewer/?uri=github.com/sixafter/aes-ctr-drbg)
 
 ### Package and Deploy
@@ -96,6 +97,13 @@ See [FIPS‑140.md](FIPS-140.md) for compliance, deployment, and configuration g
 * **Fork-Safety:**
   Automatic detection and reseeding on process fork. This library automatically detects process forks and reseeds in the child process to prevent random stream duplication. No manual action is required.
 
+For an example of how this library can be consumed in practice, see [sixafter/nanoid](https://github.com/sixafter/nanoid).
+
+NanoID uses [sixafter/prng-chacha](https://github.com/sixafter/prng-chacha) as its default high-performance RNG, but
+can also use **`aes-ctr-drbg`** when FIPS 140-2/3 alignment or deterministic AES-CTR-based randomness is required. This provides a clear, real-world example of integrating this DRBG into an ID-generation workflow,
+including optional FIPS-centric operation. There is also a [WithAutoRandReader()](https://github.com/sixafter/nanoid/blob/d8efbc63e5a5696a33f34b9fb5d24f5d7805a7ed/config.go#L229) option that automatically selects 
+between `prng-chacha` and `aes-ctr-drbg` based on the runtime FIPS mode.
+
 ## NIST SP 800-90A Compliance
 
 For a detailed mapping between the implementation and NIST SP 800-90A requirements, see [NIST-SP-800-90A.md](docs/NIST-SP-800-90A.md).
@@ -154,6 +162,8 @@ If valid, Cosign will output:
 ```shell
 Verified OK
 ```
+
+---
 
 ## Verify Go module
 

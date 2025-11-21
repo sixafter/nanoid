@@ -100,7 +100,7 @@ release-verify: ## Verify the release
 
 .PHONY: module-verify
 module-verify: ## Verify Go module integrity
-	@scripts/verify-mod.sh
+	@TAG=$(TAG) scripts/verify-mod.sh
 
 .PHONY: signature-verify
 signature-verify: ## Verify latest release's digital signatures
