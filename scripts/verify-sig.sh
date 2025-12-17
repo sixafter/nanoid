@@ -15,6 +15,34 @@ if is_windows; then
     exit 1
 fi
 
+curl_retry() {
+    local url="$1"
+    local out="$2"
+    local attempt=1
+    local max=5
+    local delay=2
+
+    while true; do
+        # -f: fail on HTTP error codes
+        # -s: silent
+        # -S: show errors
+        # -L: follow redirects
+        if curl -fSsSL "${url}" -o "${out}"; then
+            return 0
+        fi
+
+        if (( attempt >= max )); then
+            echo "[ERROR] curl failed after ${attempt} attempts: ${url}" >&2
+            return 1
+        fi
+
+        echo "[WARN] curl failed (attempt ${attempt}/${max}). Retrying in ${delay}s..."
+        sleep $delay
+        attempt=$(( attempt + 1 ))
+        delay=$(( delay * 2 ))  # exponential backoff
+    done
+}
+
 # ------------------------------------------------------------
 # Project / repository name (portable)
 # ------------------------------------------------------------
@@ -56,23 +84,29 @@ echo
 echo "Downloading release artifacts into ${TMP}..."
 
 # Core tarball
-curl -sSfL -o "${TMP}/${PROJECT}-${VERSION}.tar.gz" \
-  "https://github.com/${REPO}/releases/download/${TAG}/${PROJECT}-${VERSION}.tar.gz"
+curl_retry \
+  "https://github.com/${REPO}/releases/download/${TAG}/${PROJECT}-${VERSION}.tar.gz" \
+  "${TMP}/${PROJECT}-${VERSION}.tar.gz"
 
 # Tarball signature
-curl -sSfL -o "${TMP}/${PROJECT}-${VERSION}.tar.gz.sigstore.json" \
-  "https://github.com/${REPO}/releases/download/${TAG}/${PROJECT}-${VERSION}.tar.gz.sigstore.json"
+curl_retry \
+  "https://github.com/${REPO}/releases/download/${TAG}/${PROJECT}-${VERSION}.tar.gz.sigstore.json" \
+  "${TMP}/${PROJECT}-${VERSION}.tar.gz.sigstore.json"
 
-# SBOM (required for checksum verification)
-curl -sSfL -o "${TMP}/${PROJECT}-${VERSION}.tar.gz.sbom.json" \
-  "https://github.com/${REPO}/releases/download/${TAG}/${PROJECT}-${VERSION}.tar.gz.sbom.json"
+# SBOM
+curl_retry \
+  "https://github.com/${REPO}/releases/download/${TAG}/${PROJECT}-${VERSION}.tar.gz.sbom.json" \
+  "${TMP}/${PROJECT}-${VERSION}.tar.gz.sbom.json"
 
-# checksums.txt + signature
-curl -sSfL -o "${TMP}/checksums.txt" \
-  "https://github.com/${REPO}/releases/download/${TAG}/checksums.txt"
+# checksums.txt
+curl_retry \
+  "https://github.com/${REPO}/releases/download/${TAG}/checksums.txt" \
+  "${TMP}/checksums.txt"
 
-curl -sSfL -o "${TMP}/checksums.txt.sigstore.json" \
-  "https://github.com/${REPO}/releases/download/${TAG}/checksums.txt.sigstore.json"
+# checksums.txt signature
+curl_retry \
+  "https://github.com/${REPO}/releases/download/${TAG}/checksums.txt.sigstore.json" \
+  "${TMP}/checksums.txt.sigstore.json"
 
 # ------------------------------------------------------------
 # Verify tarball with Cosign

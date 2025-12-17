@@ -13,6 +13,7 @@ Date format: `YYYY-MM-DD`
 ### Added
 ### Changed
 - **debt:** Upgraded all dependencies to their latest stable versions.
+- **risk:** Add retry logic to signature verification make target to handle transient network errors.
 
 ### Deprecated
 ### Removed
