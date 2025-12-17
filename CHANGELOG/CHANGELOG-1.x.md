@@ -12,6 +12,8 @@ Date format: `YYYY-MM-DD`
 
 ### Added
 ### Changed
+- **debt:** Upgraded all dependencies to their latest stable versions.
+
 ### Deprecated
 ### Removed
 ### Fixed

@@ -24,7 +24,7 @@ on:
       - 'LICENSE'
       - '**/*.md'
 
-# Declare default permissions as read only.
+# Declare default permissions as read-only.
 permissions: read-all
 
 jobs:
@@ -52,7 +52,7 @@ jobs:
 
       # Ref: https://github.com/actions/checkout
       - name: Checkout Source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -85,9 +85,9 @@ jobs:
           make analyze          
 
       # Ref: https://github.com/SonarSource/sonarqube-scan-action
-      # Ref: https://github.com/SonarSource/sonarqube-scan-action/releases/tag/v6.0.0
+      # Ref: https://github.com/SonarSource/sonarqube-scan-action/releases/tag/v7.0.0
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@v7
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_USER: ${{ github.actor }}
