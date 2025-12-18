@@ -66,7 +66,7 @@ To verify the integrity of the release, you can use Cosign to check the signatur
 
 ```sh
 # Fetch the latest release tag from GitHub API (e.g., "v1.56.0")
-TAG=$(curl -s https://api.github.com/repos/sixafter/nanoid-go/releases/latest | jq -r .tag_name)
+TAG=$(curl -s https://api.github.com/repos/sixafter/nanoid/releases/latest | jq -r .tag_name)
 
 # Remove leading "v" for filenames (e.g., "v1.56.0" -> "1.56.0")
 VERSION=${TAG#v}
@@ -76,12 +76,12 @@ VERSION=${TAG#v}
 # ---------------------------------------------------------------------
 
 # Download the release tarball and its signature bundle
-curl -LO "https://github.com/sixafter/nanoid-go/releases/download/${TAG}/nanoid-${VERSION}.tar.gz"
-curl -LO "https://github.com/sixafter/nanoid-go/releases/download/${TAG}/nanoid-${VERSION}.tar.gz.sigstore.json"
+curl -LO "https://github.com/sixafter/nanoid/releases/download/${TAG}/nanoid-${VERSION}.tar.gz"
+curl -LO "https://github.com/sixafter/nanoid/releases/download/${TAG}/nanoid-${VERSION}.tar.gz.sigstore.json"
 
 # Verify the tarball with Cosign using the published public key
 cosign verify-blob \
-  --key "https://raw.githubusercontent.com/sixafter/nanoid-go/main/cosign.pub" \
+  --key "https://raw.githubusercontent.com/sixafter/nanoid/main/cosign.pub" \
   --bundle "nanoid-${VERSION}.tar.gz.sigstore.json" \
   "nanoid-${VERSION}.tar.gz"
 
@@ -89,11 +89,11 @@ cosign verify-blob \
 # Verify the checksums manifest using Sigstore bundles
 # ---------------------------------------------------------------------
 
-curl -LO "https://github.com/sixafter/nanoid-go/releases/download/${TAG}/checksums.txt"
-curl -LO "https://github.com/sixafter/nanoid-go/releases/download/${TAG}/checksums.txt.sigstore.json"
+curl -LO "https://github.com/sixafter/nanoid/releases/download/${TAG}/checksums.txt"
+curl -LO "https://github.com/sixafter/nanoid/releases/download/${TAG}/checksums.txt.sigstore.json"
 
 cosign verify-blob \
-  --key "https://raw.githubusercontent.com/sixafter/nanoid-go/main/cosign.pub" \
+  --key "https://raw.githubusercontent.com/sixafter/nanoid/main/cosign.pub" \
   --bundle "checksums.txt.sigstore.json" \
   "checksums.txt"
 
