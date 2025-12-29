@@ -40,6 +40,11 @@ const (
 	KeySize256 KeySize = 32
 )
 
+const (
+	// maxReseedInterval is the NIST SP 800-90A maximum reseed interval for CTR_DRBG (2^48).
+	maxReseedInterval uint64 = 1 << 48
+)
+
 // Config defines the tunable parameters for AES-CTR-DRBG instances and the DRBG pool.
 //
 // It supports fine-grained control over key size, key rotation, rekeying policies,
@@ -153,7 +158,7 @@ type Config struct {
 	//
 	// When set to true, the DRBG will automatically reseed from fresh system entropy before every
 	// output generation (each call to Read or ReadWithAdditionalInput), as required for compliance
-	// with "prediction resistance" in Section 9.3 of SP 800-90A. This defeats state compromise
+	// with "prediction resistance" in §9.3 of SP 800-90A. This defeats state compromise
 	// extension and protects against backtracking even if the DRBG's internal state is exposed.
 	//
 	// When enabled:
@@ -177,6 +182,21 @@ type Config struct {
 	// If false, output may be generated in place, which is typically faster and allocation-free.
 	// Defaults to false.
 	UseZeroBuffer bool
+
+	// EnableSelfTests controls whether FIPS 140-2 Known Answer Tests (KAT) are run
+	// on first use of the DRBG to verify AES-CTR is functioning correctly.
+	//
+	// When true, RunSelfTests() is called automatically on the first NewReader() invocation.
+	// When false (default), self-tests are skipped for performance.
+	EnableSelfTests bool
+
+	// EnableZeroization controls whether cryptographic key material is securely
+	// erased from memory during key rotation operations.
+	//
+	// When true, old keys and counters are zeroized using crypto/subtle before
+	// being replaced, providing forward secrecy hardening per FIPS 140-2 section 4.7.6.
+	// When false (default), old key material is simply overwritten.
+	EnableZeroization bool
 }
 
 // Default configuration constants for AES-CTR-DRBG.
@@ -197,7 +217,7 @@ const (
 	defaultRekeyBackoff = 100 * time.Millisecond
 )
 
-// DefaultConfig returns a Config struct populated with production-safe, NIST SP 800-90A Section 10.2.1-aligned defaults.
+// DefaultConfig returns a Config struct populated with production-safe, NIST SP 800-90A §10.2.1-aligned defaults.
 //
 // This function provides a robust baseline configuration for AES-CTR-DRBG instances, suitable for general-purpose
 // cryptographic use and high-concurrency workloads. All parameters are selected to ensure strong security, compliance
@@ -213,7 +233,9 @@ const (
 //   - MaxRekeyAttempts:   5 attempts per automatic key rotation
 //   - MaxRekeyBackoff:    2 seconds (maximum exponential backoff between failed rekey attempts)
 //   - RekeyBackoff:       100 milliseconds (initial backoff for rekey attempts)
-//   - EnableKeyRotation:  false (key rotation is disabled by default—**set to true for forward secrecy**)
+//   - EnableKeyRotation:  false (key rotation is disabled by default—set to true for forward secrecy)
+//   - EnableSelfTests:    false (FIPS 140-2 KAT self-tests disabled; enable via WithSelfTests for compliance)
+//   - EnableZeroization:  false (key zeroization disabled; enable via WithZeroization for FIPS 140-2 compliance)
 //   - Personalization:    nil (no domain separation unless set by the caller)
 //   - UseZeroBuffer:      false (random output generated directly into caller's buffer)
 //   - DefaultBufferSize:  0 (no preallocation of zero-filled buffers)
@@ -222,7 +244,7 @@ const (
 //   - ForkDetectionInterval: 0 (fork detection performed on every output request for maximum safety)
 //
 // NIST Reference:
-//   - See NIST SP 800-90A, Section 10.2.1 (CTR DRBG) for cryptographic construction details.
+//   - See NIST SP 800-90A, §10.2.1 (CTR DRBG) for cryptographic construction details.
 //
 // Example usage:
 //
@@ -376,9 +398,15 @@ func WithReseedInterval(d time.Duration) Option {
 // WithReseedRequests returns an Option that sets the maximum number of output requests (calls to Read)
 // allowed before forcing an automatic reseed from system entropy.
 //
+// Values exceeding the NIST SP 800-90A maximum (2^48) are clamped to the maximum.
 // Set to zero to disable reseed-on-request-count behavior.
 func WithReseedRequests(n uint64) Option {
-	return func(cfg *Config) { cfg.ReseedRequests = n }
+	return func(cfg *Config) {
+		if n > maxReseedInterval {
+			n = maxReseedInterval
+		}
+		cfg.ReseedRequests = n
+	}
 }
 
 // WithForkDetectionInterval sets the number of output requests between fork detection checks.
@@ -387,4 +415,22 @@ func WithReseedRequests(n uint64) Option {
 // Only set for performance-tuned applications that do NOT require strict compliance!
 func WithForkDetectionInterval(n uint64) Option {
 	return func(cfg *Config) { cfg.ForkDetectionInterval = n }
+}
+
+// WithSelfTests returns an Option that enables or disables FIPS 140-2 Known Answer Tests (KAT).
+//
+// When enabled, RunSelfTests() is called automatically on first NewReader() invocation
+// to verify AES-CTR is functioning correctly before generating output.
+// Defaults to false.
+func WithSelfTests(enable bool) Option {
+	return func(cfg *Config) { cfg.EnableSelfTests = enable }
+}
+
+// WithZeroization returns an Option that enables or disables secure key zeroization.
+//
+// When enabled, old cryptographic key material is securely erased from memory
+// during key rotation operations per FIPS 140-2 section 4.7.6.
+// Defaults to false.
+func WithZeroization(enable bool) Option {
+	return func(cfg *Config) { cfg.EnableZeroization = enable }
 }
