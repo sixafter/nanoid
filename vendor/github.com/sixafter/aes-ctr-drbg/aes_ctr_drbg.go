@@ -7,7 +7,7 @@
 //
 // This package implements a cryptographically secure, pool-backed Deterministic Random Bit Generator
 // (DRBG) following the NIST SP 800-90A AES-CTR-DRBG construction, specifically as defined in
-// Section 10.2.1 of NIST SP 800-90A Rev. 1 ("Recommendation for Random Number Generation Using
+// §10.2.1 of NIST SP 800-90A Rev. 1 ("Recommendation for Random Number Generation Using
 // Deterministic Random Bit Generators").
 //
 // Each generator instance uses an AES block cipher in counter (CTR) mode to produce cryptographically
@@ -18,7 +18,7 @@
 //
 // Reference:
 //
-//	NIST Special Publication 800-90A Rev. 1, Section 10.2.1 (CTR_DRBG Construction)
+//	NIST Special Publication 800-90A Rev. 1, §10.2.1 (CTR_DRBG Construction)
 //	https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-90Ar1.pdf
 package ctrdrbg
 
@@ -26,6 +26,8 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/subtle"
+	"errors"
 	"fmt"
 	"io"
 	mrand "math/rand/v2"
@@ -34,6 +36,14 @@ import (
 	"sync/atomic"
 	"time"
 )
+
+const (
+	// MaxBytesPerRequest is the NIST SP 800-90A maximum bytes per request for CTR_DRBG (2^19 bits = 64 KB).
+	MaxBytesPerRequest = 1 << 16
+)
+
+// ErrRequestTooLarge is returned when a Read request exceeds the NIST SP 800-90A maximum (64 KB).
+var ErrRequestTooLarge = errors.New("ctrdrbg: request exceeds NIST SP 800-90A max_number_of_bits_per_request (64 KB)")
 
 // Reader is a package-level, cryptographically secure random source suitable for high-concurrency applications.
 //
@@ -191,6 +201,13 @@ func NewReader(opts ...Option) (Interface, error) {
 	cfg := DefaultConfig()
 	for _, opt := range opts {
 		opt(&cfg)
+	}
+
+	// FIPS 140-2 §4.9.1: Run Known Answer Tests if enabled.
+	if cfg.EnableSelfTests {
+		if err := RunSelfTests(); err != nil {
+			return nil, err
+		}
 	}
 
 	// Validate the configured key size is appropriate for AES.
@@ -541,6 +558,11 @@ func (d *drbg) Read(b []byte) (int, error) {
 		return 0, nil
 	}
 
+	// NIST SP 800-90A §10.2.1: Validate max_number_of_bits_per_request (64 KB).
+	if n > MaxBytesPerRequest {
+		return 0, ErrRequestTooLarge
+	}
+
 	d.reseedIfForked()
 
 	// Prediction Resistance
@@ -648,6 +670,11 @@ func (d *drbg) ReadWithAdditionalInput(b []byte, additionalInput []byte) (int, e
 	n := len(b)
 	if n == 0 {
 		return 0, nil
+	}
+
+	// NIST SP 800-90A §10.2.1: Validate max_number_of_bits_per_request (64 KB).
+	if n > MaxBytesPerRequest {
+		return 0, ErrRequestTooLarge
 	}
 
 	d.reseedIfForked()
@@ -1074,8 +1101,18 @@ func (d *drbg) asyncRekey() {
 			copy(key[:], seed[:d.config.KeySize])
 			var v [16]byte
 			copy(v[:], seed[d.config.KeySize:])
-			block, err := aes.NewCipher(key[:d.config.KeySize])
+			var block cipher.Block
+			block, err = aes.NewCipher(key[:d.config.KeySize])
 			if err == nil {
+				// FIPS 140-2 §4.7.6: Zeroize old key material before replacement.
+				if d.config.EnableZeroization {
+					if oldState := d.state.Load(); oldState != nil {
+						// Use subtle.XORBytes to prevent compiler optimization.
+						subtle.XORBytes(oldState.key[:], oldState.key[:], oldState.key[:])
+						subtle.XORBytes(oldState.v[:], oldState.v[:], oldState.v[:])
+					}
+				}
+
 				// Store new cryptographic state atomically.
 				newState := &state{
 					block: block,
@@ -1087,6 +1124,10 @@ func (d *drbg) asyncRekey() {
 
 				// Reset the working counter (v) under mutex lock to ensure no overlap.
 				d.vMu.Lock()
+				// Zeroize old working counter before overwriting.
+				if d.config.EnableZeroization {
+					subtle.XORBytes(d.v[:], d.v[:], d.v[:])
+				}
 				copy(d.v[:], v[:])
 				d.vMu.Unlock()
 				return // Rekey complete.

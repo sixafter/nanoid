@@ -181,17 +181,17 @@ func NewReader(opts ...Option) (Interface, error) {
 		// Step 3: Eagerly test the pool initialization to ensure that any catastrophic
 		// failure is caught immediately, not deferred to the first use.
 		// This triggers pool.New, which may return nil on failure. Any nil value is converted to an error.
-		var initErr error
+		var err error
 		item := pools[i].Get()
 		if item == nil {
-			initErr = fmt.Errorf("prng pool initialization failed after %d retries", cfg.MaxInitRetries)
+			err = fmt.Errorf("prng pool initialization failed after %d retries", cfg.MaxInitRetries)
 		} else {
 			pools[i].Put(item)
 		}
 
 		// Step 4: If initialization failed, return it as an error.
-		if initErr != nil {
-			return nil, initErr
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -484,7 +484,7 @@ func (p *prng) asyncRekey() {
 
 		// If cipher initialization failed, jitter the retry delay by a random amount.
 		var b [8]byte
-		if _, err := rand.Read(b[:]); err == nil {
+		if _, err = rand.Read(b[:]); err == nil {
 			// Interpret b as a big-endian uint64 for jitter.
 			rnd := binary.BigEndian.Uint64(b[:])
 

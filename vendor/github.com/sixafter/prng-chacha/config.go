@@ -230,6 +230,9 @@ func WithDefaultBufferSize(n int) Option {
 // See: https://github.com/golang/go/issues/73193
 func WithShards(n int) Option {
 	return func(cfg *Config) {
+		if n <= 0 {
+			n = runtime.GOMAXPROCS(0)
+		}
 		cfg.Shards = n
 	}
 }
