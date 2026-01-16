@@ -89,13 +89,13 @@ changelog:
     - title: "🎉 Features"
       regexp: '(?i)^.*?feature(\([[:word:]]+\))??!?:.+$'
       order: 0
-    - title: "🐛 Defects"
+    - title: "🛠 Defects"
       regexp: '(?i)^.*?defect(\([[:word:]]+\))??!?:.+$'
       order: 1
-    - title: "🛠 Technical Debt"
+    - title: "⚖️ Technical Debt"
       regexp: '(?i)^.*?debt(\([[:word:]]+\))??!?:.+$'
       order: 1
-    - title: "🚀 Technical Risk"
+    - title: "⚠️ Technical Risk"
       regexp: '(?i)^.*?risk(\([[:word:]]+\))??!?:.+$'
       order: 1
     - title: Others

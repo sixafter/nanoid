@@ -505,7 +505,7 @@ func (r *runtimeConfig) Mask() uint {
 
 // RandReader returns the source of randomness used for generating IDs.
 //
-// It is typically a cryptographically secure random number generator (e.g., crypto/rand.Reader).
+// This is typically a cryptographically secure random number generator (e.g., crypto/rand.Reader).
 func (r *runtimeConfig) RandReader() io.Reader {
 	return r.randReader
 }
