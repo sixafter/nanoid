@@ -19,6 +19,22 @@ Date format: `YYYY-MM-DD`
 
 ---
 
+## [1.61.0] - 2026-01-19
+
+### Added
+### Changed
+- **debt:** Updated [README](../README.md) to reflect recommended usage patterns.
+- **debt:** Minor comment and documentation improvements.
+- **debt:** Updated copyright to reflect date range through present year.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+- **risk:** Buffer capacity validation now checks `cap()` instead of `len()` to prevent out-of-bounds writes with caller-supplied buffers.
+
+---
+
 ## [1.60.0] - 2026-01-16
 
 ### Added
@@ -1103,7 +1119,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.60.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.61.0...HEAD
+[1.61.0]: https://github.com/sixafter/nanoid/compare/v1.60.0...v1.61.0
 [1.60.0]: https://github.com/sixafter/nanoid/compare/v1.59.0...v1.60.0
 [1.59.0]: https://github.com/sixafter/nanoid/compare/v1.58.0...v1.59.0
 [1.58.0]: https://github.com/sixafter/nanoid/compare/v1.57.0...v1.58.0

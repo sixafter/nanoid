@@ -306,7 +306,7 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 		return nil, ErrInvalidAlphabet
 	}
 
-	// Check if the alphabet is valid UTF-8
+	// Validate UTF-8 encoding to detect length miscalculation and inconsistent string operations.
 	if !utf8.ValidString(opts.Alphabet) {
 		return nil, ErrNonUTF8Alphabet
 	}
@@ -374,7 +374,8 @@ func buildRuntimeConfig(opts *ConfigOptions) (*runtimeConfig, error) {
 	//adjustedBitsNeeded := bitsNeeded + uint(math.Log2(float64(opts.LengthHint)))
 
 	// Determine the number of bytes required to store 'bitsNeeded' bits, rounding up to the nearest byte.
-	bytesNeeded := (bitsNeeded + 7) / 8
+	const bitsPerByte = 8
+	bytesNeeded := (bitsNeeded + bitsPerByte - 1) / bitsPerByte
 
 	// Check if the alphabet length is a power of two, allowing optimization of modulus operations using bitwise AND.
 	// This optimization improves performance during random index generation.

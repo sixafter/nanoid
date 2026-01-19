@@ -11,7 +11,7 @@ require (
 	github.com/sixafter/aes-ctr-drbg v1.15.0
 	github.com/sixafter/prng-chacha v1.13.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6
+	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
 )
 
 require (
