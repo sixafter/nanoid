@@ -65,10 +65,10 @@ Please see the [nanoid-cli](https://github.com/sixafter/nanoid-cli) for a comman
 To verify the integrity of the release, you can use Cosign to check the signature and checksums. Follow these steps:
 
 ```sh
-# Fetch the latest release tag from GitHub API (e.g., "v1.60.0")
+# Fetch the latest release tag from GitHub API (e.g., "v1.61.0")
 TAG=$(curl -s https://api.github.com/repos/sixafter/nanoid/releases/latest | jq -r .tag_name)
 
-# Remove leading "v" for filenames (e.g., "v1.60.0" -> "1.60.0")
+# Remove leading "v" for filenames (e.g., "v1.61.0" -> "1.61.0")
 VERSION=${TAG#v}
 
 # ---------------------------------------------------------------------
@@ -248,7 +248,7 @@ func main() {
 	}
 
 	// Generate a Nano ID using the custom generator
-	id, err := gen.NewWithLength(10)
+	id, err := gen.New() // or gen.NewWithLength(10)
 	if err != nil {
 		fmt.Println("Error generating Nano ID:", err)
 		return
@@ -324,21 +324,9 @@ This project integrates a cryptographically secure, high-performance random numb
 
 For implementation details, benchmark results, and usage, see the CSPRNG [README](https://github.com/sixafter/prng-chacha).
 
-### Buffer Pooling with `sync.Pool`
+## Execute Benchmarks
 
-The nanoid generator utilizes `sync.Pool` to manage byte slice buffers efficiently. This approach minimizes memory allocations and enhances performance, especially in high-concurrency scenarios.
-
-How It Works:
-* Storing Pointers: `sync.Pool` stores pointers to `[]byte` (or `[]rune` if Unicode) slices (`*[]byte`) instead of the slices themselves. This avoids unnecessary allocations and aligns with best practices for using `sync.Pool`.
-* Zeroing Buffers: Before returning buffers to the pool, they are zeroed out to prevent data leaks.
-
-### Struct Optimization
-
-The `generator` struct is optimized for memory alignment and size by ordering from largest to smallest to minimize padding and optimize memory usage.
-
-## Execute Benchmarks:
-
-Run the benchmarks using the `go test` command with the `bench` make target:
+Run the benchmarks using the  `bench` make target:
 
 ```shell
 make bench
@@ -538,12 +526,11 @@ Nano ID generates unique identifiers based on the following:
 
 1. Alphabet Lengths:
    * At Least Two Characters: The custom alphabet must contain at least two unique characters. An alphabet with fewer than two characters cannot produce IDs with sufficient variability or randomness.
-   * Maximum Length 256 Characters: The implementation utilizes a rune-based approach, where each character in the alphabet is represented by a single rune. This allows for a broad range of unique characters, accommodating alphabets with up to 256 distinct runes. Attempting to use an alphabet with more than 256 runes will result in an error. 
+   * Maximum Length 256 Characters: The implementation uses a rune-based approach, where a single rune represents each character in the alphabet. This allows for a broad range of unique characters, accommodating alphabets with up to 256 distinct runes. Attempting to use an alphabet with more than 256 runes will result in an error. 
 2. Uniqueness of Characters:
    * All Characters Must Be Unique. Duplicate characters in the alphabet can introduce biases in ID generation and compromise the randomness and uniqueness of the IDs. The generator enforces uniqueness by checking for duplicates during initialization. If duplicates are detected, it will return an `ErrDuplicateCharacters` error. 
 3. Character Encoding:
    * Support for ASCII and Unicode: The generator accepts alphabets containing Unicode characters, allowing you to include a wide range of symbols, emojis, or characters from various languages.
-
 
 ## Determining Collisions
 
