@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 Six After, Inc
+// Copyright (c) 2024-2026 Six After, Inc
 //
 // This source code is licensed under the Apache 2.0 License found in the
 // LICENSE file in the root directory of this source tree.
@@ -22,6 +22,16 @@ import (
 	"time"
 
 	"golang.org/x/crypto/chacha20"
+)
+
+var (
+	ErrMaxBytesPerKeyZero        = fmt.Errorf("prng: MaxBytesPerKey must be greater than zero")
+	ErrMaxInitRetriesNegative    = fmt.Errorf("prng: MaxInitRetries cannot be negative")
+	ErrMaxRekeyAttemptsNegative  = fmt.Errorf("prng: MaxRekeyAttempts cannot be negative")
+	ErrDefaultBufferSizeNegative = fmt.Errorf("prng: DefaultBufferSize cannot be negative")
+	ErrRekeyBackoffNegative      = fmt.Errorf("prng: RekeyBackoff cannot be negative")
+	ErrMaxRekeyBackoffNegative   = fmt.Errorf("prng: MaxRekeyBackoff cannot be negative")
+	ErrMaxRekeyBackoffTooSmall   = fmt.Errorf("prng: MaxRekeyBackoff must be >= RekeyBackoff")
 )
 
 // Reader is a global, cryptographically secure random source.
@@ -74,32 +84,34 @@ type Interface interface {
 // is detected immediately and cannot be ignored.
 func init() {
 	cfg := DefaultConfig()
-	pools := make([]*sync.Pool, cfg.Shards)
-	for i := range pools {
-		cfg := cfg // Capture the current configuration for this shard
-		pools[i] = &sync.Pool{
+
+	r := &reader{
+		config: &cfg,
+		pools:  make([]*sync.Pool, cfg.Shards),
+	}
+
+	for i := range r.pools {
+		cfg := cfg
+		r.pools[i] = &sync.Pool{
 			New: func() interface{} {
 				var (
 					p   *prng
 					err error
 				)
-				for r := 0; r < cfg.MaxInitRetries; r++ {
-					if p, err = newPRNG(&cfg); err == nil {
+				for attempt := 0; attempt < cfg.MaxInitRetries; attempt++ {
+					if p, err = newPRNG(&cfg, &r.keyRotations); err == nil {
 						return p
 					}
 				}
-				// If initialization fails after all retries, panic.
 				panic(fmt.Sprintf("prng pool init failed after %d retries: %v", cfg.MaxInitRetries, err))
 			},
 		}
 
-		// Eagerly test the pool initialization to ensure that any catastrophic
-		// failure is caught immediately, not deferred to the first use.
-		item := pools[i].Get().(*prng)
-		pools[i].Put(item)
+		item := r.pools[i].Get().(*prng)
+		r.pools[i].Put(item)
 	}
 
-	Reader = &reader{pools: pools}
+	Reader = r
 }
 
 // reader wraps a sync.Pool of prng instances to provide an io.Reader
@@ -112,8 +124,21 @@ func init() {
 // minimizes allocations and contention on crypto/rand while ensuring
 // each goroutine can obtain a fresh or recycled PRNG instance quickly.
 type reader struct {
-	config *Config
-	pools  []*sync.Pool
+	config         *Config
+	pools          []*sync.Pool
+	bytesGenerated atomic.Uint64
+	keyRotations   atomic.Uint64
+}
+
+// Stats represents cumulative runtime metrics for a PRNG reader instance.
+// All fields are safe to read concurrently and reflect totals since creation.
+type Stats struct {
+	// BytesGenerated is the total number of random bytes produced across all Read() calls.
+	BytesGenerated uint64
+
+	// KeyRotations is the total number of successful cipher rekey operations performed
+	// to maintain forward secrecy when the per-key output threshold is exceeded.
+	KeyRotations uint64
 }
 
 // NewReader constructs and returns an io.Reader that produces cryptographically secure
@@ -141,10 +166,33 @@ type reader struct {
 //	}
 //	fmt.Printf("Read %d bytes: %x\n", n, buf)
 func NewReader(opts ...Option) (Interface, error) {
-	// Step 1: Start with a default configuration and apply each functional option to allow caller customization.
+	// Start with a default configuration and apply each functional option to allow caller customization.
 	cfg := DefaultConfig()
 	for _, opt := range opts {
 		opt(&cfg)
+	}
+
+	// Validate configuration
+	if cfg.MaxBytesPerKey == 0 {
+		return nil, ErrMaxBytesPerKeyZero
+	}
+	if cfg.MaxInitRetries < 0 {
+		return nil, ErrMaxInitRetriesNegative
+	}
+	if cfg.MaxRekeyAttempts < 0 {
+		return nil, ErrMaxRekeyAttemptsNegative
+	}
+	if cfg.DefaultBufferSize < 0 {
+		return nil, ErrDefaultBufferSizeNegative
+	}
+	if cfg.RekeyBackoff < 0 {
+		return nil, ErrRekeyBackoffNegative
+	}
+	if cfg.MaxRekeyBackoff < 0 {
+		return nil, ErrMaxRekeyBackoffNegative
+	}
+	if cfg.MaxRekeyBackoff > 0 && cfg.MaxRekeyBackoff < cfg.RekeyBackoff {
+		return nil, ErrMaxRekeyBackoffTooSmall
 	}
 
 	// If n <= 0, the number of shards defaults to runtime.GOMAXPROCS(0),
@@ -154,21 +202,24 @@ func NewReader(opts ...Option) (Interface, error) {
 		cfg.Shards = runtime.GOMAXPROCS(0)
 	}
 
-	// Step 2: Construct a sync.Pool for managing reusable prng instances.
+	// Construct a sync.Pool for managing reusable prng instances.
 	// The pool's New function attempts to construct a new *prng,
 	// retrying up to cfg.MaxInitRetries times in case of failure (e.g., low entropy).
 	// If all attempts fail, the function returns nil, which is caught during eager initialization below.
-	pools := make([]*sync.Pool, cfg.Shards)
-	for i := range pools {
+	r := &reader{
+		config: &cfg,
+		pools:  make([]*sync.Pool, cfg.Shards),
+	}
+	for i := range r.pools {
 		cfg := cfg // Capture the current configuration for this shard
-		pools[i] = &sync.Pool{
+		r.pools[i] = &sync.Pool{
 			New: func() interface{} {
 				var (
 					p   *prng
 					err error
 				)
-				for r := 0; r < cfg.MaxInitRetries; r++ {
-					if p, err = newPRNG(&cfg); err == nil {
+				for attempts := 0; attempts < cfg.MaxInitRetries; attempts++ {
+					if p, err = newPRNG(&cfg, &r.keyRotations); err == nil {
 						return p
 					}
 				}
@@ -178,28 +229,25 @@ func NewReader(opts ...Option) (Interface, error) {
 			},
 		}
 
-		// Step 3: Eagerly test the pool initialization to ensure that any catastrophic
+		// Eagerly test the pool initialization to ensure that any catastrophic
 		// failure is caught immediately, not deferred to the first use.
 		// This triggers pool.New, which may return nil on failure. Any nil value is converted to an error.
 		var err error
-		item := pools[i].Get()
+		item := r.pools[i].Get()
 		if item == nil {
 			err = fmt.Errorf("prng pool initialization failed after %d retries", cfg.MaxInitRetries)
 		} else {
-			pools[i].Put(item)
+			r.pools[i].Put(item)
 		}
 
-		// Step 4: If initialization failed, return it as an error.
+		// If initialization failed, return it as an error.
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// Step 5: Return a new reader that wraps the initialized pool. This is safe for concurrent use.
-	return &reader{
-		pools:  pools,
-		config: &cfg,
-	}, nil
+	// Return a new reader that wraps the initialized pool. This is safe for concurrent use.
+	return r, nil
 }
 
 // Config returns a copy of the PRNG's configuration settings.
@@ -241,9 +289,8 @@ func shardIndex(n int) int {
 //	    // Handle error
 //	}
 //	fmt.Printf("Read %d bytes of random data: %x\n", n, buffer)
-func (r *reader) Read(b []byte) (int, error) {
-	// Step 1: If the caller provided an empty buffer, return immediately (as per io.Reader contract).
-	if len(b) == 0 {
+func (r *reader) Read(buf []byte) (int, error) {
+	if len(buf) == 0 {
 		return 0, nil
 	}
 
@@ -254,7 +301,7 @@ func (r *reader) Read(b []byte) (int, error) {
 		shard = shardIndex(n)
 	}
 
-	// Step 2: Acquire a PRNG instance from the pool for exclusive use by this call.
+	// Acquire a PRNG instance from the pool for exclusive use by this call.
 	// This provides thread safety and isolation of cryptographic state.
 	p := r.pools[shard].Get().(*prng)
 
@@ -262,8 +309,13 @@ func (r *reader) Read(b []byte) (int, error) {
 	// This ensures that the pool does not leak resources and stays available for future use.
 	defer r.pools[shard].Put(p)
 
-	// Step 4: Delegate the actual generation of random bytes to the PRNG instance's Read method.
-	return p.Read(b)
+	// Delegate the actual generation of random bytes to the PRNG instance's Read method.
+	n, err := p.Read(buf)
+	if err == nil {
+		r.bytesGenerated.Add(uint64(n))
+	}
+
+	return n, err
 }
 
 // prng implements io.Reader using a ChaCha20 cipher stream and supports
@@ -277,6 +329,8 @@ type prng struct {
 	// It provides tunable settings such as MaxBytesPerKey (keystream rotation threshold)
 	// and MaxInitRetries (how many times to retry initialization).
 	config *Config
+
+	rotationCounter *atomic.Uint64
 
 	// cipher holds the active *chacha20.Cipher. We use atomic.Value so that
 	// loads and stores of the cipher pointer are safe and nonblocking.
@@ -298,28 +352,16 @@ type prng struct {
 }
 
 // Read fills the provided byte slice `b` with cryptographically secure random data.
-// It implements the `io.Reader` interface and is intended for exclusive use by a single goroutine
-// per PRNG instance (each pool entry is not shared between goroutines).
-//
-// Internally, Read does the following:
-//  1. Determines the length `n` of the requested output. If `n == 0`, returns immediately with no error.
-//  2. Atomically loads the current ChaCha20 cipher stream from `p.cipher`.
-//  3. If `UseZeroBuffer` is true, prepares a zero-valued buffer of length `n` in `p.zero`, growing it if necessary.
-//  4. Calls `cipher.XORKeyStream(b, p.zero)` if `UseZeroBuffer` is true; otherwise, calls `cipher.XORKeyStream(b, b)` for in-place output.
-//  5. If key usage tracking is enabled (`EnableKeyRotation`), atomically increments `p.usage` by `n` and, if the threshold is crossed,
-//     attempts a single non-blocking CAS to set `p.rekeying` from 0→1; if successful, launches `p.asyncRekey()` in a background goroutine.
-//  6. Returns the number of bytes written (`n`). Errors are only expected on internal cipher malfunction, which should not occur
-//     under normal operation.
-func (p *prng) Read(b []byte) (int, error) {
-	n := len(b)
+func (p *prng) Read(buf []byte) (int, error) {
+	n := len(buf)
 	if n == 0 {
 		return 0, nil
 	}
 
-	// Step 1: Atomically retrieve the active cipher stream.
+	// Atomically retrieve the active cipher stream.
 	stream := p.cipher.Load().(*chacha20.Cipher)
 
-	// Step 2: Generate random output based on configuration.
+	// Generate random output based on configuration.
 	if p.config.UseZeroBuffer {
 		// Ensure internal zero buffer is at least n bytes.
 		if cap(p.zero) < n {
@@ -328,13 +370,13 @@ func (p *prng) Read(b []byte) (int, error) {
 			p.zero = p.zero[:n]
 		}
 		// XOR the zero buffer into b, producing random bytes.
-		stream.XORKeyStream(b, p.zero)
+		stream.XORKeyStream(buf, p.zero)
 	} else {
 		// XOR the buffer into itself (in-place), producing random bytes.
-		stream.XORKeyStream(b, b)
+		stream.XORKeyStream(buf, buf)
 	}
 
-	// Step 3: Optionally track key usage and trigger rekeying.
+	// Optionally, track key usage and trigger rekeying.
 	if p.config.EnableKeyRotation {
 		// Atomically increment usage counter by n bytes.
 		atomic.AddUint64(&p.usage, uint64(n))
@@ -347,6 +389,15 @@ func (p *prng) Read(b []byte) (int, error) {
 	}
 
 	return n, nil
+}
+
+// Stats returns runtime statistics about this PRNG instance, including
+// total bytes generated and key rotations performed.
+func (r *reader) Stats() Stats {
+	return Stats{
+		BytesGenerated: r.bytesGenerated.Load(),
+		KeyRotations:   r.keyRotations.Load(),
+	}
 }
 
 // newPRNG creates and returns a fully initialized prng instance.
@@ -362,7 +413,7 @@ func (p *prng) Read(b []byte) (int, error) {
 // Returns:
 //   - *prng: A new PRNG instance ready for random output.
 //   - error: A non-nil error if cipher construction fails.
-func newPRNG(config *Config) (*prng, error) {
+func newPRNG(config *Config, rotationCounter *atomic.Uint64) (*prng, error) {
 	// Generate a fresh a new cipher seeded with a secure random key and nonce.
 	stream, err := newCipher()
 	if err != nil {
@@ -381,8 +432,9 @@ func newPRNG(config *Config) (*prng, error) {
 
 	// Initialize the PRNG instance with the selected configuration and zero buffer.
 	p := &prng{
-		zero:   zero,
-		config: config,
+		zero:            zero,
+		config:          config,
+		rotationCounter: rotationCounter,
 	}
 
 	// Store the cipher stream atomically for lock-free, concurrent access in Read().
@@ -474,6 +526,11 @@ func (p *prng) asyncRekey() {
 
 			// Reset usage count for new key/nonce.
 			atomic.StoreUint64(&p.usage, 0)
+
+			// Increment reader-level counter
+			if p.rotationCounter != nil {
+				p.rotationCounter.Add(1)
+			}
 
 			// Wipe the memory of the old cipher (zero out struct fields).
 			*old = chacha20.Cipher{}

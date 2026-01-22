@@ -57,10 +57,10 @@ Please see the [godoc](https://pkg.go.dev/github.com/sixafter/prng-chacha) for d
 To verify the integrity of the release tarball, you can use Cosign to check the signature against the public key.
 
 ```sh
-# Fetch the latest release tag from GitHub API (e.g., "v1.12.0")
+# Fetch the latest release tag from GitHub API (e.g., "v1.14.0")
 TAG=$(curl -s https://api.github.com/repos/sixafter/prng-chacha/releases/latest | jq -r .tag_name)
 
-# Remove leading "v" for filenames (e.g., "v1.12.0" -> "1.12.0")
+# Remove leading "v" for filenames (e.g., "v1.14.0" -> "1.14.0")
 VERSION=${TAG#v}
 
 # ---------------------------------------------------------------------
@@ -109,7 +109,6 @@ Verified OK
 To validate that the Go module archive served by GitHub, go mod download, and the Go
 proxy are all consistent, run the `module-verify` target. This performs a full cross-check
 of the tag archive and module ZIPs to confirm they match byte-for-byte.
-
 
 ---
 
@@ -167,15 +166,6 @@ func main() {
   fmt.Printf("Generated UUID: %s\n", u)
 }
 ```
-
----
-
-## Architecture
-
-* Global Reader: A pre-configured io.Reader (`prng.Reader`) manages a pool of PRNG instances for concurrent use. 
-* PRNG Instances: Each instance uses ChaCha20, initialized with a unique key and nonce sourced from `crypto/rand.Reader`. 
-* Error Handling: The `errorPRNG` ensures safe failure when initialization errors occur. 
-* Resource Efficiency: A `sync.Pool` optimizes resource reuse and reduces contention on `crypto/rand.Reader`.
 
 ---
 

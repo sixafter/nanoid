@@ -5,11 +5,13 @@
 
 ## Overview
 
-This package is designed to operate within FIPS 140-2 and FIPS 140-3 validated environments, leveraging only the Go standard library cryptographic primitives. No custom or third-party cryptography is used.
+This package is designed to operate within FIPS 140-2 and FIPS 140-3 validated environments, leveraging only the Go 
+standard library cryptographic primitives. No custom or third-party cryptography is used.
 
 ## Compatibility with Go FIPS 140 Mode
 
-Go provides a dedicated FIPS 140 mode, enabled with the environment variable `GODEBUG=fips140=on` or `GODEBUG=fips140=1`. When enabled, this mode restricts cryptographic operations to those explicitly permitted under the FIPS 140 standard, and applies additional runtime checks to enforce compliance.
+Go provides a dedicated FIPS 140 mode, enabled with the environment variable `GODEBUG=fips140=on` or `GODEBUG=fips140=1`. 
+When enabled, this mode restricts cryptographic operations to those explicitly permitted under the FIPS 140 standard, and applies additional runtime checks to enforce compliance.
 
 This package is engineered for **full compatibility with Go’s FIPS 140 mode**:
 
@@ -17,7 +19,8 @@ This package is engineered for **full compatibility with Go’s FIPS 140 mode**:
 - **No prohibited or non-standard cryptography** is invoked when FIPS mode is active.
 - **No inclusion** of third-party or experimental crypto.
 
-When Go’s FIPS 140 mode is active, any use of non-approved cryptography results in a runtime error, providing enforcement at the platform level.
+When Go’s FIPS 140 mode is active, any use of non-approved cryptography results in a runtime error, providing enforcement 
+at the platform level.
 
 ## Important Limitations and Legal Notice
 
@@ -48,4 +51,6 @@ For further technical guidance and up-to-date status on FIPS 140 support in Go, 
   For compliance reporting, use only official documentation and certification records.
 
 > **Disclaimer:**  
-> Use of this package in FIPS-regulated environments is at your own risk. No warranty, express or implied, is provided regarding FIPS 140 compliance. This package is distributed “as is” and must be reviewed and validated as part of your organization’s own compliance and certification process.
+> Use of this package in FIPS-regulated environments is at your own risk. No warranty, express or implied, is provided 
+> regarding FIPS 140 compliance. This package is distributed “as is” and must be reviewed and validated as part of your 
+> organization’s own compliance and certification process.

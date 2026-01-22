@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 Six After, Inc
+// Copyright (c) 2024-2026 Six After, Inc
 //
 // This source code is licensed under the Apache 2.0 License found in the
 // LICENSE file in the root directory of this source tree.
@@ -42,8 +42,13 @@ const (
 	MaxBytesPerRequest = 1 << 16
 )
 
-// ErrRequestTooLarge is returned when a Read request exceeds the NIST SP 800-90A maximum (64 KB).
-var ErrRequestTooLarge = errors.New("ctrdrbg: request exceeds NIST SP 800-90A max_number_of_bits_per_request (64 KB)")
+var (
+	// ErrRequestTooLarge is returned when a Read request exceeds the NIST SP 800-90A maximum (64 KB).
+	ErrRequestTooLarge = errors.New("ctrdrbg: request exceeds NIST SP 800-90A max_number_of_bits_per_request (64 KB)")
+
+	// ErrHealthTestFailed indicates that the continuous health test detected stuck output.
+	ErrHealthTestFailed = errors.New("ctrdrbg: continuous health test failed (stuck output detected)")
+)
 
 // Reader is a package-level, cryptographically secure random source suitable for high-concurrency applications.
 //
@@ -477,6 +482,24 @@ type drbg struct {
 	// from the state.v value at creation or rekey, and persisted between reads.
 	v [16]byte
 
+	// encV is a persistent [16]byte working buffer used as a session-local counter
+	// during output generation.
+	//
+	// On each call to Read, the current counter-value (d.v) is copied into encV, which is
+	// then incremented and used for block generation throughout the request. Only after all
+	// output is produced is encV copied back into d.v, ensuring atomic and consistent counter
+	// advancement. This prevents partial or inconsistent counter updates if Read exits early
+	// due to errors or panics.
+	encV [16]byte
+
+	// tmp is a persistent [16]byte working buffer used during output generation.
+	// It holds the encrypted output for the final (partial) block in fillBlocks.
+	// This avoids repeated stack allocations and ensures maximum efficiency.
+	tmp [16]byte
+
+	// Previous output block for continuous health test
+	lastOutputBlock [16]byte
+
 	// requests counts the number of output requests (calls to Read or ReadWithAdditionalInput)
 	// since the last reseed. Used to enforce the ReseedRequests limit and trigger reseeding
 	// after a configured number of requests.
@@ -487,12 +510,6 @@ type drbg struct {
 	// When usage exceeds config.MaxBytesPerKey, a rekey is triggered to ensure
 	// forward secrecy and mitigate key compromise risk. This value is atomically updated.
 	usage uint64
-
-	// rekeying is an atomic flag (0 or 1) that guards rekey attempts.
-	//
-	// It ensures that only one goroutine performs rekeying at a time.
-	// Uses atomic operations for concurrency safety.
-	rekeying uint32
 
 	// pid caches the process identifier (PID) of the operating system process in which
 	// this DRBG instance was most recently initialized or reseeded.
@@ -513,20 +530,29 @@ type drbg struct {
 	//     such as Linux getrandom(2), which handle fork-safety internally.
 	pid int
 
-	// encV is a persistent [16]byte working buffer used as a session-local counter
-	// during output generation.
+	// rekeying is an atomic flag (0 or 1) that guards rekey attempts.
 	//
-	// On each call to Read, the current counter-value (d.v) is copied into encV, which is
-	// then incremented and used for block generation throughout the request. Only after all
-	// output is produced is encV copied back into d.v, ensuring atomic and consistent counter
-	// advancement. This prevents partial or inconsistent counter updates if Read exits early
-	// due to errors or panics.
-	encV [16]byte
+	// It ensures that only one goroutine performs rekeying at a time.
+	// Uses atomic operations for concurrency safety.
+	rekeying uint32
 
-	// tmp is a persistent [16]byte working buffer used during output generation.
-	// It holds the encrypted output for the final (partial) block in fillBlocks.
-	// This avoids repeated stack allocations and ensures maximum efficiency.
-	tmp [16]byte
+	// True once first output block recorded
+	healthTestReady bool
+}
+
+// Add this method:
+func (d *drbg) continuousHealthTest(block []byte) error {
+	if len(block) < 16 {
+		return nil
+	}
+	var curr [16]byte
+	copy(curr[:], block[:16])
+	if d.healthTestReady && subtle.ConstantTimeCompare(d.lastOutputBlock[:], curr[:]) == 1 {
+		return ErrHealthTestFailed
+	}
+	copy(d.lastOutputBlock[:], curr[:])
+	d.healthTestReady = true
+	return nil
 }
 
 // Read generates cryptographically secure random bytes and writes them into the provided slice b.
@@ -603,6 +629,13 @@ func (d *drbg) Read(b []byte) (int, error) {
 	// incrementing the counter as output is produced. All counter increments are reflected
 	// in the local variable.
 	d.fillBlocks(b, st, &d.encV)
+
+	if d.config.ContinuousHealthTest {
+		if err := d.continuousHealthTest(b); err != nil {
+			d.vMu.Unlock()
+			return 0, err
+		}
+	}
 
 	// Persist the advanced counter back to the DRBG instance, ensuring subsequent reads
 	// continue the keystream seamlessly without overlap or repetition.
@@ -724,6 +757,13 @@ func (d *drbg) ReadWithAdditionalInput(b []byte, additionalInput []byte) (int, e
 	// Fill the output buffer using the current cryptographic state and the local counter,
 	// incrementing the counter as output is produced.
 	d.fillBlocks(b, st, &d.encV)
+
+	if d.config.ContinuousHealthTest {
+		if err := d.continuousHealthTest(b); err != nil {
+			d.vMu.Unlock()
+			return 0, err
+		}
+	}
 
 	// Persist the advanced counter back to the DRBG instance, ensuring
 	// future reads continue the keystream seamlessly.
