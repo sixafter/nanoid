@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 Six After, Inc
+// Copyright (c) 2024-2026 Six After, Inc
 //
 // This source code is licensed under the Apache 2.0 License found in the
 // LICENSE file in the root directory of this source tree.
@@ -120,6 +120,12 @@ const (
 	//
 	// This value offers a modest, cache-friendly buffer for common read sizes.
 	defaultBufferSize = 64
+
+	// defaultMaxInitRetries is the default number of attempts to initialize
+	// a PRNG pool entry before giving up and panicking.
+	//
+	// This provides resilience against transient failures during pool setup.
+	defaultMaxInitRetries = 3
 )
 
 // DefaultConfig returns a Config struct populated with production-safe, recommended defaults.
@@ -140,7 +146,7 @@ const (
 func DefaultConfig() Config {
 	return Config{
 		MaxBytesPerKey:    maxBytesPerKey,
-		MaxInitRetries:    3,
+		MaxInitRetries:    defaultMaxInitRetries,
 		MaxRekeyAttempts:  maxRekeyAttempts,
 		MaxRekeyBackoff:   maxRekeyBackoff,
 		RekeyBackoff:      rekeyBackoff,
@@ -169,56 +175,72 @@ type Option func(*Config)
 //
 // Recommended to lower for higher security or compliance regimes.
 func WithMaxBytesPerKey(n uint64) Option {
-	return func(cfg *Config) { cfg.MaxBytesPerKey = n }
+	return func(cfg *Config) {
+		cfg.MaxBytesPerKey = n
+	}
 }
 
 // WithMaxInitRetries returns an Option that sets the maximum number of PRNG pool initialization retries.
 //
 // Use for customizing startup reliability and error handling.
 func WithMaxInitRetries(r int) Option {
-	return func(cfg *Config) { cfg.MaxInitRetries = r }
+	return func(cfg *Config) {
+		cfg.MaxInitRetries = r
+	}
 }
 
 // WithMaxRekeyAttempts returns an Option that sets the maximum number of retries allowed for asynchronous rekeying.
 //
 // Applies exponential backoff (see WithMaxRekeyBackoff/WithRekeyBackoff).
 func WithMaxRekeyAttempts(r int) Option {
-	return func(cfg *Config) { cfg.MaxRekeyAttempts = r }
+	return func(cfg *Config) {
+		cfg.MaxRekeyAttempts = r
+	}
 }
 
 // WithMaxRekeyBackoff returns an Option that sets the maximum duration for rekey exponential backoff.
 //
 // Limits time spent in failed rekey attempts.
 func WithMaxRekeyBackoff(d time.Duration) Option {
-	return func(cfg *Config) { cfg.MaxRekeyBackoff = d }
+	return func(cfg *Config) {
+		cfg.MaxRekeyBackoff = d
+	}
 }
 
 // WithRekeyBackoff returns an Option that sets the initial backoff duration for rekey retries.
 //
 // Initial sleep interval before exponential growth on rekey failure.
 func WithRekeyBackoff(d time.Duration) Option {
-	return func(cfg *Config) { cfg.RekeyBackoff = d }
+	return func(cfg *Config) {
+		cfg.RekeyBackoff = d
+	}
 }
 
 // WithEnableKeyRotation returns an Option that enables or disables automatic key rotation.
 //
 // Disable only if you understand and accept the security risk.
 func WithEnableKeyRotation(enable bool) Option {
-	return func(cfg *Config) { cfg.EnableKeyRotation = enable }
+	return func(cfg *Config) {
+		cfg.EnableKeyRotation = enable
+	}
 }
 
 // WithZeroBuffer returns an Option that enables or disables use of a zero-filled buffer for XORKeyStream.
 //
 // Enable only if required for legacy compatibility.
 func WithZeroBuffer(enable bool) Option {
-	return func(cfg *Config) { cfg.UseZeroBuffer = enable }
+	return func(cfg *Config) {
+		cfg.UseZeroBuffer = enable
+	}
 }
 
 // WithDefaultBufferSize returns an Option that sets the initial zero buffer size.
 //
 // Only relevant if UseZeroBuffer is true.
 func WithDefaultBufferSize(n int) Option {
-	return func(cfg *Config) { cfg.DefaultBufferSize = n }
+	return func(cfg *Config) {
+		cfg.DefaultBufferSize = n
+	}
 }
 
 // WithShards sets the number of independent sync.Pool shards to use.

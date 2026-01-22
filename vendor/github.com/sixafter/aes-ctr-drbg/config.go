@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 Six After, Inc
+// Copyright (c) 2024-2026 Six After, Inc
 //
 // This source code is licensed under the Apache 2.0 License found in the
 // LICENSE file in the root directory of this source tree.
@@ -197,6 +197,12 @@ type Config struct {
 	// being replaced, providing forward secrecy hardening per FIPS 140-2 section 4.7.6.
 	// When false (default), old key material is simply overwritten.
 	EnableZeroization bool
+
+	// ContinuousHealthTest enables NIST SP 800-90A §11.3.3 continuous health testing.
+	// When enabled, each output block is compared to the previous; identical consecutive
+	// blocks indicate catastrophic DRBG failure and return ErrHealthTestFailed.
+	// Required for FIPS 140-2/140-3 certification. Disabled by default.
+	ContinuousHealthTest bool
 }
 
 // Default configuration constants for AES-CTR-DRBG.
@@ -433,4 +439,12 @@ func WithSelfTests(enable bool) Option {
 // Defaults to false.
 func WithZeroization(enable bool) Option {
 	return func(cfg *Config) { cfg.EnableZeroization = enable }
+}
+
+// WithContinuousHealthTest enables or disables NIST SP 800-90A §11.3.3 continuous health testing.
+// Defaults to false.
+func WithContinuousHealthTest(enable bool) Option {
+	return func(c *Config) {
+		c.ContinuousHealthTest = enable
+	}
 }

@@ -29,30 +29,26 @@
 
 ## Overview 
 
-A simple, fast, and efficient Go implementation of [Nano ID](https://github.com/ai/nanoid), a tiny, secure, URL-friendly, unique string ID generator. 
+A simple, fast, and efficient Go implementation of [Nano ID](https://github.com/ai/nanoid), a tiny, secure, URL-friendly, collision-resistant string generator. 
 
 Please see the [godoc](https://pkg.go.dev/github.com/sixafter/nanoid) for detailed documentation.
 
 ## Features
 
-- **Short & Unique IDs**: Generates compact and collision-resistant identifiers.
-- **Cryptographically Secure**: Utilizes Go's `crypto/rand` and `x/crypto/chacha20` stream cypher package for generating cryptographically secure random numbers. This guarantees that the generated IDs are both unpredictable and suitable for security-sensitive applications.
-    * The custom Cryptographically Secure Pseudo Random Number Generator (CSPRNG) Includes a thread-safe global `Reader` for concurrent access.
-    * Up to 98% faster when using the `prng.Reader` as a source for v4 UUID generation using Google's [UUID](https://pkg.go.dev/github.com/google/uuid) package.
-- **Customizable**: 
-  - Define your own set of characters for ID generation with a minimum length of 2 characters and maximum length of 256 characters.
-  - Define your own random number generator.
-  - Unicode and ASCII alphabets are supported.
-- **Concurrency Safe**: Designed to be safe for use in concurrent environments.
-- **High Performance**: Optimized with buffer pooling to minimize allocations and enhance speed.
-- **Optimized for Low Allocations**: Carefully structured to minimize heap allocations, reducing memory overhead and improving cache locality. This optimization is crucial for applications where performance and resource usage are critical.
-    - 1 `allocs/op` for ASCII and Unicode alphabets regardless of alphabet size or generated ID length.
-    - 0 `allocs/op` for `Reader` interface across ASCII and Unicode alphabets regardless of alphabet size or generated ID length.
-- **Zero Dependencies**: Lightweight implementation with no external dependencies beyond the standard library other than for tests.
-- **Supports `io.Reader` Interface**: 
-  - The Nano ID generator satisfies the `io.Reader` interface, allowing it to be used interchangeably with any `io.Reader` implementations. 
-  - Developers can utilize the Nano ID generator in contexts such as streaming data processing, pipelines, and other I/O-driven operations.
-- **FIPS‑140 Mode Compatible**: Designed to run in FIPS‑140 validated environments using only Go standard library crypto. 
+* Uses Go's `crypto/rand` and `x/crypto/chacha20` stream cipher package for generating cryptographically secure random numbers. This guarantees that the generated IDs are both unpredictable and suitable for security-sensitive applications.
+    - The custom Cryptographically Secure Pseudo Random Number Generator (CSPRNG) Includes a thread-safe global `Reader` for concurrent access.
+    - Up to 98% faster when using the `prng.Reader` as a source for v4 UUID generation using Google's [UUID](https://pkg.go.dev/github.com/google/uuid) package.
+* Define your own set of characters for ID generation with a minimum length of 2 characters and maximum length of 256 characters.
+* Define your own random number generator.
+* Unicode and ASCII alphabets are supported.
+* Designed to be safe for use in concurrent environments.
+* Carefully structured to minimize heap allocations, reducing memory overhead and improving cache locality; crucial for applications where performance and resource usage are critical.
+  - 1 `allocs/op` for ASCII and Unicode alphabets regardless of alphabet size or generated ID length.
+  - 0 `allocs/op` for `Reader` interface across ASCII and Unicode alphabets regardless of alphabet size or generated ID length.
+* Lightweight implementation with no external dependencies beyond the standard library other than for tests.
+* Supports `io.Reader` Interface 
+  - Used in contexts such as streaming data processing, pipelines, and other I/O-driven operations.
+* Designed to run in FIPS‑140 validated environments using only Go standard library crypto. 
   - For FIPS‑140 compatible random number generation, use the [aes-ctr-drbg](https://github.com/sixafter/aes-ctr-drbg) module.
   - See [FIPS‑140.md](FIPS-140.md) for details and deployment guidance.
 
@@ -65,10 +61,10 @@ Please see the [nanoid-cli](https://github.com/sixafter/nanoid-cli) for a comman
 To verify the integrity of the release, follow these steps:
 
 ```sh
-# Fetch the latest release tag from GitHub API (e.g., "v1.61.0")
+# Fetch the latest release tag from GitHub API (e.g., "v1.62.0")
 TAG=$(curl -s https://api.github.com/repos/sixafter/nanoid/releases/latest | jq -r .tag_name)
 
-# Remove leading "v" for filenames (e.g., "v1.61.0" -> "1.61.0")
+# Remove leading "v" for filenames (e.g., "v1.62.0" -> "1.62.0")
 VERSION=${TAG#v}
 
 # ---------------------------------------------------------------------
@@ -186,7 +182,7 @@ Generated ID: 1A3F5B7C9D
 
 ### Using `io.Reader` Interface
 
-Here's a simple example demonstrating how to use the Nano ID generator as an `io.Reader`:
+Use the Nano ID generator as an `io.Reader`:
 
 ```go
 package main
@@ -222,7 +218,7 @@ Generated ID: 2mhTvy21bBZhZcd80ZydM
 
 ### Customizing the Alphabet and ID Length
 
-You can customize the alphabet by using the WithAlphabet option and generate an ID with a custom length.
+Use the  `WithAlphabet` to customize the alphabet.
 
 ```go
 package main
@@ -266,7 +262,7 @@ Generated ID: G5J8K2M0QZ
 
 ### Customizing the Random Number Generator
 
-You can customize the random number generator by using the WithRandReader option and generate an ID.
+Use the `WithRandReader` option to provide a custom random number generator.
 
 ```go
 package main
@@ -308,7 +304,9 @@ Generated ID: A8I8K3J0QY
 
 ## Performance Optimizations
 
-The benchmark summary below highlights the performance optimizations achieved in this implementation of the Nano ID generator. The benchmarks were conducted on an Apple M4 Max CPU with 16 cores, and the results demonstrate significant improvements in latency, throughput, and memory allocations across various configurations.
+This benchmark highlights the performance optimizations achieved in this implementation of the Nano ID generator. 
+Conducted on an Apple M4 Max CPU with 16 cores, and the results demonstrate significant improvements in latency, throughput, 
+and memory allocations across various configurations.
 
 | Mode                                 | Latency (ns/op) | Throughput (IDs/sec) | Memory (B/op) | Allocs | Notes                       |
 |:-------------------------------------| --------------: | -------------------: | ------------: | -----: | :-------------------------- |
@@ -318,11 +316,7 @@ The benchmark summary below highlights the performance optimizations achieved in
 | **ASCII ID (21 chars)**           |            54.0 |              ~18.5 M |             0 |      0 | Default configuration       |
 | **Unicode ID (21 chars)**         |           125.0 |               ~8.0 M |            48 |      1 | UTF-8 overhead (~2× slower) |
 
-### Cryptographically Secure Pseudo Random Number Generator (CSPRNG)
-
-This project integrates a cryptographically secure, high-performance random number generator (CSPRNG) from [prng-chacha](https://github.com/sixafter/prng-chacha) that can be used for UUIDv4 generation with Google’s UUID library. By replacing the default entropy source with this CSPRNG, UUIDv4 creation is significantly faster in both serial and concurrent workloads, while maintaining cryptographic quality.
-
-For implementation details, benchmark results, and usage, see the CSPRNG [README](https://github.com/sixafter/prng-chacha).
+For implementation details, benchmark results, and usage, see the CSPRNG [prng-chacha](https://github.com/sixafter/prng-chacha).
 
 ## Execute Benchmarks
 
@@ -334,7 +328,7 @@ make bench
 
 ### Interpreting Results:
 
-Sample output might look like this:
+Your output should look similar to the following:
 
 <details>
   <summary>Expand to see results</summary>
@@ -514,23 +508,15 @@ ok  	github.com/sixafter/nanoid	199.184s
 * `B/op`: Bytes allocated per operation. Lower values indicate more memory-efficient code.
 * `allocs/op`: Number of memory allocations per operation. Fewer allocations generally lead to better performance.
 
-## ID Generation
-
-Nano ID generates unique identifiers based on the following:
-
-1. **Random Byte Generation**: Nano ID generates a sequence of random bytes using a secure random source (e.g., `crypto/rand.Reader`). 
-2. **Mapping to Alphabet**: Each random byte is mapped to a character in a predefined alphabet to form the final ID. 
-3. **Uniform Distribution**: To ensure that each character in the alphabet has an equal probability of being selected, Nano ID employs techniques to avoid bias, especially when the alphabet size isn't a power of two.
-
-## Custom Alphabet Constraints
+## Alphabet Constraints
 
 1. Alphabet Lengths:
-   * At Least Two Characters: The custom alphabet must contain at least two unique characters. An alphabet with fewer than two characters cannot produce IDs with sufficient variability or randomness.
+   * At Least Two Characters: The alphabet must contain at least two unique characters. An alphabet with fewer than two characters cannot produce IDs with sufficient variability or randomness.
    * Maximum Length 256 Characters: The implementation uses a rune-based approach, where a single rune represents each character in the alphabet. This allows for a broad range of unique characters, accommodating alphabets with up to 256 distinct runes. Attempting to use an alphabet with more than 256 runes will result in an error. 
 2. Uniqueness of Characters:
-   * All Characters Must Be Unique. Duplicate characters in the alphabet can introduce biases in ID generation and compromise the randomness and uniqueness of the IDs. The generator enforces uniqueness by checking for duplicates during initialization. If duplicates are detected, it will return an `ErrDuplicateCharacters` error. 
+   * All Characters Must Be Unique. Duplicate characters in the alphabet do introduce biases in ID generation and compromise the randomness and uniqueness of the IDs. The generator enforces uniqueness by checking for duplicates during initialization. If duplicates are detected, it will return an `ErrDuplicateCharacters` error. 
 3. Character Encoding:
-   * Support for ASCII and Unicode: The generator accepts alphabets containing Unicode characters, allowing you to include a wide range of symbols, emojis, or characters from various languages.
+   * Support for ASCII and Unicode: The generator accepts alphabets containing Unicode characters allowing the inclusion of a wide range of symbols, emojis, or characters from various languages.
 
 ## Determining Collisions
 

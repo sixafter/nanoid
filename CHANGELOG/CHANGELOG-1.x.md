@@ -19,6 +19,21 @@ Date format: `YYYY-MM-DD`
 
 ---
 
+## [1.62.0] - 2026-01-22
+
+### Added
+### Changed
+- **debt:** Updated copyright to reflect date range through present year.
+- **debt:** Upgraded [aes-ctr-drbg](https://github.com/sixafter/aes-ctr-drbg) and [prng-chacha](https://github.com/sixafter/prng-chacha) to the latest stable versions.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+- **risk:** Buffer capacity validation now checks `cap()` instead of `len()` to prevent out-of-bounds writes with caller-supplied buffers.
+
+---
+
 ## [1.61.0] - 2026-01-19
 
 ### Added
@@ -1119,7 +1134,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.61.0...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.62.0...HEAD
+[1.62.0]: https://github.com/sixafter/nanoid/compare/v1.61.0...v1.62.0
 [1.61.0]: https://github.com/sixafter/nanoid/compare/v1.60.0...v1.61.0
 [1.60.0]: https://github.com/sixafter/nanoid/compare/v1.59.0...v1.60.0
 [1.59.0]: https://github.com/sixafter/nanoid/compare/v1.58.0...v1.59.0
