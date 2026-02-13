@@ -8,8 +8,8 @@ module github.com/sixafter/nanoid
 go 1.26
 
 require (
-	github.com/sixafter/aes-ctr-drbg v1.16.0
-	github.com/sixafter/prng-chacha v1.14.0
+	github.com/sixafter/aes-ctr-drbg v1.17.0
+	github.com/sixafter/prng-chacha v1.15.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
 )
