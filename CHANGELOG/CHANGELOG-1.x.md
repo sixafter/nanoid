@@ -19,6 +19,21 @@ Date format: `YYYY-MM-DD`
 
 ---
 
+## [1.64.2] - 2026-05-08
+
+### Added
+### Changed
+- **debt:** Upgraded [prng-chacha](http://github.com/sixafter/prng-chacha) to the latest stable version.
+- **debt:** Upgraded [aes-ctr-drbg](http://github.com/sixafter/aes-ctr-drbg) to the latest stable version.
+- **debt:** Upgraded dependencies to their latest stable versions.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+---
+
 ## [1.64.1] - 2026-04-08
 
 ### Added
@@ -1188,7 +1203,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.64.1...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.64.2...HEAD
+[1.64.2]: https://github.com/sixafter/nanoid/compare/v1.64.1...v1.64.2
 [1.64.1]: https://github.com/sixafter/nanoid/compare/v1.64.0...v1.64.1
 [1.64.0]: https://github.com/sixafter/nanoid/compare/v1.63.1...v1.64.0
 [1.63.1]: https://github.com/sixafter/nanoid/compare/v1.63.0...v1.63.1

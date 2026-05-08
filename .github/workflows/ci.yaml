@@ -85,9 +85,9 @@ jobs:
           make analyze          
 
       # Ref: https://github.com/SonarSource/sonarqube-scan-action
-      # Ref: https://github.com/SonarSource/sonarqube-scan-action/releases/tag/v7.0.0
+      # Ref: https://github.com/SonarSource/sonarqube-scan-action/releases/tag/v8.0.0
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v7
+        uses: SonarSource/sonarqube-scan-action@v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_USER: ${{ github.actor }}

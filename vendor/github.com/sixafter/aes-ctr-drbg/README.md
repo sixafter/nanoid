@@ -117,10 +117,10 @@ For a detailed mapping between the implementation and NIST SP 800-90A requiremen
 To verify the integrity of the release tarball, you can use Cosign to check the signature and checksums. Follow these steps:
 
 ```sh
-# Fetch the latest release tag from GitHub API (e.g., "v1.16.0")
+# Fetch the latest release tag from GitHub API (e.g., "v1.19.0")
 TAG=$(curl -s https://api.github.com/repos/sixafter/aes-ctr-drbg/releases/latest | jq -r .tag_name)
 
-# Remove leading "v" for filenames (e.g., "v1.16.0" -> "1.16.0")
+# Remove leading "v" for filenames (e.g., "v1.19.0" -> "1.19.0")
 VERSION=${TAG#v}
 
 # ---------------------------------------------------------------------
