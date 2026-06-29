@@ -43,7 +43,7 @@ jobs:
 
       # Ref: https://github.com/actions/checkout
       - name: "Checkout Source"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
