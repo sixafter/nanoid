@@ -19,6 +19,18 @@ Date format: `YYYY-MM-DD`
 
 ---
 
+## [1.64.5] - 2026-07-12
+
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+- **debt:** Upgraded all dependencies to their latest stable versions (`golang.org/x/crypto v0.54.0`).
+
+---
+
 ## [1.64.4] - 2026-06-29
 
 ### Added
@@ -1230,7 +1242,8 @@ Date format: `YYYY-MM-DD`
 ### Fixed
 ### Security
 
-[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.64.4...HEAD
+[Unreleased]: https://github.com/sixafter/nanoid/compare/v1.64.5...HEAD
+[1.64.5]: https://github.com/sixafter/nanoid/compare/v1.64.4...v1.64.5
 [1.64.4]: https://github.com/sixafter/nanoid/compare/v1.64.3...v1.64.4
 [1.64.3]: https://github.com/sixafter/nanoid/compare/v1.64.2...v1.64.3
 [1.64.2]: https://github.com/sixafter/nanoid/compare/v1.64.1...v1.64.2
