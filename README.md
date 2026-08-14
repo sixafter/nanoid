@@ -61,10 +61,10 @@ Please see the [nanoid-cli](https://github.com/sixafter/nanoid-cli) for a comman
 To verify the integrity of the release, follow these steps:
 
 ```sh
-# Fetch the latest release tag from GitHub API (e.g., "v1.64.5")
+# Fetch the latest release tag from GitHub API (e.g., "v1.64.6")
 TAG=$(curl -s https://api.github.com/repos/sixafter/nanoid/releases/latest | jq -r .tag_name)
 
-# Remove leading "v" for filenames (e.g., "v1.64.5" -> "1.64.5")
+# Remove leading "v" for filenames (e.g., "v1.64.6" -> "1.64.6")
 VERSION=${TAG#v}
 
 # ---------------------------------------------------------------------
