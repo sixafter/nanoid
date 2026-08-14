@@ -67,7 +67,7 @@ jobs:
 
       # Ref: https://github.com/actions/setup-go
       - name: Install Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
 
