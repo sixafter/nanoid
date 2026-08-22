@@ -213,7 +213,7 @@ func NewReader(opts ...Option) (Interface, error) {
 	for i := range r.pools {
 		cfg := cfg // Capture the current configuration for this shard
 		r.pools[i] = &sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				var (
 					p   *prng
 					err error
