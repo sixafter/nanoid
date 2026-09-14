@@ -57,10 +57,10 @@ Please see the [godoc](https://pkg.go.dev/github.com/sixafter/prng-chacha) for d
 To verify the integrity of the release tarball, you can use Cosign to check the signature against the public key.
 
 ```sh
-# Fetch the latest release tag from GitHub API (e.g., "v1.17.0")
+# Fetch the latest release tag from GitHub API (e.g., "v1.17.1")
 TAG=$(curl -s https://api.github.com/repos/sixafter/prng-chacha/releases/latest | jq -r .tag_name)
 
-# Remove leading "v" for filenames (e.g., "v1.17.0" -> "1.17.0")
+# Remove leading "v" for filenames (e.g., "v1.17.1" -> "1.17.1")
 VERSION=${TAG#v}
 
 # ---------------------------------------------------------------------
