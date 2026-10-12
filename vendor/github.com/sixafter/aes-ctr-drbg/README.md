@@ -4,7 +4,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/sixafter/aes-ctr-drbg)](https://img.shields.io/github/go-mod/go-version/sixafter/aes-ctr-drbg)
 [![Go Reference](https://pkg.go.dev/badge/github.com/sixafter/aes-ctr-drbg.svg)](https://pkg.go.dev/github.com/sixafter/aes-ctr-drbg)
-[![FIPS‑140 Mode Compatible](https://img.shields.io/badge/FIPS‑140--Mode-Compatible-brightgreen)](FIPS‑140.md)
+[![FIPS‑140 Mode Compatible](https://img.shields.io/badge/FIPS‑140--Mode-Compatible-brightgreen)](FIPS-140.md)
 
 ---
 
@@ -30,10 +30,9 @@
 ---
 ## Overview 
 
-AES-CTR-DRBG (Deterministic Random Bit Generator based on AES in Counter mode) is a cryptographically secure pseudo-random number generator (CSPRNG) defined by [NIST SP 800-90A Rev. 1](https://csrc.nist.gov/pubs/sp/800/90/a/r1/final). It's widely used in high-assurance systems, including those requiring [FIPS 140-2](https://csrc.nist.gov/pubs/fips/140-2/upd2/final) compliance. 
-AES-CTR-DRBG is designed for environments requiring deterministic, reproducible, and FIPS‑140-compatible random bit generation. This module is suitable for any application that needs strong cryptographic assurance or must comply with regulated environments (e.g., FedRAMP, FIPS, PCI, HIPAA). 
+This package provides an `io.Reader` that generates random bytes with AES in counter mode, based on the CTR_DRBG mechanism of [NIST SP 800-90A Rev. 1](https://csrc.nist.gov/pubs/sp/800/90/a/r1/final) (§10.2.1, no derivation function). Conformance with that mechanism is opt-in through `WithBacktrackingResistance`; see [NIST-SP-800-90A.md](docs/NIST-SP-800-90A.md).
 
-The module uses only Go standard library crypto primitives (`crypto/aes` and `crypto/cipher`), making it safe for use in FIPS 140-validated Go runtimes. No third-party, homegrown, or experimental ciphers are used.
+It uses only Go standard library cryptography (`crypto/aes`, `crypto/cipher`, `crypto/rand`) and works with Go's FIPS 140 mode (`GODEBUG=fips140=on`). It is not FIPS 140 validated; see [FIPS-140.md](FIPS-140.md).
 
 Please see the [godoc](https://pkg.go.dev/github.com/sixafter/aes-ctr-drbg) for detailed documentation.
 
@@ -47,28 +46,29 @@ See [FIPS‑140.md](FIPS-140.md) for compliance, deployment, and configuration g
 
 ## Features
 
-* **Standards-Compliant Implementation:**
-  Implements NIST SP 800-90A, Revision 1 AES-CTR-DRBG using the Go standard library (`crypto/aes`, `crypto/cipher`). Supports 128-, 192-, and 256-bit keys. State and counter management strictly adhere to the specification.
+* **NIST SP 800-90A CTR_DRBG:**
+  Based on the NIST SP 800-90A Rev. 1 CTR_DRBG mechanism (§10.2.1, AES, no derivation function), using `crypto/aes` and `crypto/cipher`, with 128-, 192-, and 256-bit keys. With `WithBacktrackingResistance`, instantiation, reseeding, generation, additional input, prediction resistance, and the request and reseed limits follow §10.2.1 and §9.3.1, known-answer self-tests run before first use (§11.3), and they are tested against NIST CAVP CTR_DRBG known-answer vectors (`2 allocs/op`). The default mode does not update the key and counter after each request (`0 allocs/op`).
 
-* **FIPS 140-2 Alignment:**
-  Designed for use in FIPS 140-2 validated environments and compatible with Go’s FIPS 140 mode (`GODEBUG=fips140=on`). See [FIPS-140.md](FIPS-140.md) for platform guidance.
+* **Go FIPS 140 Mode:**
+  Works with Go's FIPS 140 mode (`GODEBUG=fips140=on`). Optional FIPS 140-2 features: AES known-answer test (`WithSelfTests`), continuous random number generator test (`WithContinuousHealthTest`), and key zeroization during rotation (`WithZeroization`). See [FIPS-140.md](FIPS-140.md).
 
 * **Zero-Allocation Output Path:**
-  The DRBG is engineered for `0 allocs/op` in its standard `io.Reader` output path, enabling predictable resource usage and high throughput.
+  `Read` performs 0 allocations per call in the default mode, and 2 with `WithBacktrackingResistance`.
 
 * **Asynchronous Key Rotation:**
   Supports automatic key rotation after a configurable number of bytes have been generated (`MaxBytesPerKey`). Rekeying occurs asynchronously with exponential backoff and configurable retry limits, reducing long-term key exposure.
 
 * **Prediction Resistance Mode:**
-  Supports NIST SP 800-90A prediction resistance. When enabled, the DRBG reseeds from system entropy before every output, as required for state compromise resilience.
+  When enabled, the DRBG reseeds from system entropy before every output request. With `WithBacktrackingResistance`, that reseed follows NIST SP 800-90A §9.3.1 and §10.2.1.4.1 and mixes in the request's additional input.
 
 * **Sharded Pooling for Concurrency:**
-  Internal state pooling can be sharded across multiple `sync.Pool` instances. The number of shards is configurable, allowing improved performance under concurrent workloads.
+  Instances are pooled across a configurable number of `sync.Pool` shards (`WithShards`, default `runtime.GOMAXPROCS(0)`); each `Read` uses one shard chosen at random.
 
-* **Extensive Functional Configuration:**
-  Exposes a comprehensive set of functional options, including:
+* **Functional Options:**
+  Configuration is set with functional options, including:
 
   * AES key size (128/192/256-bit)
+  * NIST SP 800-90A conformance (`WithBacktrackingResistance`)
   * Maximum output per key (rekey threshold)
   * Personalization string (domain separation)
   * Shard/pool count
@@ -77,12 +77,13 @@ See [FIPS‑140.md](FIPS-140.md) for compliance, deployment, and configuration g
   * Key rotation and rekey backoff parameters
   * Prediction resistance
   * Fork detection and reseeding
+  * Continuous health test, self-tests, and key zeroization
 
-* **Thread-Safe and Deterministic:**
-  All DRBG instances are safe for concurrent use. Output is deterministic for a given seed and personalization.
+* **Concurrency and Determinism:**
+  `Read`, `ReadWithAdditionalInput`, and `Reseed` are safe for concurrent use; each pooled instance is used by one goroutine at a time. Output is fully determined by the entropy read from `crypto/rand.Reader`, the personalization string, and any additional input; it is reproducible only if `crypto/rand.Reader` is replaced with known input.
 
 * **io.Reader Compatibility:**
-  Implements Go’s `io.Reader` interface for drop-in use as a secure random source.
+  Implements `io.Reader`, so it can be used wherever an `io.Reader` source of random bytes is accepted.
 
 * **No External Dependencies:**
   Depends exclusively on the Go standard library for cryptographic operations.
@@ -90,11 +91,11 @@ See [FIPS‑140.md](FIPS-140.md) for compliance, deployment, and configuration g
 * **UUID Generation:**
   Can be used as a cryptographically secure `io.Reader` with the [`google/uuid`](https://pkg.go.dev/github.com/google/uuid) package and similar libraries.
 
-* **Comprehensive Testing and Fuzzing:**
-  Includes property-based, fuzz, concurrency, and allocation tests to validate correctness, robustness, and allocation characteristics.
+* **Testing:**
+  Unit, fuzz, concurrency (`-race`), allocation, and NIST CAVP known-answer tests.
 
 * **Fork-Safety:**
-  Automatic detection and reseeding on process fork. This library automatically detects process forks and reseeds in the child process to prevent random stream duplication. No manual action is required.
+  The process ID is checked before each request, or every `ForkDetectionInterval` requests; after a fork, the child reseeds before producing output.
 
 For an example of how this library can be consumed in practice, see [sixafter/nanoid](https://github.com/sixafter/nanoid).
 
@@ -104,7 +105,7 @@ of integrating this DRBG into an ID-generation workflow, including optional FIPS
 [WithAutoRandReader()](https://github.com/sixafter/nanoid/blob/d8efbc63e5a5696a33f34b9fb5d24f5d7805a7ed/config.go#L229) option that automatically selects between `prng-chacha` and `aes-ctr-drbg` based on the 
 runtime FIPS mode.
 
-## NIST SP 800-90A Compliance
+## NIST SP 800-90A Specification Mapping
 
 For a detailed mapping between the implementation and NIST SP 800-90A requirements, see [NIST-SP-800-90A.md](docs/NIST-SP-800-90A.md).
 
@@ -117,10 +118,10 @@ For a detailed mapping between the implementation and NIST SP 800-90A requiremen
 To verify the integrity of the release tarball, you can use Cosign to check the signature and checksums. Follow these steps:
 
 ```sh
-# Fetch the latest release tag from GitHub API (e.g., "v1.20.0")
+# Fetch the latest release tag from GitHub API (e.g., "v1.21.0")
 TAG=$(curl -s https://api.github.com/repos/sixafter/aes-ctr-drbg/releases/latest | jq -r .tag_name)
 
-# Remove leading "v" for filenames (e.g., "v1.20.0" -> "1.20.0")
+# Remove leading "v" for filenames (e.g., "v1.21.0" -> "1.21.0")
 VERSION=${TAG#v}
 
 # ---------------------------------------------------------------------

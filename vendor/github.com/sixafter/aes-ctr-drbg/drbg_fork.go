@@ -19,10 +19,11 @@ import (
 // If ForkDetectionInterval is set to a nonzero value N, the fork detection check is only performed every N output requests.
 //
 // Semantics and Behavior:
-//   - Increments the output request counter atomically.
+//   - Increments the dedicated fork-check counter atomically (independent of reseed request counting).
 //   - If ForkDetectionInterval is zero, always checks for fork (fully compliant, safest).
 //   - If ForkDetectionInterval is N>0, checks only every Nth output request (performance-tuned, non-compliant).
 //   - If a fork is detected (current PID != cached PID), reseeds the DRBG instance and updates the cached PID.
+//     The cached PID is updated only after a successful reseed, so a failed reseed is retried at the next fork check.
 //
 // Security Rationale:
 //   - Forking a process duplicates DRBG state. If not reseeded, parent and child may produce identical output, violating forward secrecy.
@@ -36,20 +37,24 @@ func (d *drbg) reseedIfForked() {
 		// Default: always check for fork
 		current := os.Getpid()
 		if current != d.pid {
-			_ = d.Reseed(nil) // Best-effort reseed
-			d.pid = current
+			// Only record the new PID once the reseed succeeds, so a failed reseed is retried at the next fork check.
+			if err := d.Reseed(nil); err == nil {
+				d.pid = current
+			}
 		}
 		return
 	}
 
 	// Only check every Nth request
-	n := atomic.AddUint64(&d.requests, 1)
+	n := atomic.AddUint64(&d.forkChecks, 1)
 	if n%interval != 0 {
 		return // Not time to check yet
 	}
 	current := os.Getpid()
 	if current != d.pid {
-		_ = d.Reseed(nil) // Best-effort reseed
-		d.pid = current
+		// Only record the new PID once the reseed succeeds, so a failed reseed is retried at the next fork check.
+		if err := d.Reseed(nil); err == nil {
+			d.pid = current
+		}
 	}
 }
