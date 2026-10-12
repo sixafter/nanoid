@@ -3,18 +3,22 @@
 // This source code is licensed under the Apache 2.0 License found in the
 // LICENSE file in the root directory of this source tree.
 
-// Package ctrdrbg provides a FIPS 140-2 aligned, high-performance AES-CTR-DRBG.
+// Package ctrdrbg implements a pool-backed deterministic random bit generator (DRBG) based on the CTR_DRBG
+// mechanism of NIST SP 800-90A Rev. 1, §10.2.1, using AES without a derivation function.
 //
-// This package implements a cryptographically secure, pool-backed Deterministic Random Bit Generator
-// (DRBG) following the NIST SP 800-90A AES-CTR-DRBG construction, specifically as defined in
-// §10.2.1 of NIST SP 800-90A Rev. 1 ("Recommendation for Random Number Generation Using
-// Deterministic Random Bit Generators").
+// It has two modes:
+//   - Default: output is AES in counter mode under a key and counter taken directly from crypto/rand entropy.
+//     The key is not changed after each request, so a later compromise of the internal state exposes earlier
+//     output generated under the same key. Read performs 0 allocations per call.
+//   - WithBacktrackingResistance: instantiation, reseeding, generation, additional input, prediction resistance,
+//     and the per-request and reseed limits follow NIST SP 800-90A §10.2.1 and §9.3.1, known-answer self-tests
+//     of these functions run before first use (§11.3), and they are tested against NIST CAVP CTR_DRBG
+//     known-answer vectors. A new key and counter are derived after every request, at
+//     2 allocations per Read call.
 //
-// Each generator instance uses an AES block cipher in counter (CTR) mode to produce cryptographically
-// secure pseudo-random bytes, suitable for high-throughput, concurrent workloads.
-//
-// All cryptographic primitives are provided by the Go standard library. This implementation is designed
-// for environments requiring strong compliance, including support for Go's FIPS-140 mode (GODEBUG=fips140=on).
+// WithContinuousHealthTest adds the FIPS 140-2 §4.9.2 continuous random number generator test. All
+// cryptographic primitives come from the Go standard library, and the package works with Go's FIPS 140 mode
+// (GODEBUG=fips140=on).
 //
 // Reference:
 //
@@ -23,6 +27,7 @@
 package ctrdrbg
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -46,8 +51,17 @@ var (
 	// ErrRequestTooLarge is returned when a Read request exceeds the NIST SP 800-90A maximum (64 KB).
 	ErrRequestTooLarge = errors.New("ctrdrbg: request exceeds NIST SP 800-90A max_number_of_bits_per_request (64 KB)")
 
-	// ErrHealthTestFailed indicates that the continuous health test detected stuck output.
+	// ErrHealthTestFailed indicates that the continuous health test detected stuck output. The DRBG instance that
+	// detected it stays in an error state and returns ErrHealthTestFailed for every later request.
 	ErrHealthTestFailed = errors.New("ctrdrbg: continuous health test failed (stuck output detected)")
+
+	// ErrPersonalizationTooLong is returned by NewReader when BacktrackingResistance is enabled and the
+	// personalization string is longer than the NIST SP 800-90A maximum of key size + 16 bytes.
+	ErrPersonalizationTooLong = errors.New("ctrdrbg: personalization string exceeds NIST SP 800-90A max_personalization_string_length (seedlen)")
+
+	// ErrAdditionalInputTooLong is returned by ReadWithAdditionalInput when BacktrackingResistance is enabled and
+	// the additional input is longer than the NIST SP 800-90A maximum of key size + 16 bytes.
+	ErrAdditionalInputTooLong = errors.New("ctrdrbg: additional input exceeds NIST SP 800-90A max_additional_input_length (seedlen)")
 )
 
 // Reader is a package-level, cryptographically secure random source suitable for high-concurrency applications.
@@ -84,8 +98,11 @@ type Interface interface {
 
 	// Reseed injects new entropy and optional additional input, refreshing the DRBG state.
 	//
-	// Per NIST SP 800-90A, additionalInput is combined with system entropy and
-	// personalization (if set) to derive a new internal key and counter.
+	// In the default mode, additionalInput is combined with system entropy and personalization (if set)
+	// to derive a new internal key and counter. With BacktrackingResistance, fresh system entropy combined
+	// with additionalInput is mixed into the existing key and counter as specified by NIST SP 800-90A
+	// §10.2.1.4.1, and personalization is not used; additionalInput must not exceed key size + 16 bytes,
+	// or ErrAdditionalInputTooLong is returned.
 	// Reseed can be called at any time to proactively refresh the DRBG.
 	//
 	// Returns an error if the reseed operation fails.
@@ -96,7 +113,17 @@ type Interface interface {
 	//
 	// This method is NIST-compliant and allows callers to inject additional
 	// entropy or context for a single Read operation.
-	// If PredictionResistance is enabled, additionalInput is ignored and fresh entropy is always used.
+	// If PredictionResistance is enabled, fresh entropy is always used; additionalInput is ignored in the default
+	// mode and, with BacktrackingResistance, mixed into the prediction-resistance reseed (NIST SP 800-90A §9.3.1).
+	//
+	// When BacktrackingResistance is enabled (and PredictionResistance is not), additionalInput is mixed into
+	// the key and counter before and after generation, as specified by NIST SP 800-90A §10.2.1.5.1 (steps 2
+	// and 6), without obtaining new entropy. It must not exceed key size + 16 bytes, or ErrAdditionalInputTooLong
+	// is returned; empty additionalInput is treated as absent.
+	//
+	// When EnableKeyRotation is enabled, an asynchronous key rotation that completes concurrently may replace
+	// the state derived from additionalInput with a new state derived from fresh system entropy alone. Output
+	// remains seeded from fresh entropy, but the additional input may not be reflected in it.
 	//
 	// Returns the number of bytes read (equal to len(b)) and an error (if any).
 	ReadWithAdditionalInput(b []byte, additionalInput []byte) (int, error)
@@ -227,6 +254,26 @@ func NewReader(opts ...Option) (Interface, error) {
 		return nil, fmt.Errorf("invalid MaxInitRetries: must be >= 1")
 	}
 
+	// NIST SP 800-90A §10.2.1 Table 3: without a derivation function, the personalization string
+	// must not exceed key size + 16 bytes.
+	if cfg.BacktrackingResistance && len(cfg.Personalization) > int(cfg.KeySize)+16 {
+		return nil, ErrPersonalizationTooLong
+	}
+
+	// NIST SP 800-90A §10.2.1 Table 3: a reseed is required after at most 2^48 output requests. With
+	// BacktrackingResistance, that limit applies even when ReseedRequests is not set.
+	if cfg.BacktrackingResistance && cfg.ReseedRequests == 0 {
+		cfg.ReseedRequests = maxReseedInterval
+	}
+
+	// NIST SP 800-90A §11.3: with BacktrackingResistance, known-answer tests of the instantiate, reseed, and
+	// generate functions must pass before first use.
+	if cfg.BacktrackingResistance {
+		if err := runDRBGSelfTests(); err != nil {
+			return nil, err
+		}
+	}
+
 	// Initialize the shard pools using the validated configuration.
 	pools, err := initShardPools(cfg)
 	if err != nil {
@@ -250,12 +297,14 @@ func (r *reader) Config() Config {
 	return cfg
 }
 
-// Reseed refreshes the state of all DRBG instances in all shard pools with new entropy and optional additional input.
+// Reseed refreshes the state of one DRBG instance per shard pool with new entropy and optional additional input.
 //
 // This method implements the Interface contract for NIST SP 800-90A compliant deterministic random bit generators.
-// For each DRBG instance managed by the pool, Reseed obtains fresh entropy from the system entropy source and
-// combines it with the provided additionalInput and the configured personalization string, per NIST recommendations.
-// This operation ensures that each DRBG instance has a newly derived key and counter (V), providing domain separation
+// For the instance borrowed from each shard pool, Reseed obtains fresh entropy from the system entropy source and
+// combines it with the provided additionalInput and, in the default mode, the configured personalization string.
+// With BacktrackingResistance, the result is mixed into the existing key and counter as specified by
+// NIST SP 800-90A §10.2.1.4.1, and personalization is not used.
+// This operation ensures that each reseeded instance has a newly derived key and counter (V), providing domain separation
 // and supporting explicit entropy injection for compliance, recovery, or defense-in-depth.
 //
 // Parameters:
@@ -267,7 +316,9 @@ func (r *reader) Config() Config {
 //
 // Security and Compliance Notes:
 //   - Reseed is safe for concurrent use and may be called at any time during operation.
-//   - If called while DRBGs are in use, subsequent reads immediately begin using the newly seeded state.
+//   - Only the instance borrowed from each shard is reseeded. Other pooled instances, including those in use by
+//     concurrent readers, keep their current state until their own reseed, rekey, or fork-detection policy applies.
+//     To reseed on every output request, use WithPredictionResistance.
 //   - This is required for some FIPS and high-assurance applications and is recommended for recovery from suspected
 //     entropy pool compromise or for regulatory compliance triggers.
 //
@@ -316,8 +367,9 @@ func shardIndex(n int) int {
 //
 // This method enables advanced consumers to inject per-call entropy, external event data, or
 // session context into the DRBG reseed process, as specified by the NIST DRBG "additional input" feature.
-// If PredictionResistance is enabled on the DRBG configuration, the additionalInput argument is ignored
-// and fresh entropy is always used as required by the standard.
+// If PredictionResistance is enabled on the DRBG configuration, fresh entropy is always used; the additionalInput
+// argument is ignored in the default mode and, with BacktrackingResistance, mixed into the prediction-resistance
+// reseed (NIST SP 800-90A §9.3.1).
 //
 // Parameters:
 //   - b []byte: The output buffer to fill with random bytes. Must be non-nil; may be zero-length.
@@ -333,7 +385,8 @@ func shardIndex(n int) int {
 //
 // Security and Compliance Notes:
 //   - additionalInput is cryptographically mixed with system entropy and personalization (if any) for this call only.
-//   - If PredictionResistance is enabled, additionalInput is ignored and reseed is always performed from entropy.
+//   - If PredictionResistance is enabled, reseed is always performed from entropy; additionalInput is ignored in
+//     the default mode and mixed into that reseed with BacktrackingResistance.
 //   - For most use cases, use the standard Read method. This method is intended for regulatory, compliance, or
 //     advanced event-driven entropy injection scenarios.
 //
@@ -461,6 +514,11 @@ type drbg struct {
 	// automatic reseeding should occur before the next output.
 	lastReseedTime time.Time
 
+	// entropySource supplies entropy for reseeds when BacktrackingResistance is enabled. It is nil, meaning
+	// crypto/rand, for every instance except those created by the NIST SP 800-90A §11.3 known-answer self-test,
+	// which must use fixed entropy.
+	entropySource io.Reader
+
 	// zero is a pre-allocated slice of zero-filled bytes used for output buffering.
 	//
 	// When UseZeroBuffer is enabled in config, this buffer is XOR-ed with
@@ -505,6 +563,11 @@ type drbg struct {
 	// after a configured number of requests.
 	requests uint64
 
+	// forkChecks counts output requests for interval-based fork detection (ForkDetectionInterval > 0).
+	// It is separate from the reseed request counter, which every reseed resets, so reseeding cannot
+	// prevent the fork-detection interval from being reached.
+	forkChecks uint64
+
 	// usage tracks the number of bytes generated since the last key rotation.
 	//
 	// When usage exceeds config.MaxBytesPerKey, a rekey is triggered to ensure
@@ -538,20 +601,46 @@ type drbg struct {
 
 	// True once first output block recorded
 	healthTestReady bool
+
+	// healthTestFailed records that the continuous health test has failed. FIPS 140-2 §4.9.2 requires the
+	// instance to stay in an error state, so every later output request returns ErrHealthTestFailed.
+	healthTestFailed bool
 }
 
-// Add this method:
-func (d *drbg) continuousHealthTest(block []byte) error {
-	if len(block) < 16 {
-		return nil
-	}
-	var curr [16]byte
-	copy(curr[:], block[:16])
-	if d.healthTestReady && subtle.ConstantTimeCompare(d.lastOutputBlock[:], curr[:]) == 1 {
+// continuousHealthTest performs the FIPS 140-2 §4.9.2 continuous random number generator test on an output
+// request: every 128-bit block generated for b is compared with the previously generated block of this instance,
+// including the full block behind a final partial block, which is still in the scratch buffer. If two compared
+// blocks are equal, the instance enters a permanent error state and ErrHealthTestFailed is returned.
+//
+// The compared blocks are output delivered to the caller, so a constant-time comparison is not required.
+func (d *drbg) continuousHealthTest(b []byte) error {
+	if d.healthTestFailed {
 		return ErrHealthTestFailed
 	}
-	copy(d.lastOutputBlock[:], curr[:])
-	d.healthTestReady = true
+
+	// Compare each block with the one before it, starting from the block saved by the previous request.
+	prev := d.lastOutputBlock[:]
+	full := len(b) &^ 15
+	for off := 0; off < full; off += 16 {
+		curr := b[off : off+16]
+		if d.healthTestReady && bytes.Equal(prev, curr) {
+			d.healthTestFailed = true
+			return ErrHealthTestFailed
+		}
+		prev = curr
+		d.healthTestReady = true
+	}
+	if full < len(b) {
+		if d.healthTestReady && bytes.Equal(prev, d.tmp[:]) {
+			d.healthTestFailed = true
+			return ErrHealthTestFailed
+		}
+		prev = d.tmp[:]
+		d.healthTestReady = true
+	}
+
+	// Save the last generated block for comparison with the next request.
+	copy(d.lastOutputBlock[:], prev)
 	return nil
 }
 
@@ -593,7 +682,14 @@ func (d *drbg) Read(b []byte) (int, error) {
 
 	// Prediction Resistance
 	if d.config.PredictionResistance {
-		if err := d.reseed(nil); err != nil {
+		var err error
+		if d.config.BacktrackingResistance {
+			// NIST SP 800-90A §9.3.1 step 7.1: reseed per §10.2.1.4.1.
+			err = d.reseedUpdate(nil)
+		} else {
+			err = d.reseed(nil)
+		}
+		if err != nil {
 			return 0, fmt.Errorf("prediction resistance reseed failed: %w", err)
 		}
 	} else {
@@ -632,6 +728,7 @@ func (d *drbg) Read(b []byte) (int, error) {
 
 	if d.config.ContinuousHealthTest {
 		if err := d.continuousHealthTest(b); err != nil {
+			clear(b)
 			d.vMu.Unlock()
 			return 0, err
 		}
@@ -640,6 +737,14 @@ func (d *drbg) Read(b []byte) (int, error) {
 	// Persist the advanced counter back to the DRBG instance, ensuring subsequent reads
 	// continue the keystream seamlessly without overlap or repetition.
 	copy(d.v[:], d.encV[:])
+
+	// NIST SP 800-90A §10.2.1.5.1 step 6: derive a new key and counter for backtracking resistance.
+	if d.config.BacktrackingResistance {
+		if err := d.update(st, nil); err != nil {
+			d.vMu.Unlock()
+			return 0, err
+		}
+	}
 
 	// Unlock the mutex, allowing other callers to proceed.
 	d.vMu.Unlock()
@@ -669,16 +774,16 @@ func (d *drbg) Read(b []byte) (int, error) {
 //
 // This method is intended for advanced use cases where explicit entropy injection or
 // per-call domain separation is required, as enabled by the NIST DRBG "additional input" feature.
-// If PredictionResistance is enabled, the DRBG reseeds from system entropy for every read and
-// ignores additionalInput as required by the standard. Otherwise, if additionalInput is non-nil,
-// the DRBG instance reseeds using a combination of system entropy, personalization, and the
-// supplied additionalInput before generating output.
+// If PredictionResistance is enabled, the DRBG reseeds from system entropy for every read; additionalInput is
+// ignored in the default mode and, with BacktrackingResistance, mixed into that reseed (NIST SP 800-90A §9.3.1
+// step 7.1). Otherwise, in the default mode, if additionalInput is non-nil, the DRBG instance reseeds using a
+// combination of system entropy, personalization, and the supplied additionalInput before generating output.
 //
 // Semantics and Implementation Details:
-//   - If PredictionResistance is enabled, reseeds from fresh system entropy before generating output,
-//     ignoring additionalInput (NIST-compliant).
-//   - If PredictionResistance is not enabled and additionalInput is non-nil, reseeds using both entropy
-//     and the caller's input, per NIST specification.
+//   - If PredictionResistance is enabled, reseeds from fresh system entropy before generating output;
+//     additionalInput is ignored in the default mode and mixed into that reseed with BacktrackingResistance.
+//   - In the default mode, if PredictionResistance is not enabled and additionalInput is non-nil, reseeds
+//     using both entropy and the caller's input.
 //   - Loads the current cryptographic state (AES key, block cipher, initial counter) atomically.
 //   - The DRBG's internal counter (v) is protected by a mutex to guarantee non-overlapping output across reads.
 //   - Output is generated using fillBlocks and the advanced counter value is persisted for continuity.
@@ -710,12 +815,25 @@ func (d *drbg) ReadWithAdditionalInput(b []byte, additionalInput []byte) (int, e
 		return 0, ErrRequestTooLarge
 	}
 
+	// NIST SP 800-90A §10.2.1 Table 3: without a derivation function, additional input must not exceed
+	// key size + 16 bytes.
+	if d.config.BacktrackingResistance && len(additionalInput) > int(d.config.KeySize)+16 {
+		return 0, ErrAdditionalInputTooLong
+	}
+
 	d.reseedIfForked()
 
-	// If PredictionResistance is enabled, always reseed from fresh entropy before output,
-	// ignoring any additional input per NIST SP 800-90A requirements.
+	// If PredictionResistance is enabled, always reseed from fresh entropy before output. With
+	// BacktrackingResistance, the reseed follows NIST SP 800-90A §9.3.1 step 7.1 and §10.2.1.4.1 and mixes in
+	// the additional input, which is then not used again for this request; in the default mode it is ignored.
 	if d.config.PredictionResistance {
-		if err := d.reseed(nil); err != nil {
+		var err error
+		if d.config.BacktrackingResistance {
+			err = d.reseedUpdate(additionalInput)
+		} else {
+			err = d.reseed(nil)
+		}
+		if err != nil {
 			return 0, fmt.Errorf("prediction resistance reseed failed: %w", err)
 		}
 	} else {
@@ -737,8 +855,10 @@ func (d *drbg) ReadWithAdditionalInput(b []byte, additionalInput []byte) (int, e
 		}
 
 		// If additionalInput is provided and prediction resistance is not enabled,
-		// reseed using both entropy and additional input for this output request.
-		if additionalInput != nil {
+		// reseed using both entropy and additional input for this output request. With BacktrackingResistance,
+		// additional input is instead mixed into the key and counter before and after generation
+		// (NIST SP 800-90A §10.2.1.5.1 steps 2 and 6).
+		if additionalInput != nil && !d.config.BacktrackingResistance {
 			if err := d.reseed(additionalInput); err != nil {
 				return 0, fmt.Errorf("reseed with additional input failed: %w", err)
 			}
@@ -754,12 +874,26 @@ func (d *drbg) ReadWithAdditionalInput(b []byte, additionalInput []byte) (int, e
 	// Copy the current counter value to a local variable for use in output generation.
 	copy(d.encV[:], d.v[:])
 
+	// NIST SP 800-90A §10.2.1.5.1 step 2: mix the additional input into the key and counter before generating.
+	// With prediction resistance, additional input is not used by the generate steps.
+	var generateInput []byte
+	if d.config.BacktrackingResistance && !d.config.PredictionResistance && len(additionalInput) > 0 {
+		generateInput = additionalInput
+		if err := d.update(st, generateInput); err != nil {
+			d.vMu.Unlock()
+			return 0, err
+		}
+		st = d.state.Load()
+		copy(d.encV[:], d.v[:])
+	}
+
 	// Fill the output buffer using the current cryptographic state and the local counter,
 	// incrementing the counter as output is produced.
 	d.fillBlocks(b, st, &d.encV)
 
 	if d.config.ContinuousHealthTest {
 		if err := d.continuousHealthTest(b); err != nil {
+			clear(b)
 			d.vMu.Unlock()
 			return 0, err
 		}
@@ -768,6 +902,14 @@ func (d *drbg) ReadWithAdditionalInput(b []byte, additionalInput []byte) (int, e
 	// Persist the advanced counter back to the DRBG instance, ensuring
 	// future reads continue the keystream seamlessly.
 	copy(d.v[:], d.encV[:])
+
+	// NIST SP 800-90A §10.2.1.5.1 step 6: derive a new key and counter for backtracking resistance.
+	if d.config.BacktrackingResistance {
+		if err := d.update(st, generateInput); err != nil {
+			d.vMu.Unlock()
+			return 0, err
+		}
+	}
 
 	// Unlock the mutex, allowing other callers to proceed.
 	d.vMu.Unlock()
@@ -793,9 +935,11 @@ func (d *drbg) ReadWithAdditionalInput(b []byte, additionalInput []byte) (int, e
 
 // Reseed injects new entropy and optional additional input, refreshing the DRBG instance's internal state.
 //
-// This method is compliant with NIST SP 800-90A and can be called at any time to force a rekey
-// and counter reset. The additionalInput parameter, if non-nil, is cryptographically combined
-// with system entropy and the configured personalization string to derive a new key and counter (V).
+// This method can be called at any time to force a rekey and counter reset. In the default mode, the
+// additionalInput parameter, if non-nil, is cryptographically combined with system entropy and the
+// configured personalization string to derive a new key and counter. With BacktrackingResistance, the
+// reseed follows NIST SP 800-90A §10.2.1.4.1: fresh entropy combined with additionalInput is mixed into
+// the existing key and counter, and personalization is not used.
 //
 // Reseed is suitable for explicit entropy injection after external events, regulatory triggers,
 // or as a proactive measure to ensure stream independence and forward secrecy. Upon successful
@@ -876,7 +1020,14 @@ func (d *drbg) fillBlocks(b []byte, st *state, v *[16]byte) {
 			incV(v)
 
 			// Encrypt the incremented counter; write keystream into zero buffer.
-			st.block.Encrypt(d.zero[offset:offset+blockSize], v[:])
+			// A final partial block is encrypted into a full-block scratch buffer and then copied,
+			// because Encrypt requires a full-block destination.
+			if blockSize == 16 {
+				st.block.Encrypt(d.zero[offset:offset+16], v[:])
+			} else {
+				st.block.Encrypt(d.tmp[:], v[:])
+				copy(d.zero[offset:offset+blockSize], d.tmp[:blockSize])
+			}
 
 			// Copy encrypted keystream to caller's buffer.
 			copy(b[offset:offset+blockSize], d.zero[offset:offset+blockSize])
@@ -901,6 +1052,67 @@ func (d *drbg) fillBlocks(b []byte, st *state, v *[16]byte) {
 	}
 }
 
+// update mixes the given data into this instance's key and counter, as specified by the update function of
+// NIST SP 800-90A §10.2.1.2. It encrypts successive values of the working counter under the current key to
+// produce key size + 16 bytes of keystream and XORs that with the given data (shorter data is treated as
+// zero-padded, and nil as all zeros, as in §10.2.1.5.1 step 6 when there is no additional input). The first
+// key-size bytes become the new key and the last 16 bytes the new counter; the new state is published
+// atomically and the working counter is set to the new counter.
+//
+// The caller must hold the counter lock. Keystream blocks are staged one at a time in a persistent
+// per-instance buffer and written directly into the new state, so no stack buffers escape to the heap
+// through the cipher.Block interface. The given data must not exceed key size + 16 bytes.
+func (d *drbg) update(st *state, providedData []byte) error {
+	keyLen := int(d.config.KeySize)
+	seedLen := keyLen + 16
+
+	newState := &state{}
+	for pos := 0; pos < seedLen; pos += 16 {
+		incV(&d.encV)
+		st.block.Encrypt(d.tmp[:], d.encV[:])
+		if pos < len(providedData) {
+			m := min(16, seedLen-pos, len(providedData)-pos)
+			subtle.XORBytes(d.tmp[:m], d.tmp[:m], providedData[pos:pos+m])
+		}
+
+		// Bytes [0, keyLen) of the result form the key; bytes [keyLen, seedLen) form V.
+		n := 0
+		if pos < keyLen {
+			n = copy(newState.key[pos:keyLen], d.tmp[:])
+		}
+		if pos+n >= keyLen {
+			copy(newState.v[pos+n-keyLen:], d.tmp[n:])
+		}
+	}
+	clear(d.tmp[:])
+
+	block, err := aes.NewCipher(newState.key[:keyLen])
+	if err != nil {
+		return err
+	}
+	newState.block = block
+
+	d.state.Store(newState)
+	copy(d.v[:], newState.v[:])
+	return nil
+}
+
+// instantiate sets the initial key and counter from the given seed material (fresh entropy XOR the
+// personalization string), as specified by NIST SP 800-90A §10.2.1.3.1: starting from an all-zero key and
+// counter, the seed material is mixed in by the §10.2.1.2 update function. It is used when
+// BacktrackingResistance is enabled and runs only when the instance is created.
+func (d *drbg) instantiate(seedMaterial []byte) error {
+	block, err := aes.NewCipher(make([]byte, d.config.KeySize))
+	if err != nil {
+		return err
+	}
+
+	d.vMu.Lock()
+	defer d.vMu.Unlock()
+	clear(d.encV[:])
+	return d.update(&state{block: block}, seedMaterial)
+}
+
 // reseed refreshes the DRBG instance with new system entropy, personalization, and optional additional input.
 //
 // This function generates a new internal state (AES key, counter, and cipher block) using the provided DRBG
@@ -920,6 +1132,11 @@ func (d *drbg) fillBlocks(b []byte, st *state, v *[16]byte) {
 //   - If called concurrently, it is possible for closely timed reseeds to slightly race in updating the metadata fields;
 //     this does not impact cryptographic safety.
 func (d *drbg) reseed(additionalInput []byte) error {
+	// With BacktrackingResistance, every reseed follows NIST SP 800-90A §10.2.1.4.1.
+	if d.config.BacktrackingResistance {
+		return d.reseedUpdate(additionalInput)
+	}
+
 	// Generate a new DRBG state (key, counter, AES block) using system entropy,
 	// personalization string, and optional additional input.
 	newState, err := newDRBGState(d.config, additionalInput)
@@ -946,6 +1163,57 @@ func (d *drbg) reseed(additionalInput []byte) error {
 	return nil
 }
 
+// reseedUpdate reseeds this instance as specified by NIST SP 800-90A §10.2.1.4.1 (no derivation function).
+// Fresh entropy (key size + 16 bytes) is combined with the optional additional input (at most key size + 16
+// bytes; shorter input is zero-padded) and mixed into the existing key and counter, so the prior state also
+// contributes to the result. The personalization string is not used; it applies only when the instance is
+// created. It is used when BacktrackingResistance is enabled.
+func (d *drbg) reseedUpdate(additionalInput []byte) error {
+	if len(additionalInput) > int(d.config.KeySize)+16 {
+		return ErrAdditionalInputTooLong
+	}
+	if err := d.mixEntropy(additionalInput); err != nil {
+		return err
+	}
+
+	// Restart byte-usage, reseed-interval, and request-count tracking from this reseed.
+	atomic.StoreUint64(&d.usage, 0)
+	d.lastReseedTime = time.Now()
+	atomic.StoreUint64(&d.requests, 0)
+	return nil
+}
+
+// mixEntropy obtains key size + 16 bytes of fresh entropy, combines it with the optional additional input,
+// and mixes the result into the existing key and counter, as specified by NIST SP 800-90A §10.2.1.4.1. It
+// does not change reseed bookkeeping, so it is safe to call from the background key-rotation goroutine.
+func (d *drbg) mixEntropy(additionalInput []byte) error {
+	src := d.entropySource
+	if src == nil {
+		src = rand.Reader
+	}
+	seedMaterial, err := readEntropy(src, d.config)
+	if err != nil {
+		return err
+	}
+	subtle.XORBytes(seedMaterial, seedMaterial, additionalInput)
+
+	d.vMu.Lock()
+	copy(d.encV[:], d.v[:])
+	err = d.update(d.state.Load(), seedMaterial)
+	d.vMu.Unlock()
+	clear(seedMaterial)
+	return err
+}
+
+// readEntropy returns key size + 16 bytes of entropy read from src.
+func readEntropy(src io.Reader, cfg *Config) ([]byte, error) {
+	seed := make([]byte, cfg.KeySize+16)
+	if _, err := io.ReadFull(src, seed); err != nil {
+		return nil, err
+	}
+	return seed, nil
+}
+
 // newDRBGState generates a fresh, fully initialized DRBG state (AES key and counter) per NIST SP 800-90A.
 //
 // This function combines system entropy, the configured personalization string, and optional additional input
@@ -964,11 +1232,9 @@ func (d *drbg) reseed(additionalInput []byte) error {
 //   - *state: Newly derived DRBG state with a fresh key, cipher, and counter.
 //   - error: Non-nil if entropy acquisition or cipher construction fails; nil on success.
 func newDRBGState(cfg *Config, additionalInput []byte) (*state, error) {
-	seedLen := cfg.KeySize + 16
-	seed := make([]byte, seedLen)
-
 	// Acquire fresh entropy from the operating system. This forms the basis of the DRBG seed material.
-	if _, err := io.ReadFull(rand.Reader, seed); err != nil {
+	seed, err := readEntropy(rand.Reader, cfg)
+	if err != nil {
 		return nil, err
 	}
 
@@ -1061,9 +1327,25 @@ func newDRBG(cfg *Config) (*drbg, error) {
 		pid:      os.Getpid(),
 	}
 	d.state.Store(st)
+	d.lastReseedTime = time.Now() // The reseed interval is measured from instantiation.
 
 	// Initialize the working counter (v) from the state, guaranteeing unique output on first use.
 	copy(d.v[:], v[:])
+
+	// NIST SP 800-90A §10.2.1.3.1: derive the initial key and counter from the seed material.
+	if cfg.BacktrackingResistance {
+		if err := d.instantiate(seed); err != nil {
+			return nil, err
+		}
+	}
+
+	// FIPS 140-2 §4.9.2: the first block generated after initialization is not output; it is kept only for
+	// comparison with the next generated block.
+	if cfg.ContinuousHealthTest {
+		if _, err := d.Read(d.lastOutputBlock[:]); err != nil {
+			return nil, err
+		}
+	}
 
 	return d, nil
 }
@@ -1127,6 +1409,12 @@ func (d *drbg) asyncRekey() {
 		maxBackoff = defaultMaxBackoff
 	}
 
+	// With BacktrackingResistance, key rotation is a NIST SP 800-90A §10.2.1.4.1 reseed.
+	if d.config.BacktrackingResistance {
+		d.rekeyByReseed(base, maxBackoff)
+		return
+	}
+
 	// Attempt to reseed and rekey up to MaxRekeyAttempts times.
 	for i := 0; i < d.config.MaxRekeyAttempts; i++ {
 		// Obtain new entropy for key and counter (V).
@@ -1184,6 +1472,31 @@ func (d *drbg) asyncRekey() {
 		}
 	}
 	// If all retries fail, generator continues with prior state.
+}
+
+// rekeyByReseed performs automatic key rotation when BacktrackingResistance is enabled. Instead of replacing
+// the key and counter, it mixes fresh entropy into them as specified by NIST SP 800-90A §10.2.1.4.1, retrying
+// with the same exponential backoff as the default key rotation. Only the byte-usage counter is reset;
+// reseed-interval and request-count tracking are owned by the reading goroutine and are left unchanged.
+func (d *drbg) rekeyByReseed(backoff, maxBackoff time.Duration) {
+	for i := 0; i < d.config.MaxRekeyAttempts; i++ {
+		oldState := d.state.Load()
+		if err := d.mixEntropy(nil); err == nil {
+			// FIPS 140-2 §4.7.6: zeroize the replaced key material.
+			if d.config.EnableZeroization && oldState != nil {
+				subtle.XORBytes(oldState.key[:], oldState.key[:], oldState.key[:])
+				subtle.XORBytes(oldState.v[:], oldState.v[:], oldState.v[:])
+			}
+			atomic.StoreUint64(&d.usage, 0)
+			return
+		}
+
+		time.Sleep(backoff)
+		backoff *= 2
+		if backoff > maxBackoff {
+			backoff = maxBackoff
+		}
+	}
 }
 
 // incV increments the DRBG counter (V) in big-endian order, rolling over as needed.

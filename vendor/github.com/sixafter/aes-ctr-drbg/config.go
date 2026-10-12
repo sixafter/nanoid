@@ -57,7 +57,7 @@ const (
 //   - MaxRekeyAttempts: Max number of rekey attempts before giving up.
 //   - MaxRekeyBackoff: Maximum backoff duration for exponential rekey retries.
 //   - RekeyBackoff: Initial backoff for rekey attempts.
-//   - EnableKeyRotation: Whether to enable automatic key rotation (default: true).
+//   - EnableKeyRotation: Whether to enable automatic key rotation (default: false).
 //   - Personalization: Optional per-instance byte string for domain separation.
 type Config struct {
 	// Personalization provides a per-instance personalization string, which is XOR-ed into the
@@ -104,7 +104,8 @@ type Config struct {
 	// ReseedRequests is the maximum number of output requests (calls to Read) allowed before forcing a reseed.
 	//
 	// When set (non-zero), the DRBG will automatically reseed after this many Read or ReadWithAdditionalInput calls.
-	// Zero disables reseed-on-request-count.
+	// Zero disables reseed-on-request-count, except with BacktrackingResistance, where NewReader sets it to the
+	// NIST SP 800-90A maximum of 2^48 requests.
 	ReseedRequests uint64
 
 	// ForkDetectionInterval controls how often fork detection is performed.
@@ -151,7 +152,7 @@ type Config struct {
 	// EnableKeyRotation controls whether instances automatically rotate their key after MaxBytesPerKey output.
 	//
 	// Automatic key rotation provides forward secrecy and aligns with cryptographic best practices.
-	// Defaults to true.
+	// Defaults to false.
 	EnableKeyRotation bool
 
 	// PredictionResistance enables NIST SP 800-90A prediction resistance mode for this DRBG instance.
@@ -162,7 +163,9 @@ type Config struct {
 	// extension and protects against backtracking even if the DRBG's internal state is exposed.
 	//
 	// When enabled:
-	//   - All additionalInput passed to ReadWithAdditionalInput or Reseed is ignored.
+	//   - In the default mode, additionalInput passed to ReadWithAdditionalInput or Reseed is ignored. With
+	//     BacktrackingResistance, additionalInput passed to ReadWithAdditionalInput is mixed into the reseed
+	//     (NIST SP 800-90A §9.3.1 step 7.1, §10.2.1.4.1) and is not used again for that request.
 	//   - Reseeding is performed before each output operation, guaranteeing that every call mixes in
 	//     new system entropy and cannot be predicted from previous outputs, even if internal state is known.
 	//
@@ -190,19 +193,39 @@ type Config struct {
 	// When false (default), self-tests are skipped for performance.
 	EnableSelfTests bool
 
-	// EnableZeroization controls whether cryptographic key material is securely
-	// erased from memory during key rotation operations.
+	// EnableZeroization controls whether the DRBG's stored copy of the old key and counter is
+	// zeroed during automatic key rotation (MaxBytesPerKey with EnableKeyRotation).
 	//
-	// When true, old keys and counters are zeroized using crypto/subtle before
-	// being replaced, providing forward secrecy hardening per FIPS 140-2 section 4.7.6.
+	// When true, the old state's key and counter (V) and the working counter are zeroed using
+	// crypto/subtle before being replaced. This is best-effort hardening aligned with FIPS 140-2
+	// section 4.7.6; it does not erase the AES key schedule held by the underlying cipher.Block
+	// (crypto/aes provides no API for this), intermediate seed buffers, or state replaced by Reseed,
+	// prediction resistance, interval/request-count reseeds, or fork detection.
 	// When false (default), old key material is simply overwritten.
 	EnableZeroization bool
 
-	// ContinuousHealthTest enables NIST SP 800-90A §11.3.3 continuous health testing.
-	// When enabled, each output block is compared to the previous; identical consecutive
-	// blocks indicate catastrophic DRBG failure and return ErrHealthTestFailed.
-	// Required for FIPS 140-2/140-3 certification. Disabled by default.
+	// ContinuousHealthTest enables the FIPS 140-2 §4.9.2 continuous random number generator test.
+	// When enabled, every 128-bit block generated for output is compared with the previously generated block of
+	// the same pooled DRBG instance, across requests. The first block generated after an instance is created is
+	// not output; it is kept only for comparison. If two compared blocks are equal, the request returns 0 and
+	// ErrHealthTestFailed, the output buffer is cleared, and the instance stays in an error state in which every
+	// later request returns ErrHealthTestFailed. Disabled by default.
 	ContinuousHealthTest bool
+
+	// BacktrackingResistance enables the NIST SP 800-90A §10.2.1.5.1 (step 6) post-generate update.
+	//
+	// When enabled, after each output request the DRBG derives a new key and counter from its own keystream,
+	// mixed with the request's additional input when there is any, and installs a new AES cipher, so a later
+	// compromise of the internal state does not reveal previously generated output. Additional input supplied
+	// to ReadWithAdditionalInput is mixed into the key and counter before and after generation (§10.2.1.5.1
+	// steps 2 and 6) without obtaining new entropy, and must not exceed key size + 16 bytes
+	// (ErrAdditionalInputTooLong). Instantiation also follows §10.2.1.3.1, deriving the initial key and counter
+	// from the seed material in the same way, and a reseed is required after at most 2^48 output requests
+	// (ReseedRequests defaults to that maximum when unset).
+	//
+	// Cost: (key size + 16) / 16 additional AES block encryptions and one AES key schedule per output request, which
+	// allocates. When disabled (default), the output path is unchanged and remains allocation-free.
+	BacktrackingResistance bool
 }
 
 // Default configuration constants for AES-CTR-DRBG.
@@ -223,11 +246,9 @@ const (
 	defaultRekeyBackoff = 100 * time.Millisecond
 )
 
-// DefaultConfig returns a Config struct populated with production-safe, NIST SP 800-90A §10.2.1-aligned defaults.
-//
-// This function provides a robust baseline configuration for AES-CTR-DRBG instances, suitable for general-purpose
-// cryptographic use and high-concurrency workloads. All parameters are selected to ensure strong security, compliance
-// with FIPS 140-2 and NIST SP 800-90A requirements, and operational reliability under diverse system conditions.
+// DefaultConfig returns the default Config, whose values are listed below. With these values, Read and
+// ReadWithAdditionalInput without additional input perform 0 allocations per call. Conformance with the NIST
+// SP 800-90A §10.2.1 CTR_DRBG mechanism is opt-in: enable it with WithBacktrackingResistance.
 //
 // The returned configuration enables fork-safety (via PID tracking), supports domain separation via personalization,
 // and is compatible with Go's FIPS-140 mode (GODEBUG=fips140=on).
@@ -241,13 +262,14 @@ const (
 //   - RekeyBackoff:       100 milliseconds (initial backoff for rekey attempts)
 //   - EnableKeyRotation:  false (key rotation is disabled by default—set to true for forward secrecy)
 //   - EnableSelfTests:    false (FIPS 140-2 KAT self-tests disabled; enable via WithSelfTests for compliance)
-//   - EnableZeroization:  false (key zeroization disabled; enable via WithZeroization for FIPS 140-2 compliance)
+//   - EnableZeroization:  false (key zeroization disabled; enable via WithZeroization for best-effort key zeroing during rotation)
 //   - Personalization:    nil (no domain separation unless set by the caller)
 //   - UseZeroBuffer:      false (random output generated directly into caller's buffer)
 //   - DefaultBufferSize:  0 (no preallocation of zero-filled buffers)
 //   - Shards:             runtime.GOMAXPROCS(0) (number of internal DRBG pools matches available CPUs)
 //   - PredictionResistance: false (prediction resistance is disabled; enable only if required by policy)
 //   - ForkDetectionInterval: 0 (fork detection performed on every output request for maximum safety)
+//   - BacktrackingResistance: false (post-generate Key/V update disabled; enable via WithBacktrackingResistance)
 //
 // NIST Reference:
 //   - See NIST SP 800-90A, §10.2.1 (CTR DRBG) for cryptographic construction details.
@@ -257,19 +279,20 @@ const (
 //	cfg := ctrdrbg.DefaultConfig()
 func DefaultConfig() Config {
 	return Config{
-		KeySize:               KeySize256,
-		MaxBytesPerKey:        defaultMaxBytes,
-		MaxInitRetries:        defaultInitRetries,
-		MaxRekeyAttempts:      defaultRekeyRetries,
-		MaxRekeyBackoff:       defaultMaxBackoff,
-		RekeyBackoff:          defaultRekeyBackoff,
-		EnableKeyRotation:     false,
-		Personalization:       nil,
-		UseZeroBuffer:         false,
-		DefaultBufferSize:     0,
-		Shards:                runtime.GOMAXPROCS(0),
-		PredictionResistance:  false,
-		ForkDetectionInterval: 0,
+		KeySize:                KeySize256,
+		MaxBytesPerKey:         defaultMaxBytes,
+		MaxInitRetries:         defaultInitRetries,
+		MaxRekeyAttempts:       defaultRekeyRetries,
+		MaxRekeyBackoff:        defaultMaxBackoff,
+		RekeyBackoff:           defaultRekeyBackoff,
+		EnableKeyRotation:      false,
+		Personalization:        nil,
+		UseZeroBuffer:          false,
+		DefaultBufferSize:      0,
+		Shards:                 runtime.GOMAXPROCS(0),
+		PredictionResistance:   false,
+		ForkDetectionInterval:  0,
+		BacktrackingResistance: false,
 	}
 }
 
@@ -333,7 +356,7 @@ func WithRekeyBackoff(d time.Duration) Option {
 // When enabled (true), the DRBG automatically performs a key rotation after MaxBytesPerKey bytes are output.
 // When disabled (false), key rotation is suppressed and the DRBG uses the original key indefinitely.
 //
-// For most use cases, leave this enabled for forward secrecy and NIST alignment. Disable only for
+// For most use cases, set this to enabled for forward secrecy and NIST alignment. Leave disabled only for
 // compliance testing or special-purpose scenarios.
 func WithEnableKeyRotation(enable bool) Option {
 	return func(cfg *Config) { cfg.EnableKeyRotation = enable }
@@ -434,14 +457,22 @@ func WithSelfTests(enable bool) Option {
 
 // WithZeroization returns an Option that enables or disables secure key zeroization.
 //
-// When enabled, old cryptographic key material is securely erased from memory
-// during key rotation operations per FIPS 140-2 section 4.7.6.
+// When enabled, the old key and counter (V) are zeroed during automatic key rotation, as best-effort
+// hardening aligned with FIPS 140-2 section 4.7.6. See Config.EnableZeroization for what is not erased.
 // Defaults to false.
 func WithZeroization(enable bool) Option {
 	return func(cfg *Config) { cfg.EnableZeroization = enable }
 }
 
-// WithContinuousHealthTest enables or disables NIST SP 800-90A §11.3.3 continuous health testing.
+// WithBacktrackingResistance returns an Option that enables or disables the NIST SP 800-90A §10.2.1.5.1
+// (step 6) post-generate update, which rekeys the DRBG from its own keystream after every output request.
+// See Config.BacktrackingResistance for the performance and allocation cost. Defaults to false.
+func WithBacktrackingResistance(enable bool) Option {
+	return func(cfg *Config) { cfg.BacktrackingResistance = enable }
+}
+
+// WithContinuousHealthTest enables or disables the FIPS 140-2 §4.9.2 continuous random number generator test
+// (see Config.ContinuousHealthTest).
 // Defaults to false.
 func WithContinuousHealthTest(enable bool) Option {
 	return func(c *Config) {
