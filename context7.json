@@ -1,5 +1,7 @@
 {
   "url": "https://context7.com/sixafter/nanoid",
-  "public_key": "pk_jdSan6ApodKYOWYGMx0Dn"
+  "public_key": "pk_jdSan6ApodKYOWYGMx0Dn",
+  "excludeFolders": [
+    "vendor"
+  ]
 }
-

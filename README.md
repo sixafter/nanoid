@@ -10,6 +10,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/sixafter/nanoid)](https://img.shields.io/github/go-mod/go-version/sixafter/nanoid)
 [![Go Reference](https://pkg.go.dev/badge/github.com/sixafter/nanoid.svg)](https://pkg.go.dev/github.com/sixafter/nanoid)
+[![Context7](https://img.shields.io/badge/Context7-docs-blue?style=flat-square)](https://context7.com/sixafter/nanoid)
 [![FIPS-140 Mode Compatible](https://img.shields.io/badge/FIPS‑140--Mode-Compatible-brightgreen)](FIPS-140.md)
 
 <br clear="right" />
@@ -31,6 +32,8 @@
 A simple, fast, and efficient Go implementation of [Nano ID](https://github.com/ai/nanoid), a tiny, secure, URL-friendly, collision-resistant string generator. 
 
 Please see the [godoc](https://pkg.go.dev/github.com/sixafter/nanoid) for detailed documentation.
+
+The documentation is also indexed on [Context7](https://context7.com/sixafter/nanoid) for use with AI coding assistants. Use the library ID `/sixafter/nanoid` with the Context7 MCP server or any Context7-aware tool.
 
 ## Features
 
