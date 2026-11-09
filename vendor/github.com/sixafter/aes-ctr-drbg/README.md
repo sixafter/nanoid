@@ -1,9 +1,9 @@
 # AES-CTR-DRBG
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/sixafter/aes-ctr-drbg)](https://goreportcard.com/report/github.com/sixafter/aes-ctr-drbg)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/sixafter/aes-ctr-drbg)](https://img.shields.io/github/go-mod/go-version/sixafter/aes-ctr-drbg)
 [![Go Reference](https://pkg.go.dev/badge/github.com/sixafter/aes-ctr-drbg.svg)](https://pkg.go.dev/github.com/sixafter/aes-ctr-drbg)
+[![Context7](https://img.shields.io/badge/Context7-docs-blue?style=flat-square)](https://context7.com/sixafter/aes-ctr-drbg)
 [![FIPS‑140 Mode Compatible](https://img.shields.io/badge/FIPS‑140--Mode-Compatible-brightgreen)](FIPS-140.md)
 
 ---
@@ -35,6 +35,8 @@ This package provides an `io.Reader` that generates random bytes with AES in cou
 It uses only Go standard library cryptography (`crypto/aes`, `crypto/cipher`, `crypto/rand`) and works with Go's FIPS 140 mode (`GODEBUG=fips140=on`). It is not FIPS 140 validated; see [FIPS-140.md](FIPS-140.md).
 
 Please see the [godoc](https://pkg.go.dev/github.com/sixafter/aes-ctr-drbg) for detailed documentation.
+
+The documentation is also indexed on [Context7](https://context7.com/sixafter/aes-ctr-drbg) for use with AI coding assistants. Use the library ID `/sixafter/aes-ctr-drbg` with the Context7 MCP server or any Context7-aware tool.
 
 ---
 
@@ -118,10 +120,10 @@ For a detailed mapping between the implementation and NIST SP 800-90A requiremen
 To verify the integrity of the release tarball, you can use Cosign to check the signature and checksums. Follow these steps:
 
 ```sh
-# Fetch the latest release tag from GitHub API (e.g., "v1.21.0")
+# Fetch the latest release tag from GitHub API (e.g., "v1.22.0")
 TAG=$(curl -s https://api.github.com/repos/sixafter/aes-ctr-drbg/releases/latest | jq -r .tag_name)
 
-# Remove leading "v" for filenames (e.g., "v1.21.0" -> "1.21.0")
+# Remove leading "v" for filenames (e.g., "v1.22.0" -> "1.22.0")
 VERSION=${TAG#v}
 
 # ---------------------------------------------------------------------

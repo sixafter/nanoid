@@ -1,9 +1,9 @@
 # prng-chacha
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/sixafter/prng-chacha)](https://goreportcard.com/report/github.com/sixafter/prng-chacha)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/sixafter/prng-chacha)](https://img.shields.io/github/go-mod/go-version/sixafter/prng-chacha)
 [![Go Reference](https://pkg.go.dev/badge/github.com/sixafter/prng-chacha.svg)](https://pkg.go.dev/github.com/sixafter/prng-chacha)
+[![Context7](https://img.shields.io/badge/Context7-docs-blue?style=flat-square)](https://context7.com/sixafter/prng-chacha)
 
 ---
 
@@ -36,6 +36,8 @@ The package includes a global `Reader` and a `sync.Pool` to manage PRNG instance
 
 Please see the [godoc](https://pkg.go.dev/github.com/sixafter/prng-chacha) for detailed documentation.
 
+The documentation is also indexed on [Context7](https://context7.com/sixafter/prng-chacha) for use with AI coding assistants. Use the library ID `/sixafter/prng-chacha` with the Context7 MCP server or any Context7-aware tool.
+
 ---
 
 ## Features
@@ -57,10 +59,10 @@ Please see the [godoc](https://pkg.go.dev/github.com/sixafter/prng-chacha) for d
 To verify the integrity of the release tarball, you can use Cosign to check the signature against the public key.
 
 ```sh
-# Fetch the latest release tag from GitHub API (e.g., "v1.18.0")
+# Fetch the latest release tag from GitHub API (e.g., "v1.19.0")
 TAG=$(curl -s https://api.github.com/repos/sixafter/prng-chacha/releases/latest | jq -r .tag_name)
 
-# Remove leading "v" for filenames (e.g., "v1.18.0" -> "1.18.0")
+# Remove leading "v" for filenames (e.g., "v1.19.0" -> "1.19.0")
 VERSION=${TAG#v}
 
 # ---------------------------------------------------------------------
