@@ -16,6 +16,7 @@ Date format: `YYYY-MM-DD`
 ### Removed
 ### Fixed
 ### Security
+- **risk:** Upgraded to `golang.org/x/crypto` `v0.59.0`.
 
 ---
 
